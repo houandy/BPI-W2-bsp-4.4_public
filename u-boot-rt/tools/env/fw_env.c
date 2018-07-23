@@ -920,7 +920,9 @@ static int flash_write_buf (int dev, int fd, void *buf, size_t count,
 			erase.start = blockstart;
 			ioctl(fd, MEMUNLOCK, &erase);
 			/* These do not need an explicit erase cycle */
+#ifndef CONFIG_RTD1295
 			if (mtd_type != MTD_DATAFLASH)
+#endif
 				if (ioctl(fd, MEMERASE, &erase) != 0) {
 					fprintf(stderr,
 						"MTD erase error on %s: %s\n",
