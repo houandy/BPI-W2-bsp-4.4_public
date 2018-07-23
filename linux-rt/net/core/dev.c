@@ -140,6 +140,11 @@
 
 #include "net-sysfs.h"
 
+#if defined(CONFIG_RTL_819X)
+#include <net/rtl/features/rtl_ps_hooks.h>
+#include <net/rtl/features/rtl_ps_log.h>
+#endif /* CONFIG_RTL_819X */
+
 /* Instead of increasing this, you should create a hash table. */
 #define MAX_GRO_SKBS 8
 
@@ -1219,6 +1224,8 @@ rollback:
 	return err;
 }
 
+EXPORT_SYMBOL(dev_change_name);
+
 /**
  *	dev_set_alias - change ifalias of a device
  *	@dev: device
@@ -1456,6 +1463,17 @@ int dev_close_many(struct list_head *head, bool unlink)
 }
 EXPORT_SYMBOL(dev_close_many);
 
+#if defined(CONFIG_RTL_FAST_PPPOE)
+int clear_pppoe_info(char *ppp_dev, char *wan_dev, unsigned short sid,
+								unsigned int our_ip,unsigned int	peer_ip,
+								unsigned char * our_mac, unsigned char *peer_mac);
+#endif
+
+#if defined (CONFIG_RTL_PPPOE_DIRECT_REPLY)
+extern void clear_magicNum(void);
+#endif
+
+
 /**
  *	dev_close - shutdown an interface.
  *	@dev: device to shutdown
@@ -1471,6 +1489,15 @@ int dev_close(struct net_device *dev)
 		LIST_HEAD(single);
 
 		list_add(&dev->close_list, &single);
+#if defined(CONFIG_RTL_FAST_PPPOE)
+		clear_pppoe_info(dev->name,dev->name,0,0,0,NULL,NULL);
+#endif
+#if defined (CONFIG_RTL_PPPOE_DIRECT_REPLY)
+		if(strncmp(dev->name, "ppp", 3) ==0)
+		{
+			clear_magicNum();
+		}
+#endif
 		dev_close_many(&single, true);
 		list_del(&single);
 	}
@@ -2339,6 +2366,13 @@ void __dev_kfree_skb_any(struct sk_buff *skb, enum skb_free_reason reason)
 }
 EXPORT_SYMBOL(__dev_kfree_skb_any);
 
+#ifdef CONFIG_RTL_819X
+void rtl_dev_kfree_skb_any(struct sk_buff *skb)
+{
+	__dev_kfree_skb_any(skb, SKB_REASON_DROPPED);
+}
+EXPORT_SYMBOL(rtl_dev_kfree_skb_any);
+#endif /* CONFIG_RTL_819X */
 
 /**
  * netif_device_detach - mark device as removed
@@ -2721,11 +2755,30 @@ static int xmit_one(struct sk_buff *skb, struct net_device *dev,
 	return rc;
 }
 
+#if 1//defined(CONFIG_RTL_ETH_DRIVER_REFINE)
+#if defined(CONFIG_RTL_IPTABLES_FAST_PATH)
+extern int fast_nat_fw;
+#endif
+#ifdef CONFIG_RTL_WLAN_DOS_FILTER
+extern int wlan_dos_filter_enabled;
+#endif
+#if defined(CONFIG_RTL_IGMP_SNOOPING)
+extern int ipMulticastFastFwd;
+#endif /* CONFIG_RTL_IGMP_SNOOPING */
+#endif
+
 struct sk_buff *dev_hard_start_xmit(struct sk_buff *first, struct net_device *dev,
 				    struct netdev_queue *txq, int *ret)
 {
 	struct sk_buff *skb = first;
 	int rc = NETDEV_TX_OK;
+
+#if defined(CONFIG_RTL_819X)
+	#if defined(CONFIG_RTL_IPTABLES_FAST_PATH)//&&defined(CONFIG_RTL_ETH_DRIVER_REFINE)
+	if (fast_nat_fw)
+	#endif
+		rtl_dev_hard_start_xmit_hooks(skb, dev, txq);
+#endif
 
 	while (skb) {
 		struct sk_buff *next = skb->next;
@@ -2805,7 +2858,11 @@ static struct sk_buff *validate_xmit_skb(struct sk_buff *skb, struct net_device 
 	return skb;
 
 out_kfree_skb:
+#ifdef CONFIG_RTL_819X
+	dev_kfree_skb_any(skb);
+#else
 	kfree_skb(skb);
+#endif /* CONFIG_RTL_819X */
 out_null:
 	return NULL;
 }
@@ -3090,6 +3147,13 @@ static int __dev_queue_xmit(struct sk_buff *skb, void *accel_priv)
 	rcu_read_lock_bh();
 
 	skb_update_prio(skb);
+
+#if defined(CONFIG_RTL_819X)
+	#if defined(CONFIG_RTL_IPTABLES_FAST_PATH)//&&defined(CONFIG_RTL_ETH_DRIVER_REFINE)
+	if (fast_nat_fw)
+	#endif
+		rtl_dev_queue_xmit_hooks(skb, dev);
+#endif /* CONFIG_RTL_819X */
 
 	/* If device/qdisc don't need skb->dst, release it right now while
 	 * its hot in this cpu cache.
@@ -3960,6 +4024,10 @@ out:
 	return ret;
 }
 
+#if defined(CONFIG_RTL_IGMP_SNOOPING)
+int rtl865x_ipMulticastFastFwd(struct sk_buff * skb);
+#endif /* CONFIG_RTL_IGMP_SNOOPING */
+
 static int __netif_receive_skb(struct sk_buff *skb)
 {
 	int ret;
@@ -3979,8 +4047,36 @@ static int __netif_receive_skb(struct sk_buff *skb)
 		current->flags |= PF_MEMALLOC;
 		ret = __netif_receive_skb_core(skb, true);
 		tsk_restore_flags(current, pflags, PF_MEMALLOC);
-	} else
+	} else {
+
+#if	defined(CONFIG_RTL_819X)
+		extern unsigned int statistic_total;
+		extern unsigned int statistic_ps;
+		statistic_total++;
+		#if 1//defined(CONFIG_RTL_ETH_DRIVER_REFINE)
+
+#if defined (CONFIG_RTL_IGMP_SNOOPING)
+			if(rtl865x_ipMulticastFastFwd(skb)==0)
+			{
+				return NET_RX_SUCCESS;
+			}
+#endif
+		if (0
+			#if defined(CONFIG_RTL_IPTABLES_FAST_PATH)
+			|| fast_nat_fw
+			#endif
+			#ifdef CONFIG_RTL_WLAN_DOS_FILTER
+			|| wlan_dos_filter_enabled
+			#endif
+			)
+		#endif
+		if (rtl_netif_receive_skb_hooks(&skb) == RTL_PS_HOOKS_RETURN)
+			return NET_RX_SUCCESS;
+		statistic_ps++;
+#endif
+
 		ret = __netif_receive_skb_core(skb, false);
+	}
 
 	return ret;
 }

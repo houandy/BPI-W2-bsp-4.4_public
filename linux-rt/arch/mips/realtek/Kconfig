@@ -1,0 +1,30 @@
+if REALTEK
+
+config RTL8117_EHCI
+	bool
+	depends on SOC_RTL8117
+	default y
+
+choice
+	prompt "Realtek SoC selection"
+	default SOC_RTL8117
+	help
+	  Select Realtek SoC type.
+
+	config SOC_RTL8117
+		bool "RTL8117"
+		select SYS_SUPPORTS_LITTLE_ENDIAN
+		select DMA_NONCOHERENT
+		select COMMON_CLK
+		select DW_APB_TIMER_OF
+		select SYS_HAS_EARLY_PRINTK
+		select USE_GENERIC_EARLY_PRINTK_8250
+
+
+endchoice
+
+config CPU_RLX4281
+        bool
+        default y if SOC_RTL8117
+        select CPU_HAS_TLS
+endif

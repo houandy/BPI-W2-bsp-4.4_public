@@ -40,6 +40,14 @@
 #include <net/netlink.h>
 #include <net/sch_generic.h>
 #include <net/pkt_sched.h>
+#if defined(CONFIG_RTL_HW_QOS_SUPPORT)
+#include <net/rtl/rtl_types.h>
+#include <net/rtl/rtl865x_netif.h>
+#include <net/rtl/rtl865x_outputQueue.h>
+#if defined(CONFIG_PROC_FS)
+#include <linux/proc_fs.h>
+#endif /* CONFIG_PROC_FS */
+#endif /* CONFIG_RTL_HW_QOS_SUPPORT */
 
 /* HTB algorithm.
     Author: devik@cdi.cz
@@ -1557,6 +1565,242 @@ static void htb_unbind_filter(struct Qdisc *sch, unsigned long arg)
 		cl->filter_cnt--;
 }
 
+#if defined(CONFIG_RTL_HW_QOS_SUPPORT)
+
+#define BANDWIDTH_GAP_FOR_PORT		10000
+#if defined(CONFIG_RTD_1295_HWNAT)
+#define FULL_SPEED	1000000000
+#else /* CONFIG_RTD_1295_HWNAT */
+#if defined(CONFIG_RTL_8197F)
+#if defined(CONFIG_RTL_8367_QOS_SUPPORT)
+#define FULL_SPEED	1000000000
+#else
+#define FULL_SPEED	100000000
+#endif /* CONFIG_RTL_8367_QOS_SUPPORT */
+#else
+#error "Please select the correct chip model."
+#endif /* CONFIG_RTL_8197F */
+#endif /* CONFIG_RTD_1295_HWNAT */
+
+static int htb_syncHwQueue(struct net_device *dev)
+{
+	/*	Qdisc exist	*/
+	struct Qdisc		*q;
+	u32			queueNum;
+	u32			topClassNum;
+	u32			idx;
+	struct htb_class	*cl;
+	struct htb_class	*classHandle[TC_HTB_MAXDEPTH - 1];
+	rtl865x_qos_t		queueInfo[RTL8651_OUTPUTQUEUE_SIZE];
+	struct htb_sched	*defQ;
+	u32			defClassId;
+	u32			tmpBandwidth1, tmpBandwidth2;
+	int			i;
+
+	memset(queueInfo, 0, RTL8651_OUTPUTQUEUE_SIZE * sizeof(rtl865x_qos_t));
+	queueNum = topClassNum = 0;
+
+	defQ = qdisc_priv(netdev_get_tx_queue(dev, 0)->qdisc_sleeping);
+	defClassId = TC_H_MAKE(netdev_get_tx_queue(dev, 0)->qdisc_sleeping->handle, defQ->defcls);
+
+	for (i = 0; i < dev->num_tx_queues; i++)
+	{
+		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
+		struct Qdisc *txq_root = txq->qdisc_sleeping;
+		spin_lock_bh(qdisc_lock(txq_root));
+		list_for_each_entry(q, &txq_root->list, list)
+		{
+			if (q->parent)
+			{
+				cl = htb_find(q->parent, netdev_get_tx_queue(dev, 0)->qdisc_sleeping);
+
+				if (cl == NULL)
+				{
+					spin_unlock_bh(qdisc_lock(txq_root));
+					return -EINVAL;
+				}
+				{
+
+					#if defined(CONFIG_RTL_HW_QOS_SP_PRIO)
+					queueInfo[queueNum].prio = 7 - cl->prio;
+					#endif /* CONFIG_RTL_HW_QOS_SP_PRIO */
+					#if defined(CONFIG_RTD_1295_HWNAT)
+					queueInfo[queueNum].bandwidth = cl->rate.rate_bytes_ps * 8;
+					queueInfo[queueNum].ceil = cl->ceil.rate_bytes_ps * 8;
+					#else /* defined(CONFIG_RTD_1295_HWNAT) */
+					queueInfo[queueNum].bandwidth = cl->rate.rate_bps;
+					queueInfo[queueNum].ceil = cl->ceil.rate_bps;
+					#endif /* defined(CONFIG_RTD_1295_HWNAT) */
+					queueInfo[queueNum].handle = queueInfo[queueNum].queueId = cl->common.classid;
+					memcpy(queueInfo[queueNum].ifname,
+						dev->name, sizeof(dev->name));
+					if (cl->common.classid == defClassId)
+						queueInfo[queueNum].flags |= QOS_DEF_QUEUE;
+					else
+						queueInfo[queueNum].flags &= (~QOS_DEF_QUEUE);
+
+					if (queueInfo[queueNum].bandwidth == queueInfo[queueNum].ceil)
+					{
+						/*	Consider ceil==rate as as STR	*/
+						queueInfo[queueNum].flags = (queueInfo[queueNum].flags & (~QOS_TYPE_MASK)) | QOS_TYPE_STR | QOS_VALID_MASK;
+					}
+					else
+					{
+						/*	Otherwise, set all queue as WFQ	*/
+						queueInfo[queueNum].flags = (queueInfo[queueNum].flags & (~QOS_TYPE_MASK)) | QOS_TYPE_WFQ | QOS_VALID_MASK;
+					}
+
+					while (cl && cl->level != TC_HTB_MAXDEPTH - 1)
+					{
+						cl = cl->parent;
+					}
+
+					if (cl && (cl->level == TC_HTB_MAXDEPTH - 1))
+					{
+						int newRoot;
+
+						newRoot = 1;
+						for (idx = 0; idx < topClassNum; idx++)
+						{
+							if (classHandle[idx]->common.classid == cl->common.classid)
+							{
+								newRoot = 0;
+								break;
+							}
+						}
+
+						if (newRoot)
+						{
+							classHandle[topClassNum] = cl;
+							topClassNum++;
+						}
+					}
+				}
+				queueNum++;
+			}
+		}
+		spin_unlock_bh(qdisc_lock(txq_root));
+	}
+
+	if (topClassNum == 0)
+	{
+		rtl865x_qosFlushBandwidth(dev->name);
+		rtl865x_closeQos(dev->name);
+	}
+	else
+	{
+		int32		i;
+		int32		portBandwidth, tmpPortBandwidth;
+		int32		totalRnum;
+		int32		totalGbandwidth, totalRbandwidth, calcRbandwidth;
+
+		portBandwidth = 0;
+		for (idx = 0; idx < topClassNum; idx++)
+		{
+			{
+				#if defined(CONFIG_RTD_1295_HWNAT)
+				portBandwidth += (classHandle[idx]->ceil.rate_bytes_ps * 8);
+				#else /* CONFIG_RTD_1295_HWNAT */
+				portBandwidth += (classHandle[idx]->ceil.rate_bps);
+				#endif /* CONFIG_RTD_1295_HWNAT */
+			}
+		}
+
+		/*	Do port bandwidth adjust here		*/
+		tmpPortBandwidth = portBandwidth + (BANDWIDTH_GAP_FOR_PORT);
+
+		/////////////////////////////////////////////////////////////////////////////
+		//Patch for qos: to improve no-match rule throughput especially for low speed(~500kbps)
+		//tmpPortBandwidth+=192000;	//Added 192kbps
+		/////////////////////////////////////////////////////////////////////////////
+
+		rtl865x_qosSetBandwidth(dev->name, tmpPortBandwidth);
+
+		totalGbandwidth = totalRbandwidth = totalRnum = 0;
+
+		/*	Check for G type queue's total bandwidth	*/
+		for (i = 0; i < queueNum; i++)
+		{
+			if ((queueInfo[i].ceil == portBandwidth)
+				&& queueInfo[i].bandwidth < queueInfo[i].ceil)	/* change bandwidth granulity from bps(bit/sec) to Bps(byte/sec) */
+			{
+				totalGbandwidth += ((queueInfo[i].bandwidth));
+			}
+			else if (queueInfo[i].ceil < portBandwidth)
+			{
+				totalRbandwidth += ((queueInfo[i].ceil));
+				totalRnum++;
+
+				tmpBandwidth1 = queueInfo[i].ceil;
+
+				tmpBandwidth2 = (tmpBandwidth1 >> EGRESS_BANDWIDTH_GRANULARITY_BYTELEN) << EGRESS_BANDWIDTH_GRANULARITY_BYTELEN;
+				if (tmpBandwidth1 - tmpBandwidth2 > (EGRESS_BANDWIDTH_GRANULARITY >> 1))
+				{
+					queueInfo[i].bandwidth = ((queueInfo[i].bandwidth >> EGRESS_BANDWIDTH_GRANULARITY_BYTELEN) + 1) << EGRESS_BANDWIDTH_GRANULARITY_BYTELEN;
+					queueInfo[i].ceil = ((queueInfo[i].ceil >> EGRESS_BANDWIDTH_GRANULARITY_BYTELEN) + 1) << EGRESS_BANDWIDTH_GRANULARITY_BYTELEN;
+				}
+				else
+				{
+					queueInfo[i].bandwidth = (queueInfo[i].ceil >> EGRESS_BANDWIDTH_GRANULARITY_BYTELEN) << EGRESS_BANDWIDTH_GRANULARITY_BYTELEN;
+					queueInfo[i].ceil = (queueInfo[i].ceil >> EGRESS_BANDWIDTH_GRANULARITY_BYTELEN) << EGRESS_BANDWIDTH_GRANULARITY_BYTELEN;
+				}
+
+				if (queueInfo[i].bandwidth < EGRESS_BANDWIDTH_GRANULARITY)	/* 8K bytes == 64K bits	*/
+					queueInfo[i].bandwidth = queueInfo[i].ceil = EGRESS_BANDWIDTH_GRANULARITY;
+			}
+		}
+
+		if (totalRbandwidth != 0 && ((totalGbandwidth + totalRbandwidth) > portBandwidth))
+		{
+			/*	Should reduce the R type bandwidth	*/
+			calcRbandwidth = portBandwidth - totalGbandwidth;
+		}
+
+		for (i = 0; i < queueNum; i++)
+		{
+			if (queueInfo[i].bandwidth != queueInfo[i].ceil)
+			{
+				/*	Do queue bandwidth adjust here		*/
+				queueInfo[i].ceil += queueInfo[i].ceil >> 3;
+				if (queueInfo[i].ceil > FULL_SPEED)
+					queueInfo[i].ceil = FULL_SPEED;
+			}
+			else
+			{
+				if (queueInfo[i].ceil > FULL_SPEED)
+					queueInfo[i].ceil = queueInfo[i].bandwidth = FULL_SPEED;
+			}
+		}
+
+		rtl865x_qosProcessQueue(dev->name, queueInfo);
+	}
+
+	return 0;
+}
+
+static int htb_getClassIDByMark(__u32 mark, __u32 *classID, struct Qdisc *sch)
+{
+	struct htb_sched	*q = qdisc_priv(sch);
+	struct tcf_result	res;
+	struct tcf_proto	*tcf;
+
+	tcf = q->filter_list;
+	if (tcf)
+	{
+		if ((tc_classifyMark(mark, tcf, &res)) == SUCCESS)
+		{
+			*classID = res.classid;
+			return SUCCESS;
+		}
+
+		/* we have got inner class; apply inner filter chain */
+	}
+
+	return FAILED;
+}
+
+#endif /* CONFIG_RTL_HW_QOS_SUPPORT */
+
 static void htb_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 {
 	struct htb_sched *q = qdisc_priv(sch);
@@ -1595,6 +1839,10 @@ static const struct Qdisc_class_ops htb_class_ops = {
 	.unbind_tcf	=	htb_unbind_filter,
 	.dump		=	htb_dump_class,
 	.dump_stats	=	htb_dump_class_stats,
+#if defined(CONFIG_RTL_HW_QOS_SUPPORT)
+	.syncHwQueue	=	htb_syncHwQueue,
+	.getHandleByKey	=	htb_getClassIDByMark,
+#endif /* CONFIG_RTL_HW_QOS_SUPPORT */
 };
 
 static struct Qdisc_ops htb_qdisc_ops __read_mostly = {

@@ -49,6 +49,13 @@ union nf_conntrack_expect_proto {
 #define NF_CT_ASSERT(x)
 #endif
 
+#if defined(CONFIG_RTL_819X)
+#if defined(CONFIG_RTL_HARDWARE_NAT)
+#define CONFIG_RTL_HW_NAT_BYPASS_PKT	1
+#define RTL_HW_NAT_BYPASS_PKT_NUM	15
+#endif
+#endif
+
 struct nf_conntrack_helper;
 
 /* Must be kept in sync with the classes defined by helpers */
@@ -113,6 +120,10 @@ struct nf_conn {
 
 	/* Extensions */
 	struct nf_ct_ext *ext;
+
+	#if defined(CONFIG_RTL_HW_NAT_BYPASS_PKT)
+	unsigned long count;
+	#endif
 
 	/* Storage reserved for other modules, must be the last member */
 	union nf_conntrack_proto proto;
@@ -302,5 +313,39 @@ void nf_ct_tmpl_free(struct nf_conn *tmpl);
 
 #define MODULE_ALIAS_NFCT_HELPER(helper) \
         MODULE_ALIAS("nfct-helper-" helper)
+
+#if defined(CONFIG_RTL_819X)
+#define RTL_NF_ALG_CTL 1
+#ifdef RTL_NF_ALG_CTL
+extern int alg_enable(int type);
+
+enum alg_type
+{
+	alg_type_ftp,
+	alg_type_tftp,
+	alg_type_rtsp,
+	alg_type_pptp,
+	alg_type_l2tp,
+	alg_type_ipsec,
+	alg_type_sip,
+	alg_type_h323,
+	alg_type_end
+};
+
+struct alg_entry
+{
+	char *name;
+	int enable;
+};
+
+#define ALG_CTL_DEF(type, val)  [alg_type_##type] = {#type, val}
+
+#define ALG_CHECK_ONOFF(type)   \
+if (!alg_enable(type))\
+{\
+	return NF_DROP;\
+}
+#endif
+#endif /* CONFIG_RTL_819X */
 
 #endif /* _NF_CONNTRACK_H */

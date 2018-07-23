@@ -1,0 +1,6 @@
+# Increase readahead buffer to 8MB for SATA HDD
+# Optimized value: 16384 sectors (8MB)
+KERNEL=="sd[a-z]", ACTION=="add|change", SUBSYSTEM=="block", TEST=="bdi/read_ahead_kb", ATTR{bdi/read_ahead_kb}="8192", RUN+="/usr/bin/python /usr/bin/nas-spindown.pyc &"
+KERNEL=="md[1-9]", ACTION=="add|change", SUBSYSTEM=="block", TEST=="bdi/read_ahead_kb", ATTR{bdi/read_ahead_kb}="8192"
+KERNEL=="md[1-9]", ACTION=="change", SUBSYSTEM=="block", TEST=="md/stripe_cache_size", ATTR{md/stripe_cache_size}="2048"
+

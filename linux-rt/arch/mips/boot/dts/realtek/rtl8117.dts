@@ -1,0 +1,220 @@
+/dts-v1/;
+
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	compatible = "realtek,rtl8117";
+        model = "Realtek RTL8117 Reference board";
+
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	aliases {
+		serial0 = &uart0;
+		spi0 = &rtk_spi;
+		usb0 = &usb0;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		mips-hpt-frequency = <250000000>;
+
+		cpu@0 {
+			compatible = "realtek,taroko";
+			device_type = "cpu";
+			clocks  = <&ext_clk>;
+			reg = <0>;
+			clock-frequency = <250000000>;
+		};
+	};
+
+        memory@0x08000000 {
+                device_type = "memory";
+                reg = <0x08000000 0x02000000>;
+        };
+
+	chosen {
+		bootargs = "console=ttyS0,57600 init=/init";
+		stdout-path = &uart0;
+	};
+
+	clocks {
+		ext_clk: ext_clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <25000000>;
+		};
+	};
+
+	cpuintc: interrupt-controller@0 {
+		#address-cells = <0>;
+		#interrupt-cells = <1>;
+		interrupt-controller;
+		compatible = "mti,cpu-interrupt-controller";
+        };
+
+	tarokovec: interrupt-controller@1 {
+		#address-cells = <0>;
+		#interrupt-cells = <1>;
+		interrupt-controller;
+		compatible = "realtek,taroko-vector";
+        };
+
+	rtk_spi: rtk_spi@1c000000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "realtek,rtk-spi";
+		reg = <0x1c000000 0x100>;
+		excha-addr = <0xA2010000>;
+		status = "okay";
+		spi-flash@0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "spi-flash";
+			memory-map = <0x82000000 0x01000000>;
+			spi-dummy-cycles = <2>;
+			spi-max-frequency = <104000000>;
+			reg = <0x0 0x0>;
+		};
+	};
+
+	timer: timer@1a800000 {
+		compatible = "snps,dw-apb-timer";
+		interrupt-parent = <&tarokovec>;
+		interrupts = <9>;
+		reg = <0x1a800000 0x100>;
+		clock-frequency = <25000000>;
+		clocks = <&ext_clk>;
+		clock-names = "timer", "pclk";
+		status = "okay";
+	};
+
+
+	uart0: serial0@1a000000 {
+		compatible = "snps,dw-apb-uart";
+		interrupt-parent = <&cpuintc>;
+		interrupts = <7>;
+		reg = <0x1a000000 0x100>;
+		clock-frequency = <125000000>;
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		status = "okay";
+	};
+
+	usb0: usb@1b400000 {
+		compatible = "realtek,rtl8117-usb";
+		reg = <0x1b400000 0x3ffff>;
+
+		interrupt-parent = <&tarokovec>;
+		interrupts = <12>;
+
+		dr_mode = "otg";
+		g-np-tx-fifo-size = <32>;
+		g-rx-fifo-size = <256>;
+		g-tx-fifo-size = <256 128 128 64 64 64 32>;
+		status = "okay";
+	};
+
+	pcie: pcie@1afa0000 {
+		compatible = "realtek,rtl8117-pcie";
+		reg = <0x1afa0000 0xfff 0x1af70000 0xfff 0x1af10000 0xfff>;
+		bus-range = <0x0 0x0>;
+
+		ranges = <0x02000000 0x00000000 0xC0000000  0xC0000000 0x00000000 0x01000000
+			  0x01000000 0x00000000 0x00030000  0x00030000 0x00000000 0x00010000>;
+
+		interrupt-names = "rtk-pcie1-intr";
+		#address-cells = <3>;
+		#size-cells = <2>;
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0 0 0>;
+		interrupt-map = <0 0 0 0 &tarokovec 11>;
+	};
+	dfs {
+		compatible = "realtek,rtl8117-dfs";
+		reg = <0x1B000000 0x100>, //cpu0 register
+			<0x1AF00000 0x100>, //cpu1 register
+			<0x1AF70000 0x800>, //OOB MAC register
+			<0x1A000000 0x100>, //UART register
+			<0x1A800000 0x100>, //TIMER register
+			<0x1C000000 0x100>;	//SPI FLASH register
+		frequency-table = <
+			400000
+			250000
+			125000
+			62500
+			31250
+		>;
+	};
+
+	nic: nic@1af70000 {
+		compatible = "realtek,r8117";
+		interrupt-parent = <&cpuintc>;
+		interrupts = <6>;
+		reg = <0x1af70000 0x1000>;
+		status = "okay";
+	};
+
+	gpio: gpio@0 {
+		compatible = "realtek,rtl8117-gpio";
+		reg = <0x1AF70000 0x800>; //OOBMAC register
+		gpio-controller;
+		#gpio-cells = <4>;
+		Realtek,gpio_base = <0>;
+		Realtek,gpio_numbers = <25>;
+		status = "okay";
+	};
+
+	tcr: tcr@1af50000 {
+		compatible = "realtek,rtl8117-tcr";
+		reg = <0x1AF50000 0x100>; //TCR register
+		interrupts = <10>;
+		interrupt-parent = <&tarokovec>;
+		status = "okay";
+	};
+
+	watchdog: watchdog@0 {
+		compatible = "snps,dw-wdt";
+		reg = <0x1B500000 0x100>;
+		interrupts = <4>;
+		clocks = <&ext_clk>;
+		status = "okay";
+	};
+
+	ehci: ehci@12003000 {
+		compatible = "realtek,rtl8117-ehci";
+		reg = <0x12003000 0x1000>;
+
+		gpios = <&gpio 0 1 1 GPIO_ACTIVE_LOW>;
+
+		interrupt-parent = <&tarokovec>;
+		interrupts = <8>;
+
+		status = "okay";
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		led0: system {
+			label = "system";
+			gpios = <&gpio 6 1 1 GPIO_ACTIVE_LOW>;
+			default-state = "on";
+			linux,default-trigger = "heartbeat";
+		};
+
+		led1: usb {
+			label = "usb";
+			gpios = <&gpio 8 1 1 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		led2: network {
+			label = "network";
+			gpios = <&gpio 9 1 1 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+     };
+};

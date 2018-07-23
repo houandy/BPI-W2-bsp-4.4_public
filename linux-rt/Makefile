@@ -297,9 +297,14 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 
 HOSTCC       = gcc
 HOSTCXX      = g++
+
+ifdef CONFIG_CC_OPTIMIZE_FOR_DEBUG
+HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes -Og -fomit-frame-pointer -std=gnu89
+HOSTCXXFLAGS = -Og
+else
 HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes -O2 -fomit-frame-pointer -std=gnu89
 HOSTCXXFLAGS = -O2
-
+endif
 ifeq ($(shell $(HOSTCC) -v 2>&1 | grep -c "clang version"), 1)
 HOSTCFLAGS  += -Wno-unused-value -Wno-unused-parameter \
 		-Wno-missing-field-initializers -fno-delete-null-pointer-checks
@@ -610,7 +615,11 @@ KBUILD_CFLAGS	+= $(call cc-option,-fno-delete-null-pointer-checks,)
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS	+= -Os $(call cc-disable-warning,maybe-uninitialized,)
 else
+ifdef CONFIG_CC_OPTIMIZE_FOR_DEBUG
+KBUILD_CFLAGS	+= -Og
+else
 KBUILD_CFLAGS	+= -O2
+endif
 endif
 
 # Tell gcc to never replace conditional load with a non-conditional one

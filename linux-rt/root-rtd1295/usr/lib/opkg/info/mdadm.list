@@ -1,0 +1,3 @@
+/etc/mdadm/mdadm.conf
+/sbin/mdadm
+/etc/init.d/mdadm-raid

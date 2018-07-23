@@ -1,0 +1,10 @@
+Package: block-mount
+Version: 2015-12-19-d90165cdbdac40e6e2699d831e13473479d8cb79
+Depends: libc, librt, libpthread, ubox, libubox, libuci
+Source: package/system/fstools
+License: GPL-2.0
+Section: base
+Maintainer: John Crispin <blogic@openwrt.org>
+Architecture: rtd1195
+Installed-Size: 21012
+Description:  Block device mounting and checking

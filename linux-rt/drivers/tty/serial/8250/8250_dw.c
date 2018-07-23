@@ -63,6 +63,10 @@ struct dw8250_data {
 	struct clk		*pclk;
 	struct reset_control	*rst;
 	struct uart_8250_dma	dma;
+#if defined(CONFIG_ARCH_RTD119X) || defined(CONFIG_ARCH_RTD129X)
+	u32             	isr_st_mask;
+	void __iomem *  	isr_reg;
+#endif
 
 	unsigned int		skip_autocfg:1;
 	unsigned int		uart_16550_compatible:1;
@@ -193,11 +197,29 @@ static int dw8250_handle_irq(struct uart_port *p)
 	unsigned int iir = p->serial_in(p, UART_IIR);
 
 	if (serial8250_handle_irq(p, iir)) {
+#if defined(CONFIG_ARCH_RTD119X) || defined(CONFIG_ARCH_RTD129X)
+		if (d->isr_reg)
+		{
+			writel(d->isr_st_mask, d->isr_reg);
+			wmb();
+		}
+#endif
 		return 1;
 	} else if ((iir & UART_IIR_BUSY) == UART_IIR_BUSY) {
+#if defined(CONFIG_ARCH_RTD119X) || defined(CONFIG_ARCH_RTD129X)
+		/* Clear the USR and write the LCR again. */
+		(void)p->serial_in(p, DW_UART_USR);
+		//p->serial_out(p, UART_LCR, d->last_lcr);
+
+		if (d->isr_reg)
+		{
+			writel(d->isr_st_mask, d->isr_reg);
+			wmb();
+		}
+#else
 		/* Clear the USR */
 		(void)p->serial_in(p, d->usr_reg);
-
+#endif
 		return 1;
 	}
 
@@ -336,9 +358,15 @@ static int dw8250_probe(struct platform_device *pdev)
 {
 	struct uart_8250_port uart = {};
 	struct resource *regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+#if defined(CONFIG_ARCH_RTD119X) || defined(CONFIG_ARCH_RTD129X)
+	struct resource *isr_regs = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+#endif
 	int irq = platform_get_irq(pdev, 0);
 	struct uart_port *p = &uart.port;
 	struct dw8250_data *data;
+#if defined(CONFIG_ARCH_RTD119X) || defined(CONFIG_ARCH_RTD129X)
+	struct device_node *node = pdev->dev.of_node;
+#endif
 	int err;
 	u32 val;
 
@@ -430,7 +458,12 @@ static int dw8250_probe(struct platform_device *pdev)
 			dev_warn(&pdev->dev, "could not enable optional baudclk: %d\n",
 				 err);
 		else
+#if defined(CONFIG_ARCH_RTD119X) || defined(CONFIG_ARCH_RTD129X)
+		if (!p->uartclk)
+#endif
+		{
 			p->uartclk = clk_get_rate(data->clk);
+		}
 	}
 
 	/* If no clock rate is defined, fail. */
@@ -457,8 +490,22 @@ static int dw8250_probe(struct platform_device *pdev)
 		err = -EPROBE_DEFER;
 		goto err_pclk;
 	}
-	if (!IS_ERR(data->rst))
+	if (!IS_ERR(data->rst)) {
+#if defined(CONFIG_ARCH_RTD119X) || defined(CONFIG_ARCH_RTD129X)
+		reset_control_reset(data->rst);
+		data->dma.rx_param = data;
+		data->dma.tx_param = data;
+#else
 		reset_control_deassert(data->rst);
+#endif
+	}
+
+#if defined(CONFIG_ARCH_RTD119X) || defined(CONFIG_ARCH_RTD129X)
+	if (!of_property_read_u32_index(node, "interrupts-st-mask", 0, &data->isr_st_mask))
+		data->isr_reg = devm_ioremap(&pdev->dev, isr_regs->start, resource_size(isr_regs));
+	else
+		data->isr_reg = 0;
+#endif
 
 	dw8250_quirks(p, data);
 
@@ -542,6 +589,11 @@ static int dw8250_suspend(struct device *dev)
 static int dw8250_resume(struct device *dev)
 {
 	struct dw8250_data *data = dev_get_drvdata(dev);
+
+#if defined(CONFIG_ARCH_RTD119X) || defined(CONFIG_ARCH_RTD129X)
+	if (!IS_ERR(data->rst))
+		reset_control_reset(data->rst);
+#endif
 
 	serial8250_resume_port(data->line);
 

@@ -1,0 +1,16 @@
+#!/bin/sh /etc/rc.common
+# Copyright (C) 2006-2011 OpenWrt.org
+
+START=15
+
+NAME=mountall
+
+PATH="/sbin:/bin:/usr/sbin:/usr/bin"
+
+start() {
+	fsck -R -A -y
+
+	swapon -a -e
+
+	mount -a -O no_netdev
+}

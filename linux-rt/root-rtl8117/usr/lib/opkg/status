@@ -1,0 +1,220 @@
+Package: libc
+Version: 0.9.33.2-1
+Depends: libgcc
+Status: install hold installed
+Essential: yes
+Architecture: rtl8117
+Installed-Time: 1487859475
+Auto-Installed: yes
+
+Package: libpthread
+Version: 0.9.33.2-1
+Depends: libgcc
+Status: install hold installed
+Essential: yes
+Architecture: rtl8117
+Installed-Time: 1487859475
+Auto-Installed: yes
+
+Package: ubus
+Version: 2015-05-25-f361bfa5fcb2daadf3b160583ce665024f8d108e
+Depends: libc, libubus, libblobmsg-json, ubusd
+Status: install user installed
+Architecture: rtl8117
+Installed-Time: 1487859475
+Auto-Installed: yes
+
+Package: busybox
+Version: 1.23.2-1
+Depends: libc
+Status: install user installed
+Essential: yes
+Architecture: rtl8117
+Installed-Time: 1487859475
+
+Package: base-files
+Version: 157-r46836
+Depends: libc, procd, jsonfilter, usign
+Status: install user installed
+Architecture: rtl8117
+Conffiles:
+ /etc/config/network 2c5d207aad30016dacabd7d063050b89d3
+ /etc/config/system ec9c69560784b3f9bcdcb3685b93ee39ef
+ /etc/hosts 081ef9d5367595d16e30b4b4549d9f4353
+ /etc/inittab ee9896726758e7f6d1a9ae2a08e895143e
+ /etc/group a25a20753f94fb3fc45e1c0b21bc424709
+ /etc/passwd 09e4d947b06a33227b96f5693bbeb73b2a
+ /etc/shadow 65c2db0501eade698bd7461a9e165e2623
+ /etc/profile cd4d535f9a79ab37fbf3e86ae423939e3c
+ /etc/protocols edede1354b2d18b1403125b305049d4b5c
+ /etc/services 47f3393d265c8cefc2d1ec72f8b0b02cde
+ /etc/shells 8b35ce73c18161a7d7ed16fa244410993b
+ /etc/sysctl.conf e3caa98b20d8da5290d3e2179c35caae98
+ /etc/rc.local 515018aa94eb4937dade12dc0d69890b35
+ /etc/sysupgrade.conf 9e87b05fe2f12c84d1c465b39632274847
+ /etc/config/system ec9c69560784b3f9bcdcb3685b93ee39ef
+ /etc/config/network 2c5d207aad30016dacabd7d063050b89d3
+ /etc/crontabs/root e3b0c44298fc1c149afbf4c8996fb92427
+Installed-Time: 1487859475
+
+Package: procd
+Version: 2015-10-26-d5fddd91b966424bb63e943e789704d52382cc18
+Depends: libc, ubusd, ubus, libjson-script, ubox, libubox, libubus
+Status: install user installed
+Architecture: rtl8117
+Installed-Time: 1487859475
+Auto-Installed: yes
+
+Package: libblkid
+Version: 2.28-1
+Depends: libc, libuuid
+Status: install user installed
+Architecture: rtl8117
+Installed-Time: 1487859475
+
+Package: ubusd
+Version: 2015-05-25-f361bfa5fcb2daadf3b160583ce665024f8d108e
+Depends: libc, libubox
+Status: install user installed
+Architecture: rtl8117
+Installed-Time: 1487859475
+Auto-Installed: yes
+
+Package: libuci
+Version: 2015-08-27.1-1
+Depends: libc, libubox
+Status: install user installed
+Architecture: rtl8117
+Installed-Time: 1487859475
+Auto-Installed: yes
+
+Package: fstools
+Version: 2015-12-19-d90165cdbdac40e6e2699d831e13473479d8cb79
+Depends: libc, ubox
+Status: install user installed
+Architecture: rtl8117
+Installed-Time: 1487859475
+
+Package: uci
+Version: 2015-08-27.1-1
+Depends: libc, libuci
+Status: install user installed
+Architecture: rtl8117
+Installed-Time: 1487859475
+
+Package: libjson-c
+Version: 0.12-1
+Depends: libc
+Status: install user installed
+Architecture: rtl8117
+Installed-Time: 1487859475
+Auto-Installed: yes
+
+Package: libgcc
+Version: 4.9-linaro-1
+Status: install hold installed
+Essential: yes
+Architecture: rtl8117
+Installed-Time: 1487859475
+Auto-Installed: yes
+
+Package: libuuid
+Version: 2.28-1
+Depends: libc
+Status: install user installed
+Architecture: rtl8117
+Installed-Time: 1487859475
+Auto-Installed: yes
+
+Package: libubox
+Version: 2015-11-08-10429bccd0dc5d204635e110a7a8fae7b80d16cb
+Depends: libc
+Status: install user installed
+Architecture: rtl8117
+Installed-Time: 1487859475
+Auto-Installed: yes
+
+Package: librt
+Version: 0.9.33.2-1
+Depends: libpthread
+Status: install hold installed
+Essential: yes
+Architecture: rtl8117
+Installed-Time: 1487859475
+Auto-Installed: yes
+
+Package: libjson-script
+Version: 2015-11-08-10429bccd0dc5d204635e110a7a8fae7b80d16cb
+Depends: libc, libubox
+Status: install user installed
+Architecture: rtl8117
+Installed-Time: 1487859475
+Auto-Installed: yes
+
+Package: libblobmsg-json
+Version: 2015-11-08-10429bccd0dc5d204635e110a7a8fae7b80d16cb
+Depends: libc, libjson-c, libubox
+Status: install user installed
+Architecture: rtl8117
+Installed-Time: 1487859475
+Auto-Installed: yes
+
+Package: kmod-loop
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-623606fabb92c53d7574b1788ecb2d3d)
+Status: install hold installed
+Architecture: rtl8117
+Installed-Time: 1487859475
+
+Package: libubus
+Version: 2015-05-25-f361bfa5fcb2daadf3b160583ce665024f8d108e
+Depends: libc, libubox
+Status: install user installed
+Architecture: rtl8117
+Installed-Time: 1487859475
+Auto-Installed: yes
+
+Package: usign
+Version: 2015-05-08-cf8dcdb8a4e874c77f3e9a8e9b643e8c17b19131
+Depends: libc, libubox
+Status: install user installed
+Architecture: rtl8117
+Installed-Time: 1487859475
+Auto-Installed: yes
+
+Package: libmount
+Version: 2.28-1
+Depends: libc, libblkid, librt
+Status: install user installed
+Architecture: rtl8117
+Installed-Time: 1487859475
+
+Package: ubox
+Version: 2016-03-07-fd4bb41ee7ab136d25609c2a917beea5d52b723b
+Depends: libc, libubox, ubusd, ubus, libubus, libuci
+Status: install user installed
+Architecture: rtl8117
+Installed-Time: 1487859475
+Auto-Installed: yes
+
+Package: kernel
+Version: 4.4.18-1-623606fabb92c53d7574b1788ecb2d3d
+Depends: libc
+Status: install hold installed
+Architecture: rtl8117
+Installed-Time: 1487859475
+
+Package: kmod-nls-base
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-623606fabb92c53d7574b1788ecb2d3d)
+Status: install hold installed
+Architecture: rtl8117
+Installed-Time: 1487859475
+
+Package: jsonfilter
+Version: 2014-06-19-cdc760c58077f44fc40adbbe41e1556a67c1b9a9
+Depends: libc, libubox, libjson-c
+Status: install user installed
+Architecture: rtl8117
+Installed-Time: 1487859475
+Auto-Installed: yes

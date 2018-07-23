@@ -1,0 +1,21 @@
+menuconfig COMMON_CLK_RTK
+    bool "Clock driver for realtek"
+    depends on ARCH_RTD129X || ARCH_RTD119X
+    default y
+
+if ARCH_RTD129X
+config COMMON_CLK_RTD129X
+    bool "Clock driver for RTD129X"
+    depends on COMMON_CLK_RTK
+    default y
+
+config COMMON_CLK_RTD129X_DEBUGFS
+    bool "DebugFs for RTD129X clock driver"
+    depends on DEBUG_FS && COMMON_CLK_RTD129X
+endif
+if ARCH_RTD119X
+config COMMON_CLK_RTD119X
+    bool "Clock driver for RTD119X"
+    depends on COMMON_CLK_RTK
+    default y
+endif

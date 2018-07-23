@@ -1,0 +1,8 @@
+Package: luci-mod-admin-full
+Version: git-16.253.40466-a8354c0-1
+Depends: libc, librt, libpthread, luci-base
+Source: realtek/luci/modules/luci-mod-admin-full
+Section: luci
+Architecture: rtd1295
+Installed-Size: 68959
+Description:  LuCI Administration - full-featured for full control

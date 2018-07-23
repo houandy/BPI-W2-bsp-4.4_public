@@ -26,6 +26,27 @@
 #include <linux/if_vlan.h>
 #include <net/switchdev.h>
 #include "br_private.h"
+#if defined(CONFIG_RTL_819X)
+#include <linux/wireless.h>
+
+#include <net/rtl/features/rtl_ps_hooks.h>
+
+static int fdb_entry_max = 2048;
+static int fdb_entry_num = 0;
+#endif /* defined(CONFIG_RTL_819X) */
+
+#if defined(CONFIG_RTL_IGMP_SNOOPING)
+#include <net/rtl/rtl865x_netif.h>
+#include <net/rtl/rtl_nic.h>
+extern int IGMPProxyOpened;
+void add_igmp_ext_entry(struct net_bridge_fdb_entry *fdb ,unsigned char *srcMac , unsigned char portComeIn);
+void update_igmp_ext_entry(struct net_bridge_fdb_entry *fdb ,unsigned char *srcMac , unsigned char portComeIn);
+void del_igmp_ext_entry(struct net_bridge_fdb_entry *fdb ,unsigned char *srcMac , unsigned char portComeIn , unsigned char expireFlag);
+#ifdef M2U_DELETE_CHECK
+extern int rtl_M2UDeletecheck(unsigned char *dMac, unsigned char *sMac);
+#endif
+#endif /* CONFIG_RTL_IGMP_SNOOPING */
+
 
 static struct kmem_cache *br_fdb_cache __read_mostly;
 static struct net_bridge_fdb_entry *fdb_find(struct hlist_head *head,
@@ -84,6 +105,16 @@ static void fdb_rcu_free(struct rcu_head *head)
 	struct net_bridge_fdb_entry *ent
 		= container_of(head, struct net_bridge_fdb_entry, rcu);
 	kmem_cache_free(br_fdb_cache, ent);
+#if defined(CONFIG_RTL_819X)
+	rtl_fdb_delete_hooks(ent);
+	fdb_entry_num--;
+	if(fdb_entry_num < 0)
+	{
+		printk("fdb entry num error!!!!\n");
+		fdb_entry_num = 0;
+	}
+#endif
+
 }
 
 /* When a static FDB entry is added, the mac address from the entry is
@@ -288,12 +319,107 @@ void br_fdb_change_mac_address(struct net_bridge *br, const u8 *newaddr)
 out:
 	spin_unlock_bh(&br->hash_lock);
 }
+#if defined (CONFIG_RTL_IGMP_SNOOPING)
+ void br_igmp_fdb_expired(struct net_bridge_fdb_entry *ent)
+{
+	int i2;
+	unsigned long igmp_walktimeout;
+	unsigned char *DA;
+	unsigned char *SA;
+	#if defined(MCAST_TO_UNICAST)
+	struct net_device *dev=NULL;
+	#endif
+
+	igmp_walktimeout = jiffies - IGMP_EXPIRE_TIME;
+
+	//IGMP_EXPIRE_TIME
+	for (i2 = 0; i2 < FDB_IGMP_EXT_NUM; i2++)
+	{
+		if (ent->igmp_fdb_arr[i2].valid == 1) {
+
+			// when timeout expire
+			if (time_before_eq(ent->igmp_fdb_arr[i2].ageing_time, igmp_walktimeout))
+			{
+				DEBUG_PRINT("%s:%d\n", __FUNCTION__, __LINE__);
+				SA = ent->igmp_fdb_arr[i2].SrcMac;
+				DEBUG_PRINT("expired src mac:%02x,%02x,%02x,%02x,%02x,%02x\n",
+					SA[0], SA[1], SA[2], SA[3], SA[4], SA[5]);
+
+				DA = ent->addr.addr;
+				DEBUG_PRINT("fdb:%02x:%02x:%02x-%02x:%02x:%02x\n",
+					DA[0], DA[1], DA[2], DA[3], DA[4], DA[5]);
+
+
+
+				/*---for process wlan client expired start---*/
+#ifdef M2U_DELETE_CHECK
+				if (rtl_M2UDeletecheck(DA, SA))
+				{
+#endif
+				#if defined(MCAST_TO_UNICAST)
+				dev = __dev_get_by_name(&init_net, RTL_PS_WLAN0_DEV_NAME);
+
+
+				if (dev) {
+					unsigned char StaMacAndGroup[20];
+
+					memcpy(StaMacAndGroup, DA , 6);
+					memcpy(StaMacAndGroup + 6, SA, 6);
+				#if defined(CONFIG_COMPAT_NET_DEV_OPS)
+					if (dev->do_ioctl != NULL) {
+						dev->do_ioctl(dev, (struct ifreq*)StaMacAndGroup, 0x8B81);
+				#else
+					if (dev->netdev_ops->ndo_do_ioctl != NULL) {
+						dev->netdev_ops->ndo_do_ioctl(dev, (struct ifreq*)StaMacAndGroup, 0x8B81);
+				#endif
+						DEBUG_PRINT("(fdb expire) wlan0 ioctl to DEL! M2U entry da:%02x:%02x:%02x-%02x:%02x:%02x; sa:%02x:%02x:%02x-%02x:%02x:%02x\n",
+							StaMacAndGroup[0], StaMacAndGroup[1], StaMacAndGroup[2], StaMacAndGroup[3], StaMacAndGroup[4], StaMacAndGroup[5],
+							StaMacAndGroup[6], StaMacAndGroup[7], StaMacAndGroup[8], StaMacAndGroup[9], StaMacAndGroup[10], StaMacAndGroup[11]);
+					}
+				}
+
+				#endif /* MCAST_TO_UNICAST */
+				/*---for process wlan client expired end---*/
+
+
+				del_igmp_ext_entry(ent , SA , ent->igmp_fdb_arr[i2].port, 1);
+#ifdef M2U_DELETE_CHECK
+				}
+#endif
+
+				if (ent->portlist == 0)  // all joined sta are gone
+				{
+					DEBUG_PRINT("----all joined sta are gone,make it expired after %d seconds----\n", M2U_DELAY_DELETE_TIME);
+					ent->updated = jiffies - (300 * HZ-M2U_DELAY_DELETE_TIME); // make it expired in 10s
+				}
+
+				if ((ent->portlist & 0x7f) == 0) {
+					ent->group_src &=  ~(1 << 1); // eth0 all leave
+				}
+
+				if ((ent->portlist & 0x80) == 0) {
+					ent->group_src &=  ~(1 << 2); // wlan0 all leave
+				}
+
+
+			}
+
+		}
+
+	}
+
+}
+#endif
 
 void br_fdb_cleanup(unsigned long _data)
 {
 	struct net_bridge *br = (struct net_bridge *)_data;
 	unsigned long delay = hold_time(br);
+#ifdef CONFIG_RTL_819X
+	unsigned long next_timer = jiffies + br->forward_delay;
+#else
 	unsigned long next_timer = jiffies + br->ageing_time;
+#endif
 	int i;
 
 	spin_lock(&br->hash_lock);
@@ -303,10 +429,36 @@ void br_fdb_cleanup(unsigned long _data)
 
 		hlist_for_each_entry_safe(f, n, &br->hash[i], hlist) {
 			unsigned long this_timer;
+#if defined(CONFIG_RTL_IGMP_SNOOPING)
+			if (f->is_static &&
+				f->igmpFlag &&
+				(MULTICAST_MAC(f->addr.addr)
+#if defined(CONFIG_RTL_MLD_SNOOPING)
+				|| IPV6_MULTICAST_MAC(f->addr.addr)
+#endif
+				))
+			{
+				br_igmp_fdb_expired(f);
+
+				if (time_before_eq(f->updated + 300 * HZ, jiffies))
+				{
+					DEBUG_PRINT("fdb_delete:f->addr.addr is 0x%02x:%02x:%02x-%02x:%02x:%02x\n",
+					f->addr.addr[0], f->addr.addr[1], f->addr.addr[2], f->addr.addr[3], f->addr.addr[4], f->addr.addr[5]);
+					fdb_delete(br, f);
+				}
+
+			}
+#endif
+
 			if (f->is_static)
 				continue;
 			if (f->added_by_external_learn)
 				continue;
+
+			#if defined(CONFIG_RTL_819X)
+			rtl_br_fdb_cleanup_hooks(br,f, delay);
+			#endif
+
 			this_timer = f->updated + delay;
 			if (time_before_eq(this_timer, jiffies))
 				fdb_delete(br, f);
@@ -329,6 +481,18 @@ void br_fdb_flush(struct net_bridge *br)
 		struct net_bridge_fdb_entry *f;
 		struct hlist_node *n;
 		hlist_for_each_entry_safe(f, n, &br->hash[i], hlist) {
+#if defined(CONFIG_RTL_IGMP_SNOOPING)
+			if (f->is_static &&
+				f->igmpFlag &&
+				MULTICAST_MAC(f->addr.addr))
+			{
+				br_igmp_fdb_expired(f);
+				if (time_before_eq(f->updated + 300 * HZ, jiffies))
+				{
+					fdb_delete(br,f);
+				}
+			}
+#endif
 			if (!f->is_static)
 				fdb_delete(br, f);
 		}
@@ -381,8 +545,15 @@ struct net_bridge_fdb_entry *__br_fdb_get(struct net_bridge *br,
 				&br->hash[br_mac_hash(addr, vid)], hlist) {
 		if (ether_addr_equal(fdb->addr.addr, addr) &&
 		    fdb->vlan_id == vid) {
-			if (unlikely(has_expired(br, fdb)))
+			if (unlikely(has_expired(br, fdb))) {
+				#if defined(CONFIG_RTL_819X)
+				if (rtl___br_fdb_get_timeout_hooks(br, fdb, addr) == RTL_PS_HOOKS_BREAK) {
+					break;
+				}
+				#else
 				break;
+				#endif
+			}
 			return fdb;
 		}
 	}
@@ -502,10 +673,19 @@ static struct net_bridge_fdb_entry *fdb_create(struct hlist_head *head,
 					       unsigned char is_static)
 {
 	struct net_bridge_fdb_entry *fdb;
-
+#if defined(CONFIG_RTL_IGMP_SNOOPING)
+	int i3;
+#endif
+#if defined(CONFIG_RTL_819X)
+	if (fdb_entry_num >= fdb_entry_max)
+		return NULL;
+#endif
 	fdb = kmem_cache_alloc(br_fdb_cache, GFP_ATOMIC);
 	if (fdb) {
 		memcpy(fdb->addr.addr, addr, ETH_ALEN);
+		#if defined(CONFIG_RTL_819X)
+		fdb_entry_num++;
+		#endif
 		fdb->dst = source;
 		fdb->vlan_id = vid;
 		fdb->is_local = is_local;
@@ -513,6 +693,18 @@ static struct net_bridge_fdb_entry *fdb_create(struct hlist_head *head,
 		fdb->added_by_user = 0;
 		fdb->added_by_external_learn = 0;
 		fdb->updated = fdb->used = jiffies;
+#if defined (CONFIG_RTL_IGMP_SNOOPING)
+		fdb->group_src = 0;
+		fdb->igmpFlag=0;
+		for(i3=0 ; i3<FDB_IGMP_EXT_NUM ;i3++)
+		{
+			fdb->igmp_fdb_arr[i3].valid = 0;
+			fdb->portUsedNum[i3] = 0;
+		}
+#endif
+		#if defined(CONFIG_RTL_819X)
+		rtl_fdb_create_hooks(fdb, addr);
+		#endif
 		hlist_add_head_rcu(&fdb->hlist, head);
 	}
 	return fdb;
@@ -523,10 +715,16 @@ static int fdb_insert(struct net_bridge *br, struct net_bridge_port *source,
 {
 	struct hlist_head *head = &br->hash[br_mac_hash(addr, vid)];
 	struct net_bridge_fdb_entry *fdb;
-
+#if defined(CONFIG_RTL_IGMP_SNOOPING)
+	if (((addr[0] == 0xff) && (addr[1] == 0xff) && (addr[2] == 0xff) && (addr[3] == 0xff) && (addr[4] == 0xff) && (addr[5] == 0xff)) ||
+		((addr[0] == 0) && (addr[1] == 0) && (addr[2] == 0) && (addr[3] == 0) && (addr[4] == 0) && (addr[5] == 0)))
+	{
+		return -EINVAL;
+	}
+#else
 	if (!is_valid_ether_addr(addr))
 		return -EINVAL;
-
+#endif
 	fdb = fdb_find(head, addr, vid);
 	if (fdb) {
 		/* it is okay to have multiple ports with same
@@ -568,6 +766,11 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 	struct net_bridge_fdb_entry *fdb;
 	bool fdb_modified = false;
 
+#if defined(CONFIG_RTL_819X)
+	struct ifreq frq;
+	extern void update_hw_l2table(const char *srcName,const unsigned char *addr);
+#endif /* CONFIG_RTL_819X */
+
 	/* some users want to always flood. */
 	if (hold_time(br) == 0)
 		return;
@@ -588,6 +791,14 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 		} else {
 			/* fastpath: update of existing entry */
 			if (unlikely(source != fdb->dst)) {
+#if defined(CONFIG_RTL_819X)
+				if (!memcmp(fdb->dst->dev->name, "eth", 3)) {
+					memset(&frq, 0, sizeof(struct ifreq));
+					if (fdb->dst->dev->netdev_ops->ndo_do_ioctl != NULL)
+						fdb->dst->dev->netdev_ops->ndo_do_ioctl(fdb->dst->dev, &frq, 2210);
+					update_hw_l2table("wlan", fdb->addr.addr); /* RTL_WLAN_NAME */
+				}
+#endif /* CONFIG_RTL_819X */
 				fdb->dst = source;
 				fdb_modified = true;
 			}
@@ -596,6 +807,10 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 				fdb->added_by_user = 1;
 			if (unlikely(fdb_modified))
 				fdb_notify(br, fdb, RTM_NEWNEIGH);
+
+			#if defined(CONFIG_RTL_819X) && defined(CONFIG_RTL_EXT_PORT_SUPPORT)
+			rtl_fdb_create_hooks(fdb, addr);
+			#endif
 		}
 	} else {
 		spin_lock(&br->hash_lock);
@@ -1146,3 +1361,176 @@ int br_fdb_external_learn_del(struct net_bridge *br, struct net_bridge_port *p,
 
 	return err;
 }
+
+#if defined(CONFIG_RTL_IGMP_SNOOPING) || defined(CONFIG_BRIDGE_IGMP_SNOOPING)
+int chk_igmp_ext_entry(
+	struct net_bridge_fdb_entry *fdb ,
+	unsigned char *srcMac)
+{
+
+	int i2;
+	unsigned char *add;
+	add = fdb->addr.addr;
+
+	for (i2 = 0 ; i2 < FDB_IGMP_EXT_NUM ; i2++) {
+		if(fdb->igmp_fdb_arr[i2].valid == 1) {
+			if(!memcmp(fdb->igmp_fdb_arr[i2].SrcMac, srcMac, 6)){
+				return 1;
+			}
+		}
+	}
+	return 0;
+}
+#ifdef CONFIG_RTL_IGMP_SNOOPING
+extern int bitmask_to_id(unsigned char val);
+#else
+static int bitmask_to_id(unsigned char val)
+{
+	int i;
+	for (i = 0; i < 8; i++) {
+		if (val & (1 << i))
+			break;
+	}
+
+	if (i >= 8)
+	{
+		i = 7;
+	}
+	return (i);
+}
+#endif
+void add_igmp_ext_entry(struct net_bridge_fdb_entry *fdb ,
+	unsigned char *srcMac , unsigned char portComeIn)
+{
+	int i2;
+	unsigned char *add;
+	add = fdb->addr.addr;
+
+	DEBUG_PRINT("add_igmp,DA=%02x:%02x:%02x:%02x:%02x:%02x ; SA=%02x:%02x:%02x:%02x:%02x:%02x\n",
+		add[0], add[1], add[2], add[3], add[4], add[5],
+		srcMac[0], srcMac[1], srcMac[2], srcMac[3], srcMac[4], srcMac[5]);
+
+	for (i2 = 0; i2 < FDB_IGMP_EXT_NUM; i2++) {
+		if (fdb->igmp_fdb_arr[i2].valid == 0) {
+			fdb->igmp_fdb_arr[i2].valid = 1;
+			fdb->igmp_fdb_arr[i2].ageing_time = jiffies;
+			memcpy(fdb->igmp_fdb_arr[i2].SrcMac, srcMac, 6);
+			fdb->igmp_fdb_arr[i2].port = portComeIn ;
+			fdb->portlist |= portComeIn;
+			fdb->portUsedNum[bitmask_to_id(portComeIn)]++;
+			DEBUG_PRINT("portUsedNum[%d]=%d\n\n", bitmask_to_id(portComeIn), fdb->portUsedNum[bitmask_to_id(portComeIn)]);
+			return;
+		}
+	}
+	DEBUG_PRINT("%s:entry Rdy existed!!!\n", __FUNCTION__);
+}
+
+void update_igmp_ext_entry(struct net_bridge_fdb_entry *fdb ,
+	unsigned char *srcMac , unsigned char portComeIn)
+{
+	int i2;
+	unsigned char *add;
+	add = fdb->addr.addr;
+
+		DEBUG_PRINT("update_igmp,DA=%02x:%02x:%02x:%02x:%02x:%02x ; SA=%02x:%02x:%02x:%02x:%02x:%02x\n",
+		add[0], add[1], add[2], add[3], add[4], add[5],
+		srcMac[0], srcMac[1], srcMac[2], srcMac[3], srcMac[4], srcMac[5]);
+
+	for (i2 = 0; i2 < FDB_IGMP_EXT_NUM; i2++) {
+		if (fdb->igmp_fdb_arr[i2].valid == 1) {
+			if (!memcmp(fdb->igmp_fdb_arr[i2].SrcMac, srcMac, 6)) {
+
+				fdb->igmp_fdb_arr[i2].ageing_time = jiffies;
+				if (fdb->igmp_fdb_arr[i2].port != portComeIn) {
+
+					unsigned char port_orig = fdb->igmp_fdb_arr[i2].port;
+					int index = bitmask_to_id(port_orig);
+
+					fdb->portUsedNum[index]--;
+					DEBUG_PRINT("(--) portUsedNum[%d]=%d\n", index , fdb->portUsedNum[index]);
+					if (fdb->portUsedNum[index] <= 0) {
+						fdb->portlist &= ~(port_orig);
+						if (fdb->portUsedNum[index] < 0) {
+							DEBUG_PRINT("!! portNum[%d] < 0 at (update_igmp_ext_entry)\n", index);
+							fdb->portUsedNum[index] = 0;
+						}
+					}
+
+
+					fdb->portUsedNum[bitmask_to_id(portComeIn)]++;
+					DEBUG_PRINT("(++) portUsedNum[%d]=%d\n", bitmask_to_id(portComeIn), fdb->portUsedNum[bitmask_to_id(portComeIn)]);
+					fdb->portlist |= portComeIn;
+
+
+					fdb->igmp_fdb_arr[i2].port = portComeIn;
+					DEBUG_PRINT("	!!! portlist be updated:%x !!!!\n", fdb->portlist);
+
+				}
+				return;
+			}
+		}
+	}
+
+	DEBUG_PRINT("%s: ...fail!!\n", __FUNCTION__);
+}
+
+
+void del_igmp_ext_entry(struct net_bridge_fdb_entry *fdb ,unsigned char *srcMac , unsigned char portComeIn,unsigned char expireFlag )
+{
+	int i2;
+	unsigned char *add;
+	add = fdb->addr.addr;
+
+	for (i2 = 0; i2 < FDB_IGMP_EXT_NUM; i2++) {
+		if (fdb->igmp_fdb_arr[i2].valid == 1) {
+			if (!memcmp(fdb->igmp_fdb_arr[i2].SrcMac, srcMac, 6))
+			{
+				if (expireFlag)
+				{
+					fdb->igmp_fdb_arr[i2].ageing_time -=  300 * HZ; // make it expired
+					fdb->igmp_fdb_arr[i2].valid = 0;
+
+					DEBUG_PRINT("\ndel_igmp_ext_entry,DA=%02x:%02x:%02x:%02x:%02x:%02x ; SA=%02x:%02x:%02x:%02x:%02x:%02x success!!!\n",
+					add[0], add[1], add[2], add[3], add[4], add[5],
+					srcMac[0], srcMac[1], srcMac[2], srcMac[3], srcMac[4], srcMac[5]);
+
+					//DEBUG_PRINT("%s:success!!\n", __FUNCTION__);
+
+					if (portComeIn != 0) {
+						int index;
+						index = bitmask_to_id(portComeIn);
+						fdb->portUsedNum[index]--;
+						if (fdb->portUsedNum[index] <= 0) {
+							DEBUG_PRINT("portUsedNum[%d] == 0 ,update portlist from (%x)  " , index, fdb->portlist);
+							fdb->portlist &= ~ portComeIn;
+							DEBUG_PRINT("to (%x) \n" , fdb->portlist);
+
+							if (fdb->portUsedNum[index] < 0) {
+							DEBUG_PRINT("!! portUsedNum[%d]=%d < 0 at (del_igmp_ext_entry)  \n" , index, fdb->portUsedNum[index]);
+							fdb->portUsedNum[index] = 0;
+							}
+						}else{
+							DEBUG_PRINT("(del) portUsedNum[%d] = %d \n" , index, fdb->portUsedNum[index]);
+						}
+
+					}
+					DEBUG_PRINT("\n");
+				}
+				else
+				{
+					fdb->igmp_fdb_arr[i2].ageing_time = jiffies - (IGMP_EXPIRE_TIME - M2U_DELAY_DELETE_TIME); //delay 10s to expire
+					DEBUG_PRINT("\nexpireFlag:%d, delay %d sec to del_igmp_ext_entry,DA=%02x:%02x:%02x:%02x:%02x:%02x ; SA=%02x:%02x:%02x:%02x:%02x:%02x\n",
+						expireFlag, M2U_DELAY_DELETE_TIME / HZ,
+						add[0], add[1], add[2], add[3], add[4], add[5],
+						srcMac[0], srcMac[1], srcMac[2], srcMac[3], srcMac[4], srcMac[5]);
+				}
+				return ;
+			}
+		}
+	}
+
+	DEBUG_PRINT("%s:entry not existed!!\n\n", __FUNCTION__);
+}
+
+
+#endif

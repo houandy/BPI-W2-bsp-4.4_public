@@ -34,6 +34,29 @@
 #endif
 
 #include "br_private.h"
+#if defined(CONFIG_RTL_819X)
+#include <linux/inetdevice.h>
+#include <net/rtl/rtl_nic.h>
+#endif /* CONFIG_RTL_819X */
+#if defined(CONFIG_RTL_HARDWARE_MULTICAST)
+#include <net/rtl/rtl865x_multicast.h>
+#include <net/rtl/rtl865x_igmpsnooping.h>
+#include "../../drivers/soc/realtek/rtd129x/hw_nat/common/rtl865x_eventMgr.h"
+#include "../../drivers/soc/realtek/rtd129x/hw_nat/AsicDriver/rtl865x_asicL3.h"
+int32 rtl865x_updateHwMulticast(struct net_bridge *br,
+				__be32 group);
+#if defined(MCAST_TO_UNICAST)
+#if defined(IPV6_MCAST_TO_UNICAST)
+static char igmp_type_check(struct sk_buff *skb, unsigned char *gmac,unsigned int *gIndex,unsigned int *moreFlag);
+static void br_update_igmp_snoop_fdb(unsigned char op,
+				     struct net_bridge *br,
+				     struct net_bridge_port *p,
+				     unsigned char *gmac,
+				     struct sk_buff *skb);
+static char ICMPv6_check(struct sk_buff *skb , unsigned char *gmac);
+#endif /* IPV6_MCAST_TO_UNICAST */
+#endif /* MCAST_TO_UNICAST */
+#endif /* CONFIG_RTL_HARDWARE_MULTICAST */
 
 static void br_multicast_start_querier(struct net_bridge *br,
 				       struct bridge_mcast_own_query *query);
@@ -257,6 +280,9 @@ static void br_multicast_group_expired(unsigned long data)
 	call_rcu_bh(&mp->rcu, br_multicast_free_group);
 
 out:
+#if defined(CONFIG_RTL_HARDWARE_MULTICAST)
+	rtl865x_updateHwMulticast(br, mp->addr.u.ip4);
+#endif /* CONFIG_RTL_HARDWARE_MULTICAST */
 	spin_unlock(&br->multicast_lock);
 }
 
@@ -310,6 +336,9 @@ static void br_multicast_port_group_expired(unsigned long data)
 	br_multicast_del_pg(br, pg);
 
 out:
+#if defined(CONFIG_RTL_HARDWARE_MULTICAST)
+	rtl865x_updateHwMulticast(br, pg->addr.u.ip4);
+#endif /* CONFIG_RTL_HARDWARE_MULTICAST */
 	spin_unlock(&br->multicast_lock);
 }
 
@@ -359,6 +388,34 @@ out:
 
 	return 0;
 }
+#if defined(CONFIG_RTL_819X)
+static __be32 get_br_ip(void)
+{
+	struct in_device *in_dev;
+	struct net_device *landev;
+	struct in_ifaddr *ifap = NULL;
+	if ((landev = __dev_get_by_name(&init_net, RTL_PS_BR0_DEV_NAME)) != NULL)
+	{
+		#if defined(CONFIG_RTD_1295_HWNAT)
+		in_dev = landev->ip_ptr;
+		#else /* CONFIG_RTD_1295_HWNAT */
+		in_dev=(struct net_device *)(landev->ip_ptr);
+		#endif /* CONFIG_RTD_1295_HWNAT */
+		if (in_dev != NULL)
+		{
+			for (ifap=in_dev->ifa_list; ifap != NULL; ifap=ifap->ifa_next)
+			{
+				if (strcmp(RTL_PS_BR0_DEV_NAME, ifap->ifa_label) == 0)
+				{
+					return ifap->ifa_address;
+				}
+			}
+
+		}
+	}
+	return 0;
+}
+#endif /* CONFIG_RTL_819X */
 
 static struct sk_buff *br_ip4_multicast_alloc_query(struct net_bridge *br,
 						    __be32 group)
@@ -399,8 +456,12 @@ static struct sk_buff *br_ip4_multicast_alloc_query(struct net_bridge *br,
 	iph->frag_off = htons(IP_DF);
 	iph->ttl = 1;
 	iph->protocol = IPPROTO_IGMP;
+#if defined(CONFIG_RTL_819X)
+	iph->saddr = get_br_ip();
+#else
 	iph->saddr = br->multicast_query_use_ifaddr ?
 		     inet_select_addr(br->dev, 0, RT_SCOPE_LINK) : 0;
+#endif /* CONFIG_RTL_819X */
 	iph->daddr = htonl(INADDR_ALLHOSTS_GROUP);
 	((u8 *)&iph[1])[0] = IPOPT_RA;
 	((u8 *)&iph[1])[1] = 4;
@@ -998,6 +1059,9 @@ static int br_ip4_multicast_igmp3_report(struct net_bridge *br,
 					 struct sk_buff *skb,
 					 u16 vid)
 {
+#if defined(CONFIG_RTL_819X)
+	struct iphdr *iph;
+#endif /* CONFIG_RTL_819X */
 	struct igmpv3_report *ih;
 	struct igmpv3_grec *grec;
 	int i;
@@ -1007,6 +1071,9 @@ static int br_ip4_multicast_igmp3_report(struct net_bridge *br,
 	int err = 0;
 	__be32 group;
 
+#if defined(CONFIG_RTL_819X)
+	iph=ip_hdr(skb);
+#endif /* CONFIG_RTL_819X */
 	ih = igmpv3_report_hdr(skb);
 	num = ntohs(ih->ngrec);
 	len = skb_transport_offset(skb) + sizeof(*ih);
@@ -1046,6 +1113,11 @@ static int br_ip4_multicast_igmp3_report(struct net_bridge *br,
 			err = br_ip4_multicast_add_group(br, port, group, vid);
 			if (err)
 				break;
+#if defined(CONFIG_RTL_HARDWARE_MULTICAST)
+			if ((type != IGMPV3_ALLOW_NEW_SOURCES) &&
+			    (type != IGMPV3_BLOCK_OLD_SOURCES))
+				rtl865x_updateHwMulticast(br, group);
+#endif /* CONFIG_RTL_HARDWARE_MULTICAST */
 		}
 	}
 
@@ -1601,12 +1673,18 @@ static int br_multicast_ipv4_rcv(struct net_bridge *br,
 	case IGMPV2_HOST_MEMBERSHIP_REPORT:
 		BR_INPUT_SKB_CB(skb)->mrouters_only = 1;
 		err = br_ip4_multicast_add_group(br, port, ih->group, vid);
+#if defined(CONFIG_RTL_HARDWARE_MULTICAST)
+		rtl865x_updateHwMulticast(br,ih->group);
+#endif /* CONFIG_RTL_HARDWARE_MULTICAST */
 		break;
 	case IGMPV3_HOST_MEMBERSHIP_REPORT:
 		err = br_ip4_multicast_igmp3_report(br, port, skb_trimmed, vid);
 		break;
 	case IGMP_HOST_MEMBERSHIP_QUERY:
 		err = br_ip4_multicast_query(br, port, skb_trimmed, vid);
+#if defined(CONFIG_RTL_HARDWARE_MULTICAST)
+		rtl865x_updateHwMulticast(br,ih->group);
+#endif /* CONFIG_RTL_HARDWARE_MULTICAST */
 		break;
 	case IGMP_HOST_LEAVE_MESSAGE:
 		br_ip4_multicast_leave_group(br, port, ih->group, vid);
@@ -1673,6 +1751,54 @@ int br_multicast_rcv(struct net_bridge *br, struct net_bridge_port *port,
 
 	if (br->multicast_disabled)
 		return 0;
+#if defined(MCAST_TO_UNICAST)
+	char tmpOp;
+	unsigned int moreFlag = 1;
+	unsigned char macAddr[6];
+	unsigned char operation;
+	unsigned int gIndex = 0;
+	struct iphdr *iph = NULL;
+	const unsigned char *dest = eth_hdr(skb)->h_dest;
+	struct net_bridge_port *p = br_port_get_rcu(skb->dev);
+	unsigned char proto = 0;
+	if (!(br->dev->flags & IFF_PROMISC)
+		&& MULTICAST_MAC(dest)
+		&& (eth_hdr(skb)->h_proto == htons(ETH_P_IP)))
+	{
+		iph = (struct iphdr *)skb_network_header(skb);
+		proto = iph->protocol;
+		if (proto == IPPROTO_IGMP)
+		{
+			while (moreFlag)
+			{
+				tmpOp = igmp_type_check(skb, macAddr, &gIndex, &moreFlag);
+				if (tmpOp > 0)
+				{
+					operation = (unsigned char)tmpOp;
+					br_update_igmp_snoop_fdb(operation, br, p, macAddr, skb);
+				}
+			}
+		}
+	}
+	else if (!(br->dev->flags & IFF_PROMISC)
+		&& IPV6_MULTICAST_MAC(dest)
+		&& (eth_hdr(skb)->h_proto == ETH_P_IPV6))
+	{
+#if defined(IPV6_MCAST_TO_UNICAST)
+		tmpOp = ICMPv6_check(skb , macAddr);
+		if (tmpOp > 0){
+			operation = (unsigned char)tmpOp;
+#ifdef DBG_ICMPv6
+		if (operation == 1)
+			printk("icmpv6 add from frame finish\n");
+		else if (operation == 2)
+			printk("icmpv6 del from frame finish\n");
+#endif /* DBG_ICMPv6 */
+			br_update_igmp_snoop_fdb(operation, br, p, macAddr, skb);
+		}
+	}
+#endif /* IPV6_MCAST_TO_UNICAST */
+#endif /* MULTICAST_TO_UNICAST */
 
 	switch (skb->protocol) {
 	case htons(ETH_P_IP):
@@ -2160,3 +2286,505 @@ unlock:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(br_multicast_has_querier_adjacent);
+
+#if defined(CONFIG_BRIDGE_IGMP_SNOOPING) && defined(CONFIG_RTL_HARDWARE_MULTICAST)
+
+extern int32 rtl865x_multicastUpdate(rtl865x_mcast_fwd_descriptor_t* desc);
+extern uint32 rtl_getDevPortMaskByName(struct net_device *dev);
+
+int32 rtl865x_getMcastFwdInfo(struct net_bridge_mdb_entry *mdst,
+			      struct multicastFwdInfo *mcastFwdInfo)
+{
+	if (mdst == NULL || mcastFwdInfo == NULL)
+	{
+		#ifdef HW_MULTICAST_DBG
+		printk("[%s:%d]mdst==NULL||descriptor==NULL\n", __FUNCTION__, __LINE__);
+		#endif /* HW_MULTICAST_DBG */
+		return FAILED;
+	}
+	memset(mcastFwdInfo, 0, sizeof(struct multicastFwdInfo));
+	mcastFwdInfo->fwdPortMask = 0;
+	mcastFwdInfo->toCpu = FALSE;
+	struct net_bridge_port_group *p;
+	p = rcu_dereference(mdst->ports);
+	if (p == NULL)
+	{
+		#ifdef HW_MULTICAST_DBG
+		printk("[%s:%d]p==NULL\n", __FUNCTION__, __LINE__);
+		#endif /* HW_MULTICAST_DBG */
+		return FAILED;
+	}
+	while (p)
+	{
+		struct dev_priv *devPriv = (struct dev_priv *)netdev_priv(p->port->dev);
+#ifdef HW_MULTICAST_DBG
+		printk("%s:port number is %u,phy port number is %u\n", __FUNCTION__, p->port->port_no, devPriv->portmask);
+#endif /* HW_MULTICAST_DBG */
+		mcastFwdInfo->fwdPortMask |= devPriv->portmask;
+		if (memcmp(devPriv->dev->name, RTL_PS_WLAN0_DEV_NAME, 5) == 0)
+			mcastFwdInfo->toCpu = TRUE;
+		p = p->next;
+	}
+	return SUCCESS;
+}
+
+int32 rtl865x_updateHwMulticast(struct net_bridge *br,
+				__be32 group)
+{
+	struct net_bridge_mdb_htable *mdb;
+	rtl865x_mcast_fwd_descriptor_t desc;
+	struct multicastFwdInfo mcastFwdInfo;
+	struct br_ip mAddr;
+	memset(&desc, 0, sizeof(rtl865x_mcast_fwd_descriptor_t));
+	strcpy(desc.netifName, RTL_PS_BR0_DEV_NAME);
+#ifdef HW_MULTICAST_DBG
+	printk("[%s:%d]group:0x%x\n", __FUNCTION__, __LINE__, group);
+#endif /* HW_MULTICAST_DBG */
+	if (br == NULL)
+	{
+		#ifdef HW_MULTICAST_DBG
+		printk("[%s:%d]br==NULL\n", __FUNCTION__, __LINE__);
+		#endif /* HW_MULTICAST_DBG */
+		goto err;
+	}
+
+	mdb = rcu_dereference(br->mdb);
+	if (mdb == NULL)
+	{
+		#ifdef HW_MULTICAST_DBG
+		printk("[%s:%d]mdb==NULL\n", __FUNCTION__, __LINE__);
+		goto err;
+		#endif /* HW_MULTICAST_DBG */
+	}
+	mAddr.proto = htons(ETH_P_IP);
+	mAddr.u.ip4 = group;
+	struct net_bridge_mdb_entry *mdst = br_mdb_ip_get(mdb, &mAddr);
+	if (mdst == NULL)
+	{
+#ifdef HW_MULTICAST_DBG
+		printk("[%s:%d]mdst==NULL\n", __FUNCTION__, __LINE__);
+#endif /* HW_MULTICAST_DBG */
+		goto err;
+	}
+	uint32 retVal = rtl865x_getMcastFwdInfo(mdst,&mcastFwdInfo);
+	if (retVal == SUCCESS)
+	{
+		desc.dip = group;
+		desc.toCpu = mcastFwdInfo.toCpu;
+		desc.fwdPortMask = mcastFwdInfo.fwdPortMask;
+		return rtl865x_multicastUpdate(&desc);
+	}
+err:
+	desc.toCpu = FALSE;
+	desc.dip = group;
+	desc.fwdPortMask = 0;
+	return rtl865x_multicastUpdate(&desc);
+}
+
+
+#if defined(MCAST_TO_UNICAST)
+static void ConvertMulticatIPtoMacAddr(__u32 group, unsigned char *gmac)
+{
+	__u32 u32tmp, tmp;
+	int i;
+
+	u32tmp = group & 0x007FFFFF;
+	gmac[0]=0x01;
+	gmac[1]=0x00;
+	gmac[2]=0x5e;
+	for (i = 5; i >= 3; i--) {
+		tmp = u32tmp & 0xFF;
+		gmac[i] = tmp;
+		u32tmp >>= 8;
+	}
+}
+static char igmp_type_check(struct sk_buff *skb, unsigned char *gmac,unsigned int *gIndex,unsigned int *moreFlag)
+{
+	struct iphdr *iph;
+	__u8 hdrlen;
+	struct igmphdr *igmph;
+	int i;
+	unsigned int groupAddr = 0;// add  for fit igmp v3
+	*moreFlag = 0;
+	/* check IP header information */
+	iph = (struct iphdr *)skb_network_header(skb);
+	hdrlen = iph->ihl << 2;
+	if ((iph->version != 4) && (hdrlen < 20))
+		return -1;
+	if (ip_fast_csum((u8 *)iph, iph->ihl) != 0)
+		return -1;
+	{ /* check the length */
+		__u32 len = ntohs(iph->tot_len);
+		if (skb->len < len || len < hdrlen)
+			return -1;
+	}
+	/* parsing the igmp packet */
+	igmph = (struct igmphdr *)((u8*)iph + hdrlen);
+	if ((igmph->type == IGMP_HOST_MEMBERSHIP_REPORT) ||
+	    (igmph->type == IGMPV2_HOST_MEMBERSHIP_REPORT))
+	{
+		groupAddr = igmph->group;
+		if (!IN_MULTICAST(groupAddr))
+		{
+				return -1;
+		}
+
+		ConvertMulticatIPtoMacAddr(groupAddr, gmac);
+
+		return 1; /* report and add it */
+	}
+	else if (igmph->type == IGMPV3_HOST_MEMBERSHIP_REPORT) {
+
+
+		/*for support igmp v3 ; plusWang add 2009-0311*/
+		struct igmpv3_report *igmpv3report = (struct igmpv3_report * )igmph;
+		struct igmpv3_grec *igmpv3grec = NULL;
+
+		if (*gIndex >= igmpv3report->ngrec)
+		{
+			*moreFlag = 0;
+			return -1;
+		}
+
+		for (i = 0;i < igmpv3report->ngrec; i++)
+		{
+
+			if (i == 0)
+			{
+				igmpv3grec = (struct igmpv3_grec *)(&(igmpv3report->grec)); /*first igmp group record*/
+			}
+			else
+			{
+				igmpv3grec = (struct igmpv3_grec *)((unsigned char*)igmpv3grec + 8 + igmpv3grec->grec_nsrcs * 4 + (igmpv3grec->grec_auxwords) * 4);
+
+
+			}
+
+			if (i != *gIndex)
+			{
+				continue;
+			}
+
+			if (i == (igmpv3report->ngrec - 1))
+			{
+				/*last group record*/
+				*moreFlag = 0;
+			}
+			else
+			{
+				*moreFlag = 1;
+			}
+
+			/*gIndex move to next group*/
+			*gIndex = *gIndex + 1;
+
+			groupAddr = igmpv3grec->grec_mca;
+			if (!IN_MULTICAST(groupAddr))
+			{
+				return -1;
+			}
+
+			ConvertMulticatIPtoMacAddr(groupAddr, gmac);
+			if (((igmpv3grec->grec_type == IGMPV3_CHANGE_TO_INCLUDE) || (igmpv3grec->grec_type == IGMPV3_MODE_IS_INCLUDE)) && (igmpv3grec->grec_nsrcs == 0))
+			{
+				return 2; /* leave and delete it */
+			}
+			else if ((igmpv3grec->grec_type == IGMPV3_CHANGE_TO_EXCLUDE) ||
+				(igmpv3grec->grec_type == IGMPV3_MODE_IS_EXCLUDE) ||
+				(igmpv3grec->grec_type == IGMPV3_ALLOW_NEW_SOURCES))
+			{
+				return 1;
+			}
+			else
+			{
+				/*ignore it*/
+			}
+
+			return -1;
+		}
+
+		/*avoid dead loop in case of initial gIndex is too big*/
+		if (i >= (igmpv3report->ngrec - 1))
+		{
+			/*last group record*/
+			*moreFlag = 0;
+			return -1;
+		}
+
+
+	}
+	else if (igmph->type == IGMP_HOST_LEAVE_MESSAGE){
+
+		groupAddr = igmph->group;
+		if (!IN_MULTICAST(groupAddr))
+		{
+				return -1;
+		}
+
+		ConvertMulticatIPtoMacAddr(groupAddr, gmac);
+		return 2; /* leave and delete it */
+	}
+
+
+	return -1;
+}
+
+
+#if defined(IPV6_MCAST_TO_UNICAST)
+static void CIPV6toMac(unsigned char* icmpv6_McastAddr, unsigned char *gmac)
+{
+	/*ICMPv6 valid addr 2^32 -1*/
+	gmac[0] = 0x33;
+	gmac[1] = 0x33;
+	gmac[2] = icmpv6_McastAddr[12];
+	gmac[3] = icmpv6_McastAddr[13];
+	gmac[4] = icmpv6_McastAddr[14];
+	gmac[5] = icmpv6_McastAddr[15];
+}
+static char ICMPv6_check(struct sk_buff *skb , unsigned char *gmac)
+{
+
+	struct ipv6hdr *ipv6h;
+	char* protoType;
+
+	/* check IPv6 header information */
+	ipv6h = (struct ipv6hdr *)skb_network_header(skb);
+	if (ipv6h->version != 6) {
+		return -1;
+	}
+
+
+	/*Next header: IPv6 hop-by-hop option (0x00)*/
+	if (ipv6h->nexthdr == 0) {
+		protoType = (unsigned char*)((unsigned char*)ipv6h + sizeof(struct ipv6hdr));
+	}else{
+		return -1;
+	}
+
+	if (protoType[0] == 0x3a) {
+
+		struct icmp6hdr *icmpv6h = (struct icmp6hdr*)(protoType + 8);
+		unsigned char *icmpv6_McastAddr;
+
+		if (icmpv6h->icmp6_type == 0x83) {
+
+			icmpv6_McastAddr = (unsigned char*)((unsigned char*)icmpv6h + 8);
+			#ifdef DBG_ICMPv6
+			printk("Type: 0x%x (Multicast listener report) \n", icmpv6h->icmp6_type);
+			#endif /* DBG_ICMPv6 */
+
+		}else if (icmpv6h->icmp6_type == 0x8f) {
+
+			icmpv6_McastAddr = (unsigned char*)((unsigned char*)icmpv6h + 8 + 4);
+			#ifdef DBG_ICMPv6
+			printk("Type: 0x%x (Multicast listener report v2) \n", icmpv6h->icmp6_type);
+			#endif /* DBG_ICMPv6 */
+		}else if (icmpv6h->icmp6_type == 0x84) {
+
+			icmpv6_McastAddr = (unsigned char*)((unsigned char*)icmpv6h + 8);
+			#ifdef DBG_ICMPv6
+			printk("Type: 0x%x (Multicast listener done ) \n", icmpv6h->icmp6_type);
+			#endif /* DBG_ICMPv6 */
+		}
+		else {
+			#ifdef DBG_ICMPv6
+			printk("Type: 0x%x (unknow type)\n", icmpv6h->icmp6_type);
+			#endif /* DBG_ICMPv6 */
+			return -1;
+		}
+
+		#ifdef	DBG_ICMPv6
+		printk("MCAST_IPV6Addr:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x \n",
+			icmpv6_McastAddr[0], icmpv6_McastAddr[1], icmpv6_McastAddr[2], icmpv6_McastAddr[3],
+			icmpv6_McastAddr[4], icmpv6_McastAddr[5], icmpv6_McastAddr[6], icmpv6_McastAddr[7],
+			icmpv6_McastAddr[8], icmpv6_McastAddr[9], icmpv6_McastAddr[10], icmpv6_McastAddr[11],
+			icmpv6_McastAddr[12], icmpv6_McastAddr[13], icmpv6_McastAddr[14], icmpv6_McastAddr[15]);
+		#endif /* DBG_ICMPv6 */
+
+		CIPV6toMac(icmpv6_McastAddr, gmac);
+
+		#ifdef	DBG_ICMPv6
+		printk("group_mac [%02x:%02x:%02x:%02x:%02x:%02x] \n",
+			gmac[0], gmac[1], gmac[2],
+			gmac[3], gmac[4], gmac[5]);
+		#endif /* DBG_ICMPv6 */
+
+
+
+		if (icmpv6h->icmp6_type == 0x83) {
+
+			return 1;//icmpv6 listener report (add)
+		}
+		else if (icmpv6h->icmp6_type == 0x8f) {
+			return 1;//icmpv6 listener report v2 (add)
+		}
+		else if (icmpv6h->icmp6_type == 0x84) {
+			return 2;//icmpv6 Multicast listener done (del)
+		}
+	}
+	else {
+		return -1;//not icmpv6 type
+	}
+	return -1;
+}
+
+#endif /* IPV6_MCAST_TO_UNICAST */
+extern int chk_igmp_ext_entry(struct net_bridge_fdb_entry *fdb ,unsigned char *srcMac);
+extern void add_igmp_ext_entry(struct net_bridge_fdb_entry *fdb , unsigned char *srcMac , unsigned char portComeIn);
+extern void update_igmp_ext_entry(struct net_bridge_fdb_entry *fdb ,unsigned char *srcMac , unsigned char portComeIn);
+extern void del_igmp_ext_entry(struct net_bridge_fdb_entry *fdb ,unsigned char *srcMac , unsigned char portComeIn, unsigned char expireFlag);
+
+static void br_update_igmp_snoop_fdb(unsigned char op, struct net_bridge *br, struct net_bridge_port *p, unsigned char *dest
+				     , struct sk_buff *skb)
+{
+#if defined(HW_MULTICAST_DBG)
+	printk("[%s:%d]\n", __FUNCTION__, __LINE__);
+#endif /* HW_MULTICAST_DBG */
+	struct net_bridge_fdb_entry *dst;
+	unsigned char *src;
+	unsigned short del_group_src = 0;
+	unsigned char port_comein;
+	int tt1;
+	u16 vid = 0;
+
+#if defined(MCAST_TO_UNICAST)
+	struct net_device *dev;
+	if (!dest)
+		return;
+	if (!MULTICAST_MAC(dest)
+#if defined(IPV6_MCAST_TO_UNICAST)
+		&& !IPV6_MULTICAST_MAC(dest)
+#endif /* IPV6_MCAST_TO_UNICAST */
+	)
+	{
+		return;
+	}
+#endif /* MCAST_TO_UNICAST */
+
+#if defined(CONFIG_RTL_HARDWARE_MULTICAST)
+
+	if (skb->srcPort != 0xFFFF)
+	{
+		port_comein = 1 << skb->srcPort;
+	}
+	else
+	{
+		port_comein = 0x80;
+	}
+
+#else
+	if (p && p->dev && p->dev->name && !memcmp(p->dev->name, RTL_PS_LAN_P0_DEV_NAME, 4))
+	{
+		port_comein = 0x01;
+	}
+
+	if (p && p->dev && p->dev->name && !memcmp(p->dev->name, RTL_PS_WLAN_NAME, 4))
+	{
+		port_comein = 0x80;
+	}
+
+#endif /* CONFIG_RTL_HARDWARE_MULTICAST */
+	br_vlan_get_tag(skb, &vid);
+	src = (unsigned char*)(skb_mac_header(skb) + ETH_ALEN);
+	/* check whether entry exist */
+	dst = __br_fdb_get(br, dest, vid);
+
+	if (op == 1) /* add */
+	{
+#if defined(HW_MULTICAST_DBG)
+		printk("[%s:%d]Add.......\n", __FUNCTION__, __LINE__);
+#endif /* HW_MULTICAST_DBG */
+
+		if (dst == NULL) {
+			/* insert one fdb entry */
+			DEBUG_PRINT("insert one fdb entry\n");
+			br_fdb_insert(br, p, dest, vid);
+			dst = __br_fdb_get(br, dest, vid);
+			if (dst != NULL)
+			{
+				dst->igmpFlag = 1;
+				dst->is_local = 0;
+				dst->portlist = port_comein;
+				dst->group_src = dst->group_src | (1 << p->port_no);
+			}
+		}
+
+		if (dst) {
+			dst->group_src = dst->group_src | (1 << p->port_no);
+			dst->updated = jiffies;
+			tt1 = chk_igmp_ext_entry(dst , src);
+			if (tt1 == 0)
+			{
+				add_igmp_ext_entry(dst , src , port_comein);
+			}
+			else
+			{
+				update_igmp_ext_entry(dst , src , port_comein);
+			}
+
+
+			#if defined(MCAST_TO_UNICAST)
+			/*process wlan client join --- start*/
+			if (p && p->dev && p->dev->name && !memcmp(p->dev->name, RTL_PS_WLAN_NAME, 4))
+			{
+				dst->portlist |= 0x80;
+				port_comein = 0x80;
+				dev = p->dev;
+				if (dev)
+				{
+					unsigned char StaMacAndGroup[20];
+					memcpy(StaMacAndGroup, dest, 6);
+					memcpy(StaMacAndGroup + 6, src, 6);
+				#if defined(CONFIG_COMPAT_NET_DEV_OPS)
+					if (dev->do_ioctl != NULL)
+					{
+						dev->do_ioctl(dev, (struct ifreq*)StaMacAndGroup, 0x8B80);
+						DEBUG_PRINT*("... add to wlan mcast table:  DA:%02x:%02x:%02x:%02x:%02x:%02x ; SA:%02x:%02x:%02x:%02x:%02x:%02x\n",
+							StaMacAndGroup[0], StaMacAndGroup[1], StaMacAndGroup[2], StaMacAndGroup[3], StaMacAndGroup[4], StaMacAndGroup[5],
+							StaMacAndGroup[6], StaMacAndGroup[7], StaMacAndGroup[8], StaMacAndGroup[9], StaMacAndGroup[10], StaMacAndGroup[11]);
+					}
+				#else
+					if (dev->netdev_ops->ndo_do_ioctl != NULL)
+					{
+						dev->netdev_ops->ndo_do_ioctl(dev, (struct ifreq*)StaMacAndGroup, 0x8B80);
+						DEBUG_PRINT("... add to wlan mcast table:  DA:%02x:%02x:%02x:%02x:%02x:%02x ; SA:%02x:%02x:%02x:%02x:%02x:%02x\n",
+							StaMacAndGroup[0], StaMacAndGroup[1], StaMacAndGroup[2], StaMacAndGroup[3], StaMacAndGroup[4], StaMacAndGroup[5],
+							StaMacAndGroup[6], StaMacAndGroup[7], StaMacAndGroup[8], StaMacAndGroup[9], StaMacAndGroup[10], StaMacAndGroup[11]);
+
+					}
+				#endif /* CONFIG_COMPAT_NET_DEV_OPS */
+				}
+			}
+			/*process wlan client join --- end*/
+			#endif /* MCAST_TO_UNICAST */
+		}
+	}
+	else if (op == 2 && dst) /* delete */
+	{
+		DEBUG_PRINT("dst->group_src = %x change to ", dst->group_src);
+		del_group_src = ~(1 << p->port_no);
+		dst->group_src = dst->group_src & del_group_src;
+		DEBUG_PRINT(" %x ; p->port_no=%x \n", dst->group_src , p->port_no);
+
+		/*process wlan client leave --- start*/
+		if (p && p->dev && p->dev->name && !memcmp(p->dev->name, RTL_PS_WLAN_NAME, 4))
+		{
+			port_comein = 0x80;
+		}
+		/*process wlan client leave --- end*/
+
+		/*process entry del , portlist update*/
+		del_igmp_ext_entry(dst, src , port_comein, 0);
+
+		if (dst->portlist == 0)  // all joined sta are gone
+		{
+			DEBUG_PRINT("----all joined sta are gone,make it expired----\n");
+			dst->updated -=  300 * HZ; // make it expired
+		}
+
+
+	}
+}
+
+#endif/*END OF MCAST_TO_UNICAST*/
+#endif/*END OF CONFIG_RTL_HARDWARE_MULTICAST*/

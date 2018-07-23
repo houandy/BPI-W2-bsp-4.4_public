@@ -17,6 +17,14 @@
 #include <net/netfilter/nf_nat_l3proto.h>
 #include <net/netfilter/nf_nat_l4proto.h>
 
+#if defined(CONFIG_RTL_LAYERED_DRIVER) && defined(CONFIG_RTL_LAYERED_DRIVER_L4) && defined(CONFIG_RTL_HARDWARE_NAT)
+#include <net/rtl/rtl_types.h>
+#include <net/rtl/rtl865x_nat.h>
+#endif /* CONFIG_RTL_LAYERED_DRIVER && CONFIG_RTL_LAYERED_DRIVER_L4 && CONFIG_RTL_HARDWARE_NAT */
+#if defined(CONFIG_RTL_HARDWARE_NAT) && defined(CONFIG_RTL_INBOUND_COLLISION_AVOIDANCE)
+extern __DRAM_GEN int gHwNatEnabled;
+#endif /* CONFIG_RTL_HARDWARE_NAT && CONFIG_RTL_INBOUND_COLLISION_AVOIDANCE */
+
 bool nf_nat_l4proto_in_range(const struct nf_conntrack_tuple *tuple,
 			     enum nf_nat_manip_type maniptype,
 			     const union nf_conntrack_man_proto *min,
@@ -44,6 +52,16 @@ void nf_nat_l4proto_unique_tuple(const struct nf_nat_l3proto *l3proto,
 	unsigned int range_size, min, i;
 	__be16 *portptr;
 	u_int16_t off;
+#if defined(CONFIG_RTL_HARDWARE_NAT) && defined(CONFIG_RTL_INBOUND_COLLISION_AVOIDANCE)
+	unsigned int tryCnt = 0;
+	rtl865x_napt_entry rtl865xNaptEntry;
+	unsigned int asicNaptHashScore = 0;
+	unsigned int highestScore = 0;
+	unsigned int lowestScore = 0;
+	__be16 bestCandidatePort = 0;
+	__be16 newOff = 0;
+#endif /* CONFIG_RTL_HARDWARE_NAT && CONFIG_RTL_INBOUND_COLLISION_AVOIDANCE */
+
 
 	if (maniptype == NF_NAT_MANIP_SRC)
 		portptr = &tuple->src.u.all;
@@ -84,6 +102,92 @@ void nf_nat_l4proto_unique_tuple(const struct nf_nat_l3proto *l3proto,
 		off = *rover;
 	}
 
+#if defined(CONFIG_RTL_HARDWARE_NAT) && defined(CONFIG_RTL_INBOUND_COLLISION_AVOIDANCE)
+	if (ct->master || (ct->status & IPS_EXPECTED)) {
+		for (i = 0; i < range_size; i++, off++) {
+			*portptr = htons(min + off % range_size);
+			if (nf_nat_used_tuple(tuple, ct))
+				continue;
+			if (!(range->flags & NF_NAT_RANGE_PROTO_RANDOM))
+				*rover = off;
+			return;
+		}
+	} else {
+		for (i = 0; i < range_size; i++) {
+			if ((gHwNatEnabled) && (maniptype == NF_NAT_MANIP_SRC))
+			{
+				rtl865x_optimizeExtPort(off++, range_size, &newOff);
+				*portptr = htons(min + newOff % range_size);
+			}
+			else
+			{
+				*portptr = htons(min + off % range_size);
+				off++;
+			}
+
+			if (nf_nat_used_tuple(tuple, ct))
+				continue;
+
+			if ((gHwNatEnabled) && (maniptype == NF_NAT_MANIP_SRC))
+			{
+				/* outbound flow */
+				rtl865xNaptEntry.protocol = (ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum == IPPROTO_TCP) ? 1 : 0;
+				rtl865xNaptEntry.intIp = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u3.ip;
+				rtl865xNaptEntry.remIp = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.u3.ip;
+				rtl865xNaptEntry.extIp = tuple->src.u3.ip;
+				rtl865xNaptEntry.intPort = rtl865xNaptEntry.protocol ? ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u.tcp.port : ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u.udp.port;
+				rtl865xNaptEntry.remPort = rtl865xNaptEntry.protocol ? ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.u.tcp.port : ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.u.udp.port;
+				rtl865xNaptEntry.extPort= rtl865xNaptEntry.protocol ? tuple->src.u.tcp.port : tuple->src.u.udp.port;
+
+				rtl865x_getAsicNaptHashScore(&rtl865xNaptEntry, &asicNaptHashScore);
+
+				if (asicNaptHashScore == 100)
+				{
+					highestScore = asicNaptHashScore;
+					lowestScore = asicNaptHashScore;
+					bestCandidatePort = *portptr;
+				}
+				else
+				{
+					/*otherwise use the best cadidate port*/
+					if (bestCandidatePort == 0)
+					{
+						bestCandidatePort = *portptr;
+						highestScore = asicNaptHashScore;
+						lowestScore = asicNaptHashScore;
+					}
+
+					if (asicNaptHashScore > highestScore)
+					{
+						highestScore = asicNaptHashScore;
+						bestCandidatePort = *portptr;
+					}
+
+					if (asicNaptHashScore < lowestScore)
+					{
+						lowestScore = asicNaptHashScore;
+					}
+
+					if (tryCnt++ <= MAX_EXTPORT_TRY_CNT)
+					{
+						continue;
+					}
+					else
+					{
+						*portptr = bestCandidatePort;
+					}
+				}
+
+				rtl865xNaptEntry.extPort = *portptr;
+				rtl865x_preReserveConn(&rtl865xNaptEntry);
+			}
+
+			if (!(range->flags & NF_NAT_RANGE_PROTO_RANDOM))
+				*rover = off;
+			return;
+		}
+	}
+#else /* CONFIG_RTL_HARDWARE_NAT && CONFIG_RTL_INBOUND_COLLISION_AVOIDANCE */
 	for (i = 0; ; ++off) {
 		*portptr = htons(min + off % range_size);
 		if (++i != range_size && nf_nat_used_tuple(tuple, ct))
@@ -92,6 +196,7 @@ void nf_nat_l4proto_unique_tuple(const struct nf_nat_l3proto *l3proto,
 			*rover = off;
 		return;
 	}
+#endif /* CONFIG_RTL_HARDWARE_NAT && CONFIG_RTL_INBOUND_COLLISION_AVOIDANCE */
 }
 EXPORT_SYMBOL_GPL(nf_nat_l4proto_unique_tuple);
 

@@ -1,0 +1,66 @@
+#!/bin/sh /etc/rc.common
+# Copyright (C) 2006-2011 OpenWrt.org
+
+START=11
+STOP=97
+
+[ -x /sbin/udevd ] || exit 0
+
+if [ -e /etc/udev/udev.conf ]; then
+    . /etc/udev/udev.conf
+fi
+
+PATH="/sbin:/bin:/usr/sbin:/usr/bin"
+
+# defaults
+tmpfs_size="10M"
+udev_root="/dev"
+
+dev_mount_options='mode=0755'
+if [ "$tmpfs_size" ]; then
+  dev_mount_options="size=${tmpfs_size},${dev_mount_options}"
+fi
+
+# If the initramfs does not have /run, the initramfs udev database must
+# be migrated from /dev/.udev/ to /run/udev/.
+move_udev_database() {
+  [ -e "$udev_root/.udev/" ] || return 0
+  [ ! -e /run/udev/ ] || return 0
+  [ -e /run/ ] || return 0
+  mountpoint -q /run/ || return 0
+
+  mv $udev_root/.udev/ /run/udev/ || true
+}
+
+start() {
+    if mountpoint -q $udev_root/; then
+	TMPFS_MOUNTED=1
+    elif [ -e "$udev_root/.udev/" ]; then
+	echo ".udev/ already exists on the static $udev_root"
+    fi
+
+    echo > /sys/kernel/uevent_helper
+
+    move_udev_database
+
+    # clean up parts of the database created by the initramfs udev
+    udevadm info --cleanup-db
+
+    echo "Starting the hotplug events dispatcher" "udevd"
+    #udevd --daemon
+    udevd --daemon --resolve-names=never
+
+    echo "Synthesizing the initial hotplug events"
+    udevadm trigger --action=add
+
+    echo "Waiting for /dev to be fully populated"
+    udevadm settle
+}
+
+stop() {
+        service_stop /sbin/udevd
+}
+
+reload() {
+        udevadm control --reload-rules
+}

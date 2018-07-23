@@ -43,6 +43,19 @@
  */
 static DEFINE_MUTEX(port_mutex);
 
+#ifdef CONFIG_RTL8117_CPUFREQ
+#define CLKSW_SET_REG 0xE018
+#define EN_DCO_CLK              10
+#define OOB_MAC_OCP_ADDR  0xA4
+#define OOB_MAC_OCP_DATA 0xA0
+static inline unsigned int OOB_READ_IB(u16 offset)
+{
+    writel(offset|0x800F0000, 0xBAF70000+OOB_MAC_OCP_ADDR);
+    return readl(0xBAF70000+OOB_MAC_OCP_DATA);
+}
+extern u16 cnt_cal_r;
+#endif
+
 /*
  * lockdep: port->lock is initialized in two places, but we
  *          want only one lock-class:
@@ -94,6 +107,9 @@ static void __uart_start(struct tty_struct *tty)
 {
 	struct uart_state *state = tty->driver_data;
 	struct uart_port *port = state->uart_port;
+
+	if (port->ops->wake_peer)
+		port->ops->wake_peer(port);
 
 	if (!uart_tx_stopped(port))
 		port->ops->start_tx(port);
@@ -169,6 +185,13 @@ static int uart_port_startup(struct tty_struct *tty, struct uart_state *state,
 		/*
 		 * Initialise the hardware port settings.
 		 */
+#ifdef CONFIG_RTL8117_CPUFREQ
+	printk("CLKSW_SET_REG value is 0x%x.\n", OOB_READ_IB(CLKSW_SET_REG));
+	if (OOB_READ_IB(CLKSW_SET_REG) & (1<<EN_DCO_CLK))
+	{
+		uport->uartclk = cnt_cal_r*(1000000/20)/8;
+	}
+#endif
 		uart_change_speed(tty, state, NULL);
 
 		if (init_hw) {

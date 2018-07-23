@@ -1,0 +1,10 @@
+Package: kmod-pppoe
+Version: 4.4.18-1
+Depends: kernel (=4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3), kmod-ppp, kmod-pppox
+Source: package/kernel/linux
+License: GPLv2
+Section: kernel
+Status: unknown hold not-installed
+Architecture: rtd1295
+Installed-Size: 6656
+Description:  Kernel module for PPPoE (PPP over Ethernet) support

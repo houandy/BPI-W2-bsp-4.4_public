@@ -76,7 +76,11 @@ module_param(nvme_char_major, int, 0);
 static int use_threaded_interrupts;
 module_param(use_threaded_interrupts, int, 0);
 
+#ifdef CONFIG_SOC_RTL8117
+static bool use_cmb_sqes = false;
+#else
 static bool use_cmb_sqes = true;
+#endif
 module_param(use_cmb_sqes, bool, 0644);
 MODULE_PARM_DESC(use_cmb_sqes, "use controller's memory buffer for I/O SQes");
 

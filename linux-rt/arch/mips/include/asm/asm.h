@@ -174,7 +174,7 @@ symbol		=	value
 /*
  * MIPS ISA IV/V movn/movz instructions and equivalents for older CPUs.
  */
-#if (_MIPS_ISA == _MIPS_ISA_MIPS1)
+#if (_MIPS_ISA == _MIPS_ISA_MIPS1) && !defined(CONFIG_CPU_RLX)
 #define MOVN(rd, rs, rt)				\
 		.set	push;				\
 		.set	reorder;			\
@@ -207,7 +207,8 @@ symbol		=	value
 9:
 #endif /* (_MIPS_ISA == _MIPS_ISA_MIPS2) || (_MIPS_ISA == _MIPS_ISA_MIPS3) */
 #if (_MIPS_ISA == _MIPS_ISA_MIPS4 ) || (_MIPS_ISA == _MIPS_ISA_MIPS5) || \
-    (_MIPS_ISA == _MIPS_ISA_MIPS32) || (_MIPS_ISA == _MIPS_ISA_MIPS64)
+    (_MIPS_ISA == _MIPS_ISA_MIPS32) || (_MIPS_ISA == _MIPS_ISA_MIPS64) || \
+    defined(CONFIG_CPU_RLX)
 #define MOVN(rd, rs, rt)				\
 		movn	rd, rs, rt
 #define MOVZ(rd, rs, rt)				\

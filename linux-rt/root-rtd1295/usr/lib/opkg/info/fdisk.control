@@ -1,0 +1,10 @@
+Package: fdisk
+Version: 2.28-1
+Depends: libc, librt, libpthread, libblkid, libsmartcols, libfdisk
+Source: package/utils/util-linux
+License: GPL-2.0
+LicenseFiles: COPYING getopt/COPYING libblkid/COPYING libmount/COPYING Documentation/licenses/COPYING.GPLv2 Documentation/licenses/COPYING.LGPLv2.1 libuuid/COPYING Documentation/licenses/COPYING.BSD-3
+Section: utils
+Architecture: rtd1295
+Installed-Size: 35723
+Description:  a menu-driven program for creation and manipulation of partition tables

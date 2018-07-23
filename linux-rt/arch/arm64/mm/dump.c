@@ -35,35 +35,35 @@ struct addr_marker {
 };
 
 enum address_markers_idx {
-	VMALLOC_START_NR = 0,
+	MODULES_START_NR = 0,
+	MODULES_END_NR,
+	VMALLOC_START_NR,
 	VMALLOC_END_NR,
-#ifdef CONFIG_SPARSEMEM_VMEMMAP
-	VMEMMAP_START_NR,
-	VMEMMAP_END_NR,
-#endif
 	FIXADDR_START_NR,
 	FIXADDR_END_NR,
 	PCI_START_NR,
 	PCI_END_NR,
-	MODULES_START_NR,
-	MODUELS_END_NR,
+#ifdef CONFIG_SPARSEMEM_VMEMMAP
+	VMEMMAP_START_NR,
+	VMEMMAP_END_NR,
+#endif
 	KERNEL_SPACE_NR,
 };
 
 static struct addr_marker address_markers[] = {
+	{ MODULES_VADDR,	"Modules start" },
+	{ MODULES_END,		"Modules end" },
 	{ VMALLOC_START,	"vmalloc() Area" },
 	{ VMALLOC_END,		"vmalloc() End" },
-#ifdef CONFIG_SPARSEMEM_VMEMMAP
-	{ 0,			"vmemmap start" },
-	{ 0,			"vmemmap end" },
-#endif
 	{ FIXADDR_START,	"Fixmap start" },
 	{ FIXADDR_TOP,		"Fixmap end" },
 	{ PCI_IO_START,		"PCI I/O start" },
 	{ PCI_IO_END,		"PCI I/O end" },
-	{ MODULES_VADDR,	"Modules start" },
-	{ MODULES_END,		"Modules end" },
-	{ PAGE_OFFSET,		"Kernel Mapping" },
+#ifdef CONFIG_SPARSEMEM_VMEMMAP
+	{ 0,			"vmemmap start" },
+	{ 0,			"vmemmap end" },
+#endif
+	{ PAGE_OFFSET,		"Linear Mapping" },
 	{ -1,			NULL },
 };
 
@@ -90,6 +90,11 @@ struct prot_bits {
 
 static const struct prot_bits pte_bits[] = {
 	{
+		.mask	= PTE_VALID,
+		.val	= PTE_VALID,
+		.set	= " ",
+		.clear	= "F",
+	}, {
 		.mask	= PTE_USER,
 		.val	= PTE_USER,
 		.set	= "USR",
@@ -216,6 +221,10 @@ static void note_page(struct pg_state *st, unsigned long addr, unsigned level,
 		if (st->current_prot) {
 			seq_printf(st->seq, "0x%016lx-0x%016lx   ",
 				   st->start_address, addr);
+
+			seq_printf(st->seq, "0x%.8lx-0x%.8lx   ",
+				   virt_to_phys(st->start_address), virt_to_phys(addr));
+
 
 			delta = (addr - st->start_address) >> 10;
 			while (!(delta & 1023) && unit[1]) {

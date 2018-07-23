@@ -151,6 +151,15 @@ config USB_EHCI_FSL
 	---help---
 	  Variation of ARC USB block used in some Freescale chips.
 
+config USB_EHCI_RTK
+	tristate "Support for RTK on-chip EHCI USB controller"
+	depends on (ARCH_RTD129X || ARCH_RTD119X)
+	---help---
+	  The Realtek chips are dual-role host/peripheral USB controllers.
+
+	  Enable this option to support this chip in host controller mode.
+	  If unsure, say N.
+
 config USB_EHCI_MXC
 	tristate "Support for Freescale i.MX on-chip EHCI USB controller"
 	depends on ARCH_MXC
@@ -386,6 +395,16 @@ config USB_OHCI_HCD
 	  module will be called ohci-hcd.
 
 if USB_OHCI_HCD
+
+config USB_OHCI_RTK
+	bool "Support for RTK on-chip OHCI USB controller"
+	depends on USB_OHCI_HCD && (ARCH_RTD119X || ARCH_RTD129X)
+	---help---
+	  The Realtek chips are dual-role host/peripheral USB controllers.
+
+	  Enable this option to support this chip in host controller mode.
+	  If unsure, say N.
+
 
 config USB_OHCI_HCD_OMAP1
 	tristate "OHCI support for OMAP1/2 chips"

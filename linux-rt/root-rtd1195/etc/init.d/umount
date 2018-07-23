@@ -1,0 +1,9 @@
+#!/bin/sh /etc/rc.common
+# Copyright (C) 2006 OpenWrt.org
+
+STOP=99
+stop() {
+	sync
+	/usr/bin/umount -a -d -r
+	/usr/sbin/swapoff -a
+}

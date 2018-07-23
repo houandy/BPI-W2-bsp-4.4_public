@@ -586,6 +586,19 @@ config RALINK
 	select ARCH_HAS_RESET_CONTROLLER
 	select RESET_CONTROLLER
 
+config REALTEK
+	bool "Realtek MIPS based machines"
+	select BOOT_ELF32
+	select SYS_HAS_EARLY_PRINTK
+	select SYS_SUPPORTS_ARBIT_HZ
+	select CPU_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select IRQ_MIPS_CPU
+	select LIBFDT
+	select USE_OF
+	select HW_HAS_PCI
+
+
 config SGI_IP22
 	bool "SGI IP22 (Indy/Indigo2)"
 	select FW_ARC
@@ -983,6 +996,7 @@ source "arch/mips/lasat/Kconfig"
 source "arch/mips/pistachio/Kconfig"
 source "arch/mips/pmcs-msp71xx/Kconfig"
 source "arch/mips/ralink/Kconfig"
+source "arch/mips/realtek/Kconfig"
 source "arch/mips/sgi-ip27/Kconfig"
 source "arch/mips/sibyte/Kconfig"
 source "arch/mips/txx9/Kconfig"
@@ -1206,6 +1220,9 @@ config IRQ_TXX9
 config IRQ_GT641XX
 	bool
 
+config IRQ_VEC
+        bool
+
 config PCI_GT64XXX_PCI0
 	bool
 
@@ -1325,6 +1342,7 @@ menu "CPU selection"
 choice
 	prompt "CPU type"
 	default CPU_R4X00
+	default CPU_RLX if SOC_RTL8117
 
 config CPU_LOONGSON3
 	bool "Loongson 3 CPU"
@@ -1483,6 +1501,20 @@ config CPU_R3000
 	  of the supported machines have an R4000 (or similar) CPU, R4x00
 	  might be a safe bet.  If the resulting kernel does not work,
 	  try to recompile with R3000.
+
+config CPU_RLX
+	bool "Taroko Processor"
+	depends on SOC_RTL8117
+	select SYS_HAS_CPU_RLX
+	select IRQ_VEC
+	select MIPS_L1_CACHE_SHIFT_5
+	select CPU_SUPPORTS_CPUFREQ
+	select MIPS_EXTERNAL_TIMER
+	select ARCH_REQUIRE_GPIOLIB
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	help
+	  For Realtek Taroko processors.
+
 
 config CPU_TX39XX
 	bool "R39XX"
@@ -1901,6 +1933,9 @@ config SYS_HAS_CPU_BMIPS5000
 	bool
 	select SYS_HAS_CPU_BMIPS
 
+config SYS_HAS_CPU_RLX
+        bool
+
 config SYS_HAS_CPU_XLR
 	bool
 
@@ -2139,15 +2174,15 @@ config CPU_HAS_PREFETCH
 
 config CPU_GENERIC_DUMP_TLB
 	bool
-	default y if !(CPU_R3000 || CPU_R6000 || CPU_R8000 || CPU_TX39XX)
+	default y if !(CPU_RLX || CPU_R3000 || CPU_R6000 || CPU_R8000 || CPU_TX39XX)
 
 config CPU_R4K_FPU
 	bool
-	default y if !(CPU_R3000 || CPU_R6000 || CPU_TX39XX || CPU_CAVIUM_OCTEON)
+	default y if !(CPU_RLX || CPU_R3000 || CPU_R6000 || CPU_TX39XX || CPU_CAVIUM_OCTEON)
 
 config CPU_R4K_CACHE_TLB
 	bool
-	default y if !(CPU_R3000 || CPU_R8000 || CPU_SB1 || CPU_TX39XX || CPU_CAVIUM_OCTEON)
+	default y if !(CPU_RLX || CPU_R3000 || CPU_R8000 || CPU_SB1 || CPU_TX39XX || CPU_CAVIUM_OCTEON)
 
 config MIPS_MT_SMP
 	bool "MIPS MT SMP support (1 TC on each available VPE)"
@@ -2860,6 +2895,18 @@ config HT_PCI
 
 config PCI_DOMAINS
 	bool
+
+config PCIE_RTL8117_CORE
+	bool
+	depends on PCI && SOC_RTL8117
+	default y
+
+config PCIE_RTL8117_HOST
+	tristate "RTL8117 PCIe host controller"
+	depends on PCIE_RTL8117_CORE
+	default y
+	help
+	  RTL8117 PCIe host controller support.
 
 source "drivers/pci/Kconfig"
 

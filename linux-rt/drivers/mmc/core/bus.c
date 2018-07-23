@@ -298,7 +298,18 @@ int mmc_add_card(struct mmc_card *card)
 	switch (card->type) {
 	case MMC_TYPE_MMC:
 		type = "MMC";
+		sector_t real_size =card->ext_csd.sectors;
+		if( real_size > 0x2200000 )	//32GB 	
+			real_size = 0x3900000 ;
+		else if ( (real_size > 0x1200000) && (real_size < 0x2200000) ) //16GB
+			real_size = 0x1C80000;
+		else if ( (real_size > 0xb40000) && (real_size < 0x1200000) ) //8GB 
+			real_size = 0xe40000;
+		else							   // 4GB 
+			real_size = 0x720000; 
+		card->ext_csd.sectors = real_size; //write back
 		break;
+		
 	case MMC_TYPE_SD:
 		type = "SD";
 		if (mmc_card_blockaddr(card)) {

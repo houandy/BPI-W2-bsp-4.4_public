@@ -1,0 +1,9 @@
+Package: base-files
+Version: 157-r49363
+Depends: libc, librt, libpthread, procd, jsonfilter, usign
+Source: package/base-files
+License: GPL-2.0
+Section: base
+Architecture: rtd1195
+Installed-Size: 31175
+Description:  This package contains a base filesystem and system scripts for OpenWrt.

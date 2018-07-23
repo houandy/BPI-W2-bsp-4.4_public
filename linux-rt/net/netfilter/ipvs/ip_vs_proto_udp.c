@@ -28,6 +28,10 @@
 #include <net/ip.h>
 #include <net/ip6_checksum.h>
 
+#if defined(CONFIG_RTL_819X)
+#include <net/rtl/features/rtl_ps_hooks.h>
+#endif /* CONFIG_RTL_819X */
+
 static int
 udp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
 		  struct ip_vs_proto_data *pd,
@@ -461,12 +465,23 @@ udp_state_transition(struct ip_vs_conn *cp, int direction,
 		     const struct sk_buff *skb,
 		     struct ip_vs_proto_data *pd)
 {
+#if defined(CONFIG_RTL_819X)
+	struct ip_vs_protocol *pp;
+#endif /* CONFIG_RTL_819X */
+
 	if (unlikely(!pd)) {
 		pr_err("UDP no ns data\n");
 		return;
 	}
 
 	cp->timeout = pd->timeout_table[IP_VS_UDP_S_NORMAL];
+#if defined(CONFIG_RTL_819X)
+	if (pd && pd->pp) {
+		pp = pd->pp;
+		rtl_udp_state_transition_hooks(cp, direction, skb, pp);
+	}
+#endif /* CONFIG_RTL_819X */
+
 }
 
 static int __udp_init(struct netns_ipvs *ipvs, struct ip_vs_proto_data *pd)

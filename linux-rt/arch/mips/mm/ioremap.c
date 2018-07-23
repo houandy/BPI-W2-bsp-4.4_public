@@ -120,6 +120,11 @@ void __iomem * __ioremap(phys_addr_t phys_addr, phys_addr_t size, unsigned long 
 	phys_addr_t last_addr;
 	void * addr;
 
+#ifdef CONFIG_PCIE_RTL8117_CORE
+	if (is_pci_memory(phys_addr))
+		return (void __iomem *)phys_addr;
+#endif
+
 	phys_addr = fixup_bigphys_addr(phys_addr, size);
 
 	/* Don't allow wraparound or zero size */
@@ -177,6 +182,11 @@ void __iomem * __ioremap(phys_addr_t phys_addr, phys_addr_t size, unsigned long 
 void __iounmap(const volatile void __iomem *addr)
 {
 	struct vm_struct *p;
+
+#ifdef CONFIG_PCIE_RTL8117_CORE
+	if (is_pci_memory((u32)addr))
+		return;
+#endif
 
 	if (IS_KSEG1(addr))
 		return;

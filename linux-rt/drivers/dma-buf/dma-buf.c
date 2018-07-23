@@ -33,6 +33,9 @@
 #include <linux/seq_file.h>
 #include <linux/poll.h>
 #include <linux/reservation.h>
+#include <linux/poll.h>
+#include <linux/sched.h>
+
 
 static inline int is_dma_buf_file(struct file *);
 
@@ -74,6 +77,10 @@ static int dma_buf_release(struct inode *inode, struct file *file)
 		reservation_object_fini(dmabuf->resv);
 
 	module_put(dmabuf->owner);
+#ifdef CONFIG_KDS	
+    kds_callback_term(&dmabuf->kds_cb);
+    kds_resource_term(&dmabuf->kds);
+#endif
 	kfree(dmabuf);
 	return 0;
 }
@@ -94,6 +101,39 @@ static int dma_buf_mmap_internal(struct file *file, struct vm_area_struct *vma)
 
 	return dmabuf->ops->mmap(dmabuf, vma);
 }
+
+#ifdef CONFIG_KDS
+static void dma_buf_kds_cb_fn(void *param1, void *param2)
+{
+	struct kds_resource_set **rset_ptr = param1;
+	struct kds_resource_set *rset = *rset_ptr;
+	wait_queue_head_t *wait_queue = param2;
+
+	kfree(rset_ptr);
+	kds_resource_set_release(&rset);
+	wake_up(wait_queue);
+}
+
+static int dma_buf_kds_check(struct kds_resource *kds,
+                             long unsigned int exclusive, int *poll_ret)
+{
+	/* Synchronous wait with 0 timeout - poll availability */
+	struct kds_resource_set *rset = kds_waitall(1,&exclusive,&kds,0);
+
+	if (IS_ERR(rset))
+		return POLLERR;
+
+	if (rset){
+		kds_resource_set_release(&rset);
+		*poll_ret = POLLIN | POLLRDNORM;
+		if (exclusive)
+			*poll_ret |=  POLLOUT | POLLWRNORM;
+		return 1;
+	}else{
+		return 0;
+	}
+}
+#endif
 
 static loff_t dma_buf_llseek(struct file *file, loff_t offset, int whence)
 {
@@ -131,7 +171,7 @@ static void dma_buf_poll_cb(struct fence *fence, struct fence_cb *cb)
 	dcb->active = 0;
 	spin_unlock_irqrestore(&dcb->poll->lock, flags);
 }
-
+#ifndef CONFIG_KDS
 static unsigned int dma_buf_poll(struct file *file, poll_table *poll)
 {
 	struct dma_buf *dmabuf;
@@ -152,7 +192,6 @@ static unsigned int dma_buf_poll(struct file *file, poll_table *poll)
 	events = poll_requested_events(poll) & (POLLIN | POLLOUT);
 	if (!events)
 		return 0;
-
 retry:
 	seq = read_seqcount_begin(&resv->seq);
 	rcu_read_lock();
@@ -223,7 +262,7 @@ retry:
 
 			if (!fence_get_rcu(fence)) {
 				/*
-				 * fence refcount dropped to zero, this means
+			 * fence refcount dropped to zero, this means
 				 * that fobj has been freed
 				 *
 				 * call dma_buf_poll_cb and force a recheck!
@@ -250,7 +289,57 @@ out:
 	rcu_read_unlock();
 	return events;
 }
+#else
+static unsigned int dma_buf_poll(struct file *file,
+                                 struct poll_table_struct *wait)
+{
+	struct dma_buf *dmabuf;
+	struct kds_resource *kds;
+	unsigned int ret = 0;
 
+	if (!is_dma_buf_file(file))
+		return POLLERR;
+
+	dmabuf = file->private_data;
+	kds    = &dmabuf->kds;
+
+	if (poll_does_not_wait(wait)){
+		/* Check for exclusive access (superset of shared) first */
+		if(!dma_buf_kds_check(kds, 1ul, &ret))
+			dma_buf_kds_check(kds, 0ul, &ret);
+	}else{
+		int events = poll_requested_events(wait);
+		unsigned long exclusive;
+		wait_queue_head_t *wq;
+		struct kds_resource_set **rset_ptr = kmalloc(sizeof(*rset_ptr), GFP_KERNEL);
+
+		if (!rset_ptr)
+			return POLL_ERR;
+
+		if (events & POLLOUT){
+			wq = &dmabuf->wq_exclusive;
+			exclusive = 1;
+		}else{
+			wq = &dmabuf->wq_shared;
+			exclusive = 0;
+		}
+		poll_wait(file, wq, wait);
+		ret = kds_async_waitall(rset_ptr, &dmabuf->kds_cb,
+		                        rset_ptr, wq, 1, &exclusive, &kds);
+
+
+
+		if (IS_ERR_VALUE(ret)){
+			ret = POLL_ERR;
+			kfree(rset_ptr);
+		}else{
+			/* Can't allow access until callback */
+			ret = 0;
+		}
+	}
+	return ret;
+}
+#endif
 static const struct file_operations dma_buf_fops = {
 	.release	= dma_buf_release,
 	.mmap		= dma_buf_mmap_internal,
@@ -345,7 +434,12 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 	mutex_lock(&db_list.lock);
 	list_add(&dmabuf->list_node, &db_list.head);
 	mutex_unlock(&db_list.lock);
-
+#ifdef CONFIG_KDS	
+	init_waitqueue_head(&dmabuf->wq_exclusive);
+	init_waitqueue_head(&dmabuf->wq_shared);
+	kds_resource_init(&dmabuf->kds);
+	kds_callback_init(&dmabuf->kds_cb, 1, dma_buf_kds_cb_fn);
+#endif
 	return dmabuf;
 }
 EXPORT_SYMBOL_GPL(dma_buf_export);

@@ -52,8 +52,58 @@
 #include <net/netfilter/nf_nat.h>
 #include <net/netfilter/nf_nat_core.h>
 #include <net/netfilter/nf_nat_helper.h>
+#if defined(CONFIG_RTL_819X)
+#include <net/rtl/features/rtl_ps_hooks.h>
+#include <net/rtl/features/rtl_ps_log.h>
+#include <net/rtl/features/rtl_features.h>
+#include <linux/in.h>
+#endif /* CONFIG_RTL_819X */
 
 #define NF_CONNTRACK_VERSION	"0.5.0"
+
+#if defined(CONFIG_RTL_819X)
+int rtl_nf_conntrack_threshold;
+static inline int _isReservedL4Port(unsigned short port)
+{
+	if ((port == 80) || (port == 8080))
+		return 1;
+
+	return 0;
+}
+
+static inline int _isReservedIPAddr(unsigned int srcIP, unsigned int dstIP)
+{
+	if (IS_CLASSD_ADDR(dstIP) ||
+		IS_BROADCAST_ADDR(dstIP) ||
+		IS_ALLZERO_ADDR(srcIP))
+		return 1;
+
+	return 0;
+}
+int isReservedConntrack(const struct nf_conntrack_tuple *orig,
+			const struct nf_conntrack_tuple *repl)
+{
+	if (orig->dst.protonum == IPPROTO_ICMP)
+	{
+		return 1;
+	}
+
+	if (_isReservedIPAddr(orig->src.u3.ip, orig->dst.u3.ip) ||
+		_isReservedIPAddr(repl->src.u3.ip, repl->dst.u3.ip))
+	{
+		return 1;
+	}
+
+	if (_isReservedL4Port(orig->src.u.all) ||
+		_isReservedL4Port(orig->dst.u.all) ||
+		_isReservedL4Port(repl->src.u.all) ||
+		_isReservedL4Port(repl->dst.u.all))
+	{
+		return 1;
+	}
+	return 0;
+}
+#endif /* CONFIG_RTL_819X */
 
 int (*nfnetlink_parse_nat_setup_hook)(struct nf_conn *ct,
 				      enum nf_nat_manip_type manip,
@@ -161,6 +211,37 @@ static inline u_int32_t hash_conntrack(const struct net *net,
 {
 	return __hash_conntrack(tuple, net->ct.htable_size);
 }
+
+#if defined(CONFIG_RTD_1295_HWNAT)
+static void rtl_nf_conn_lock(struct rtl_nf_conntrack_info *conn_info)
+{
+	struct nf_conn *ct;
+	struct net *net;
+	unsigned int hash, reply_hash;
+	u16 zone;
+	unsigned int sequence;
+
+	ct = conn_info->ct;
+	net = conn_info->net;
+	zone = nf_ct_zone(ct);
+
+	do {
+		sequence = read_seqcount_begin(&net->ct.generation);
+		hash = hash_conntrack(net,
+				      &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
+		reply_hash = hash_conntrack(net,
+					    &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
+	} while (nf_conntrack_double_lock(net, hash, reply_hash, sequence));
+
+	conn_info->hash = hash;
+	conn_info->reply_hash = reply_hash;
+}
+
+static void rtl_nf_conn_unlock(struct rtl_nf_conntrack_info *conn_info)
+{
+	nf_conntrack_double_unlock(conn_info->hash, conn_info->reply_hash);
+}
+#endif /* defined(CONFIG_RTD_1295_HWNAT) */
 
 bool
 nf_ct_get_tuple(const struct sk_buff *skb,
@@ -329,6 +410,9 @@ destroy_conntrack(struct nf_conntrack *nfct)
 	struct nf_conn *ct = (struct nf_conn *)nfct;
 	struct net *net = nf_ct_net(ct);
 	struct nf_conntrack_l4proto *l4proto;
+	#if defined(CONFIG_RTL_819X)
+	rtl_nf_conntrack_inso_s conn_info;
+	#endif /* CONFIG_RTL_819X */
 
 	pr_debug("destroy_conntrack(%p)\n", ct);
 	NF_CT_ASSERT(atomic_read(&nfct->use) == 0);
@@ -338,6 +422,17 @@ destroy_conntrack(struct nf_conntrack *nfct)
 		nf_ct_tmpl_free(ct);
 		return;
 	}
+	#if defined(CONFIG_RTL_819X)
+	conn_info.net = net;
+	conn_info.ct = ct;
+	#if defined(CONFIG_RTD_1295_HWNAT)
+	conn_info.double_lock = rtl_nf_conn_lock;
+	conn_info.double_unlock = rtl_nf_conn_unlock;
+	#endif /* CONFIG_RTD_1295_HWNAT */
+
+	rtl_nf_conntrack_destroy_hooks(&conn_info);
+	#endif /* CONFIG_RTL_819X */
+
 	rcu_read_lock();
 	l4proto = __nf_ct_l4proto_find(nf_ct_l3num(ct), nf_ct_protonum(ct));
 	if (l4proto && l4proto->destroy)
@@ -365,7 +460,38 @@ destroy_conntrack(struct nf_conntrack *nfct)
 	nf_conntrack_free(ct);
 }
 
-static void nf_ct_delete_from_lists(struct nf_conn *ct)
+#if defined(CONFIG_RTL_819X)
+void nf_ct_delete_from_lists(struct nf_conn *ct);
+static bool nf_ct_delete_forced(struct nf_conn *ct, u32 portid, int report)
+{
+	struct nf_conn_tstamp *tstamp;
+
+	tstamp = nf_conn_tstamp_find(ct);
+	if (tstamp && tstamp->stop == 0)
+		tstamp->stop = ktime_get_real_ns();
+
+	if (nf_ct_is_dying(ct))
+		goto delete;
+
+	if (nf_conntrack_event_report(IPCT_DESTROY, ct,
+				      portid, report) < 0) {
+		/* destroy event was not delivered */
+		nf_ct_delete_from_lists(ct);
+		nf_conntrack_ecache_delayed_work(nf_ct_net(ct));
+		return false;
+	}
+
+	nf_conntrack_ecache_work(nf_ct_net(ct));
+	set_bit(IPS_DYING_BIT, &ct->status);
+ delete:
+	nf_ct_delete_from_lists(ct);
+	nf_ct_put(ct);
+	return true;
+}
+
+#endif /* CONFIG_RTL_819X */
+
+void nf_ct_delete_from_lists(struct nf_conn *ct)
 {
 	struct net *net = nf_ct_net(ct);
 	unsigned int hash, reply_hash;
@@ -394,6 +520,16 @@ static void nf_ct_delete_from_lists(struct nf_conn *ct)
 bool nf_ct_delete(struct nf_conn *ct, u32 portid, int report)
 {
 	struct nf_conn_tstamp *tstamp;
+
+	#if defined(CONFIG_RTL_819X)
+	struct net *net = nf_ct_net(ct);
+	rtl_nf_conntrack_inso_s conn_info;
+
+	conn_info.net = net;
+	conn_info.ct = ct;
+	if (RTL_PS_HOOKS_RETURN == rtl_nf_conntrack_death_by_timeout_hooks(&conn_info))
+		return false;
+	#endif /* CONFIG_RTL_819X */
 
 	tstamp = nf_conn_tstamp_find(ct);
 	if (tstamp && tstamp->stop == 0)
@@ -595,6 +731,9 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 	enum ip_conntrack_info ctinfo;
 	struct net *net;
 	unsigned int sequence;
+	#if defined(CONFIG_RTL_819X)
+	rtl_nf_conntrack_inso_s conn_info;
+	#endif /* CONFIG_RTL_819X */
 
 	ct = nf_ct_get(skb, &ctinfo);
 	net = nf_ct_net(ct);
@@ -655,6 +794,14 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 		    nf_ct_zone_equal(nf_ct_tuplehash_to_ctrack(h), zone,
 				     NF_CT_DIRECTION(h)))
 			goto out;
+
+	#if defined(CONFIG_RTL_819X)
+	conn_info.net = net;
+	conn_info.ct = ct;
+	conn_info.skb = skb;
+	conn_info.ctinfo = ctinfo;
+	rtl_nf_conntrack_confirm_hooks(&conn_info);
+	#endif /* CONFIG_RTL_819X */
 
 	/* Timer relative to confirmation time, not original
 	   setting time, otherwise we'd get timer wrap in
@@ -828,6 +975,18 @@ __nf_conntrack_alloc(struct net *net,
 
 	/* We don't want any race condition at early drop stage */
 	atomic_inc(&net->ct.count);
+#if defined(CONFIG_RTL_819X)
+	if (nf_conntrack_max &&
+		((atomic_read(&net->ct.count) > rtl_nf_conntrack_threshold)) &&
+		(atomic_read(&net->ct.count) < (nf_conntrack_max - 1)))
+	{
+		if (isReservedConntrack(orig, repl))
+		{
+			/*use reserved conntrack,continue to allocate*/
+			goto alloc_reserved_conn;
+		}
+	}
+#endif /* CONFIG_RTL_819X */
 
 	if (nf_conntrack_max &&
 	    unlikely(atomic_read(&net->ct.count) > nf_conntrack_max)) {
@@ -838,6 +997,9 @@ __nf_conntrack_alloc(struct net *net,
 		}
 	}
 
+#if defined(CONFIG_RTL_819X)
+alloc_reserved_conn:
+#endif /* CONFIG_RTL_819X */
 	/*
 	 * Do not use kmem_cache_zalloc(), as this cache uses
 	 * SLAB_DESTROY_BY_RCU.
@@ -918,6 +1080,9 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 	struct nf_conntrack_tuple repl_tuple;
 	struct nf_conntrack_ecache *ecache;
 	struct nf_conntrack_expect *exp = NULL;
+	#if defined(CONFIG_RTL_819X)
+	rtl_nf_conntrack_inso_s conn_info;
+	#endif /* CONFIG_RTL_819X */
 	const struct nf_conntrack_zone *zone;
 	struct nf_conn_timeout *timeout_ext;
 	struct nf_conntrack_zone tmp;
@@ -993,6 +1158,18 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 #endif
 			NF_CT_STAT_INC(net, expect_new);
 		}
+		#if defined(CONFIG_RTL_819X)
+		conn_info.net = net;
+		conn_info.ct = ct;
+		conn_info.skb = skb;
+		conn_info.l3proto = l3proto;
+		conn_info.l4proto = l4proto;
+		rtl_nf_init_conntrack_hooks(&conn_info);
+		#if defined(CONFIG_RTL_HW_NAT_BYPASS_PKT)
+		ct->count = 0;
+		#endif /* CONFIG_RTL_HW_NAT_BYPASS_PKT */
+		#endif /* CONFIG_RTL_819X */
+
 		spin_unlock(&nf_conntrack_expect_lock);
 	}
 	if (!exp) {
@@ -1080,6 +1257,15 @@ resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
 	return ct;
 }
 
+#if 1//defined(CONFIG_RTL_ETH_DRIVER_REFINE)
+#if defined(CONFIG_RTL_IPTABLES_FAST_PATH)
+extern int fast_nat_fw;
+#endif
+#if defined(CONFIG_RTL_FAST_IPV6)
+extern int fast_ipv6_fw;
+#endif
+#endif
+
 unsigned int
 nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		struct sk_buff *skb)
@@ -1093,6 +1279,10 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 	u_int8_t protonum;
 	int set_reply = 0;
 	int ret;
+	#if defined(CONFIG_RTL_819X)
+	rtl_nf_conntrack_inso_s conn_info;
+	#endif /* CONFIG_RTL_819X */
+
 
 	if (skb->nfct) {
 		/* Previously seen (loopback or untracked)?  Ignore. */
@@ -1169,6 +1359,31 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		ret = -ret;
 		goto out;
 	}
+
+	#if defined(CONFIG_RTL_819X)
+	#if 1//defined(CONFIG_RTL_ETH_DRIVER_REFINE)
+	if (0
+		#if defined(CONFIG_RTL_IPTABLES_FAST_PATH)
+		|| fast_nat_fw
+		#endif
+		#if defined(CONFIG_RTL_FAST_IPV6)
+		|| fast_ipv6_fw
+		#endif
+	 )
+	#endif
+	{
+		conn_info.net = net;
+		conn_info.ct = ct;
+		conn_info.skb = skb;
+		conn_info.l3proto = l3proto;
+		conn_info.l4proto = l4proto;
+		conn_info.protonum = protonum;
+		conn_info.hooknum = hooknum;
+		conn_info.ctinfo = ctinfo;
+		rtl_nf_conntrack_in_hooks(&conn_info);
+	}
+	#endif /* CONFIG_RTL_819X */
+
 
 	if (set_reply && !test_and_set_bit(IPS_SEEN_REPLY_BIT, &ct->status))
 		nf_conntrack_event_cache(IPCT_REPLY, ct);
@@ -1715,6 +1930,12 @@ int nf_conntrack_init_start(void)
 	}
 	/*  - and look it like as a confirmed connection */
 	nf_ct_untracked_status_or(IPS_CONFIRMED | IPS_UNTRACKED);
+#if defined(CONFIG_RTL_819X)
+	rtl_nf_conntrack_threshold = (nf_conntrack_max * 4) / 5;
+	if ((nf_conntrack_max- rtl_nf_conntrack_threshold) > 64)
+		rtl_nf_conntrack_threshold = nf_conntrack_max - 64;
+	rtl_nf_conntrack_init_hooks();
+#endif /* CONFIG_RTL_819X */
 	return 0;
 
 err_proto:

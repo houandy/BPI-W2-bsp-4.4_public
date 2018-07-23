@@ -21,6 +21,12 @@
 #include <asm/uaccess.h>
 #include "br_private.h"
 
+#if defined(CONFIG_RTL_IGMP_SNOOPING)
+#if defined(CONFIG_RT_MULTIPLE_BR_SUPPORT)
+extern int br_register_igmpsnoopingmodule_process(struct net_bridge *br,int enable,int fldEnable);
+#endif /* CONFIG_RT_MULTIPLE_BR_SUPPORT */
+#endif /* CONFIG_RTL_IGMP_SNOOPING */
+
 static int get_bridge_ifindices(struct net *net, int *indices, int num)
 {
 	struct net_device *dev;
@@ -288,10 +294,24 @@ static int old_dev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	case BRCTL_GET_FDB_ENTRIES:
 		return get_fdb_entries(br, (void __user *)args[1],
 				       args[2], args[3]);
+
+#if defined(CONFIG_RTL_IGMP_SNOOPING)
+#if defined(CONFIG_RT_MULTIPLE_BR_SUPPORT)
+	case BRCTL_REGISTER_IGMPSNOOPING_MODULE:
+	{
+		br_register_igmpsnoopingmodule_process(br, args[1], args[2]);
+		return 0;
+	}
+#endif /* CONFIG_RT_MULTIPLE_BR_SUPPORT */
+#endif /* CONFIG_RTL_IGMP_SNOOPING */
 	}
 
 	return -EOPNOTSUPP;
 }
+
+#if defined(CONFIG_RTL_IGMP_SNOOPING)
+extern int br_set_igmpProxy_pid(int pid);
+#endif /* CONFIG_RTL_IGMP_SNOOPING */
 
 static int old_deviceless(struct net *net, void __user *uarg)
 {
@@ -342,6 +362,13 @@ static int old_deviceless(struct net *net, void __user *uarg)
 
 		return br_del_bridge(net, buf);
 	}
+#if defined(CONFIG_RTL_IGMP_SNOOPING)
+	case BRCTL_SET_IGMPPROXY_PID:
+	{
+		return br_set_igmpProxy_pid(args[1]);
+	}
+#endif /* CONFIG_RTL_IGMP_SNOOPING */
+
 	}
 
 	return -EOPNOTSUPP;

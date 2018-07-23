@@ -1,0 +1,8 @@
+Package: luci-base
+Version: git-16.253.40466-a8354c0-1
+Depends: libc, librt, libpthread, lua, libuci-lua, luci-lib-nixio, luci-lib-ip, rpcd, libubus-lua
+Source: realtek/luci/modules/luci-base
+Section: luci
+Architecture: rtd1295
+Installed-Size: 123802
+Description:  LuCI core libraries

@@ -318,7 +318,12 @@ static void __dma_free_remap(void *cpu_addr, size_t size)
 			VM_ARM_DMA_CONSISTENT | VM_USERMAP);
 }
 
+#ifdef CONFIG_ARCH_RTD119X
+#define DEFAULT_DMA_COHERENT_POOL_SIZE	SZ_1M
+#else
 #define DEFAULT_DMA_COHERENT_POOL_SIZE	SZ_256K
+#endif
+
 static struct gen_pool *atomic_pool;
 
 static size_t atomic_pool_size = DEFAULT_DMA_COHERENT_POOL_SIZE;

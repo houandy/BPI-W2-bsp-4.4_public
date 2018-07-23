@@ -22,6 +22,45 @@
 #include <linux/init.h>
 #include <uapi/linux/netfilter_ipv4/ip_tables.h>
 
+#if defined(CONFIG_RTL_IPTABLES_RULE_2_ACL)
+#define IPT_MATCH_NUMBER(e) \
+({					\
+	unsigned int __i;		\
+	int __ret = 0;			\
+	struct xt_entry_match *__match;	\
+	for(__i = sizeof(struct ipt_entry);	\
+		__i < (e)->target_offset;		\
+		__i += __match->u.match_size)	\
+		{		\
+		__match = (void*)(e) + __i;		\
+		__ret++;		\
+		}		\
+		__ret;	\
+})
+
+#define RTL865X_CHAINLIST_NUMBER_PER_TBL 5
+#define RTL865x_CHAINLIST_PRIORITY_LEVEL_0 0
+#define RTL865x_CHAINLIST_PRIORITY_LEVEL_1 1
+#define RTL865x_CHAINLIST_PRIORITY_LEVEL_2 2
+#define RTL865x_CHAINLIST_PRIORITY_LEVEL_3 3
+#define RTL865x_CHAINLIST_PRIORITY_LEVEL_4 4
+
+typedef struct _rtl865x_iptRule2Acl_tbl_
+{
+	struct list_head list;
+	/*chain list priority: 0 > 1 > ...> 4*/
+	struct list_head chainList[RTL865X_CHAINLIST_NUMBER_PER_TBL]; /*chain list head in this table*/
+
+	int32_t priority; /*table priority*/
+	char tblName[32];
+}rtl865x_iptRule2Acl_tbl;
+//extern struct list_head rtl865x_iptRule2Acl_tbl_list;
+//extern struct list_head rtl865x_iptRule2Acl_def_rule_list;
+//extern struct list_head match_to_acl_rule_list;
+//extern struct list_head def_rule_list;
+#endif
+
+
 extern void ipt_init(void) __init;
 
 extern struct xt_table *ipt_register_table(struct net *net,
@@ -88,4 +127,13 @@ compat_ipt_get_target(struct compat_ipt_entry *e)
 }
 
 #endif /* CONFIG_COMPAT */
+
+#if defined (CONFIG_RTL_IGMP_SNOOPING) && defined (CONFIG_NETFILTER)
+extern unsigned int (*IgmpRxFilter_Hook)(struct sk_buff *skb,
+	     unsigned int hook,
+	     const struct net_device *in,
+	     const struct net_device *out,
+	     struct xt_table *table);
+#endif
+
 #endif /* _IPTABLES_H */

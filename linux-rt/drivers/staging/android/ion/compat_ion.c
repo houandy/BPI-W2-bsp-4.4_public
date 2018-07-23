@@ -39,12 +39,21 @@ struct compat_ion_handle_data {
 	compat_int_t handle;
 };
 
+struct compat_ion_phys_data {
+	compat_int_t handle;
+	compat_ulong_t addr;
+	compat_size_t len;
+};
+
 #define COMPAT_ION_IOC_ALLOC	_IOWR(ION_IOC_MAGIC, 0, \
 				      struct compat_ion_allocation_data)
 #define COMPAT_ION_IOC_FREE	_IOWR(ION_IOC_MAGIC, 1, \
 				      struct compat_ion_handle_data)
 #define COMPAT_ION_IOC_CUSTOM	_IOWR(ION_IOC_MAGIC, 6, \
 				      struct compat_ion_custom_data)
+
+#define COMPAT_ION_IOC_PHYS	_IOWR(ION_IOC_MAGIC, 8, \
+				      struct compat_ion_phys_data)
 
 static int compat_get_ion_allocation_data(
 			struct compat_ion_allocation_data __user *data32,
@@ -78,6 +87,44 @@ static int compat_get_ion_handle_data(
 
 	err = get_user(i, &data32->handle);
 	err |= put_user(i, &data->handle);
+
+	return err;
+}
+
+static int compat_get_ion_phys_data(
+			struct compat_ion_phys_data __user *data32,
+			struct ion_phys_data __user *data)
+{
+	compat_size_t s;
+	compat_int_t i;
+	compat_ulong_t u;
+	int err;
+
+	err = get_user(i, &data32->handle);
+	err |= put_user(i, &data->handle);
+	err |= get_user(u, &data32->addr);
+	err |= put_user(u, &data->addr);
+	err |= get_user(s, &data32->len);
+	err |= put_user(s, &data->len);
+
+	return err;
+}
+
+static int compat_put_ion_phys_data(
+			struct compat_ion_phys_data __user *data32,
+			struct ion_phys_data __user *data)
+{
+	compat_size_t s;
+	compat_int_t i;
+	compat_ulong_t u;
+	int err;
+
+	err = get_user(i, &data->handle);
+	err |= put_user(i, &data32->handle);
+	err |= get_user(u, &data->addr);
+	err |= put_user(u, &data32->addr);
+	err |= get_user(s, &data->len);
+	err |= put_user(s, &data32->len);
 
 	return err;
 }
@@ -189,6 +236,28 @@ long compat_ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case ION_IOC_SYNC:
 		return filp->f_op->unlocked_ioctl(filp, cmd,
 						(unsigned long)compat_ptr(arg));
+	case COMPAT_ION_IOC_PHYS:
+	{
+		struct compat_ion_phys_data __user *data32;
+		struct ion_phys_data __user *data;
+		int err;
+
+		data32 = compat_ptr(arg);
+		data = compat_alloc_user_space(sizeof(*data));
+		if (data == NULL)
+			return -EFAULT;
+
+		err = compat_get_ion_phys_data(data32, data);
+		if (err)
+			return err;
+
+		err = filp->f_op->unlocked_ioctl(filp, ION_IOC_PHYS,
+							(unsigned long)data);
+
+		compat_put_ion_phys_data(data32, data);
+		return err;
+
+	}
 	default:
 		return -ENOIOCTLCMD;
 	}

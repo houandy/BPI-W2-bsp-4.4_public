@@ -1,0 +1,13 @@
+comment "Realtek Platform Type"
+choice
+	prompt "Realtek Platform Type"
+	depends on ARCH_RTD119X
+	default MACH_RTD1195
+
+config MACH_RTD1195
+	bool "Generic RTD1195 EVM board"
+	select ARM_GIC if ARCH_RTD119X
+	help
+	  Support for Realtek 1195 generic boards.
+
+endchoice

@@ -28,6 +28,33 @@
 
 #include "br_private.h"
 
+#if defined(CONFIG_RTL_IGMP_SNOOPING)
+#include <net/rtl/rtl865x_igmpsnooping_glue.h>
+#include <net/rtl/rtl865x_igmpsnooping.h>
+#include <net/rtl/rtl865x_netif.h>
+#include <net/rtl/rtl_nic.h>
+struct net_bridge *bridge0 = NULL;
+unsigned int brIgmpModuleIndex = 0xFFFFFFFF;
+unsigned int br0SwFwdPortMask = 0xFFFFFFFF;
+extern void br_mCastQueryTimerExpired(unsigned long arg);
+
+#if defined(CONFIG_RT_MULTIPLE_BR_SUPPORT)
+struct igmg_register_info igmpRegInfo[RTL_IMGP_MAX_BRMODULE];
+#endif /* CONFIG_RT_MULTIPLE_BR_SUPPORT */
+#endif /* CONFIG_RTL_IGMP_SNOOPING */
+
+
+#if defined(CONFIG_BRIDGE_IGMP_SNOOPING)
+#include <net/rtl/rtl_nic.h>
+struct net_bridge *bridge0 = NULL;
+#endif /* CONFIG_BRIDGE_IGMP_SNOOPING */
+
+#if defined(CONFIG_RTL_HARDWARE_MULTICAST)
+#if defined(CONFIG_RTL_IGMP_SNOOPING)
+int rtl865x_generateBridgeDeviceInfo( struct net_bridge *br, rtl_multicastDeviceInfo_t *devInfo);
+#endif /* CONFIG_RTL_IGMP_SNOOPING */
+#endif /* CONFIG_RTL_HARDWARE_MULTICAST */
+
 /*
  * Determine initial path cost based on speed.
  * using recommendations from 802.1d standard
@@ -313,6 +340,31 @@ static int find_portno(struct net_bridge *br)
 	return (index >= BR_MAX_PORTS) ? -EXFULL : index;
 }
 
+
+#if defined(CONFIG_RTL_IGMP_SNOOPING)
+struct net_bridge *find_br_by_name(char *name)
+{
+	struct net_bridge *br;
+	struct net_device *dev = NULL;;
+
+	dev = __dev_get_by_name(&init_net, name);
+	if (dev == NULL)
+	{
+		return NULL;
+
+	}
+	else if (!(dev->priv_flags & IFF_EBRIDGE)) {
+
+		return NULL;
+	}
+	else
+	{
+		br = netdev_priv(dev);
+	}
+	return br;
+}
+#endif /* CONFIG_RTL_IGMP_SNOOPING */
+
 /* called with RTNL but without bridge lock */
 static struct net_bridge_port *new_nbp(struct net_bridge *br,
 				       struct net_device *dev)
@@ -343,6 +395,309 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 	return p;
 }
 
+#if defined(CONFIG_RTL_IGMP_SNOOPING)
+int br_set_igmpProxy_pid(int pid)
+{
+	struct net_device *dev;
+	struct net_bridge *br = NULL;
+	int ret = 0;
+
+	dev = __dev_get_by_name(&init_net, RTL_PS_BR0_DEV_NAME);
+	if (dev == NULL)
+	{
+		ret = -ENXIO; 	/* Could not find device */
+
+	}
+	else if (!(dev->priv_flags & IFF_EBRIDGE)) {
+
+		ret = -EPERM;
+	}
+	else
+	{
+		br = netdev_priv(dev);
+	}
+
+	if (br != NULL)
+	{
+		br->igmpProxy_pid = pid;
+	}
+
+	return 1;
+}
+
+#if defined(CONFIG_RT_MULTIPLE_BR_SUPPORT)
+int rtl_check_br_igmpmodule(struct net_bridge *br)
+{
+	int ret = -1;
+	int i = 0;
+
+	if (br == NULL)
+		return ret;
+
+
+	for (i = 0;i < RTL_IMGP_MAX_BRMODULE; i++)
+	{
+
+		if (igmpRegInfo[i].valid)
+		{
+
+			if (igmpRegInfo[i].br == br)
+			{
+				ret = i;
+				break;
+			}
+		}
+	}
+	return ret;
+}
+
+int rtl_find_valid_igmpmodule(struct net_bridge *br)
+{
+	unsigned int ret = 0xFFFFFFFF;
+	int i = 0;
+
+	for (i = 0;i < RTL_IMGP_MAX_BRMODULE; i++)
+	{
+
+		if (igmpRegInfo[i].valid == 0)
+		{
+			ret = i;
+			break;
+		}
+	}
+
+	return ret;
+}
+
+int rtl_check_brIgmpModuleName(char *name)
+{
+	int i = 0;
+	int ret = -1;
+
+	for (i = 0; i < RTL_IMGP_MAX_BRMODULE; i++)
+	{
+
+		if ((igmpRegInfo[i].valid) && (igmpRegInfo[i].br))
+		{
+			if (strcmp(igmpRegInfo[i].br->dev->name, name) == 0)
+			{
+				ret = i;
+				break;
+			}
+		}
+	}
+
+	return ret;
+}
+
+int rtl_get_brIgmpModueIndx(struct net_bridge *br)
+{
+	int index = -1;
+
+	index = rtl_check_br_igmpmodule(br);
+
+	if ((index != -1) && (index < RTL_IMGP_MAX_BRMODULE))
+	{
+		return igmpRegInfo[index].moduleIndex;
+	}
+	return 0xFFFFFFFF;
+}
+
+int rtl_get_brIgmpModuleIndexbyName(char *name, int *index)
+{
+	int i = -1;
+
+	i = rtl_check_brIgmpModuleName(name);
+	*index = i;
+	if ((i != -1) && (i < RTL_IMGP_MAX_BRMODULE))
+	{
+		return igmpRegInfo[i].moduleIndex;
+	}
+	return 0xFFFFFFFF;
+}
+
+int rtl_get_brIgmpModuleIndexbyId(int idx, char *name)
+{
+	int moduleIndex = 0xFFFFFFFF;
+	struct net_bridge *br = NULL;
+
+	if ((idx != -1) && idx < RTL_IMGP_MAX_BRMODULE)
+	{
+		if (igmpRegInfo[idx].valid) {
+			moduleIndex = igmpRegInfo[idx].moduleIndex;
+			br = igmpRegInfo[idx].br;
+			if (br) {
+				strcpy(name, br->dev->name);
+			}
+		}
+	}
+	return moduleIndex;
+}
+
+unsigned int rtl_get_brSwFwdPortMask(struct net_bridge *br)
+{
+	int index = -1;
+	unsigned int brSwFwdPortMask = 0xFFFFFFFF;
+
+	index = rtl_check_br_igmpmodule(br);
+	if ((index != -1) && (index < RTL_IMGP_MAX_BRMODULE))
+	{
+		brSwFwdPortMask = igmpRegInfo[index].swFwdPortMask;
+	}
+	return brSwFwdPortMask;
+
+}
+unsigned int rtl_get_brSwFwdPortMaskByIndex(int index)
+{
+	unsigned int brSwFwdPortMask = 0xffffffff;
+
+	if ((index != -1) && (index < RTL_IMGP_MAX_BRMODULE))
+	{
+		brSwFwdPortMask = igmpRegInfo[index].swFwdPortMask;
+	}
+	return brSwFwdPortMask;
+}
+
+struct net_bridge * rtl_get_brByIndex(int index, char *name)
+{
+	struct net_bridge *br = NULL;
+
+	if ((index != -1) && (index < RTL_IMGP_MAX_BRMODULE))
+	{
+		if (igmpRegInfo[index].valid)
+			br = igmpRegInfo[index].br;
+		if (br)
+			strcpy(name, br->dev->name);
+	}
+	return br;
+
+}
+
+int rtl_get_brqueryCntByName(char *name)
+{
+	int i = -1;
+
+	i = rtl_check_brIgmpModuleName(name);
+	if ((i != -1) && (i < RTL_IMGP_MAX_BRMODULE))
+	{
+		return igmpRegInfo[i].mCastQueryTimerCnt;
+	}
+	return -1;
+
+}
+int rtl_set_brqueryCntByName(char *name, int cnt)
+{
+	int i = -1;
+
+	i = rtl_check_brIgmpModuleName(name);
+	if ((i != -1) && (i < RTL_IMGP_MAX_BRMODULE))
+	{
+		igmpRegInfo[i].mCastQueryTimerCnt = cnt;
+		return 1;
+	}
+	return 0;
+
+}
+
+int rtl_set_brSwFwdPortMask(struct net_bridge *br,unsigned int brSwFwdPortMask)
+{
+	int index = -1;
+
+	index = rtl_check_br_igmpmodule(br);
+	if ((index != -1) && (index < RTL_IMGP_MAX_BRMODULE))
+	{
+		igmpRegInfo[index].swFwdPortMask = brSwFwdPortMask;
+	}
+	return index;
+
+}
+
+int br_register_igmpsnoopingmodule_process(struct net_bridge *br,int igmpEnable, int fldEnable)
+{
+	int ret = -1;
+	int index = 0xFFFFFFFF;
+	rtl_multicastDeviceInfo_t brDevInfo;
+
+	if (br == NULL)
+		return ret;
+
+	if (igmpEnable)
+	{
+		//register igmpsnooping module
+		if (rtl_check_br_igmpmodule(br) != -1) //register before
+			return ret;
+
+		index = rtl_find_valid_igmpmodule(br);
+
+		if (index >= RTL_IMGP_MAX_BRMODULE)
+			return ret;
+		igmpRegInfo[index].valid = 1;
+		igmpRegInfo[index].br = br;
+		memset(&brDevInfo, 0, sizeof(rtl_multicastDeviceInfo_t ));
+		strcpy(brDevInfo.devName, br->dev->name);
+
+		ret = rtl_registerIgmpSnoopingModule(&(igmpRegInfo[index].moduleIndex));
+		#if defined(CONFIG_RTL_HARDWARE_MULTICAST)
+		if (ret == 0)
+		{
+			rtl_setIgmpSnoopingModuleDevInfo(igmpRegInfo[index].moduleIndex, &brDevInfo);
+		}
+		#endif
+
+		if (fldEnable)
+		{
+			rtl_setIpv4UnknownMCastFloodMap(igmpRegInfo[index].moduleIndex, 0xFFFFFFFF);
+			rtl_setIpv6UnknownMCastFloodMap(igmpRegInfo[index].moduleIndex, 0xFFFFFFFF);
+		}
+		else
+		{
+			rtl_setIpv4UnknownMCastFloodMap(igmpRegInfo[index].moduleIndex, 0x0);
+			rtl_setIpv6UnknownMCastFloodMap(igmpRegInfo[index].moduleIndex, 0x0);
+		}
+		#if defined(CONFIG_RTL_HARDWARE_MULTICAST)
+		rtl865x_generateBridgeDeviceInfo(br, &brDevInfo);
+		#endif
+		rtl_setIgmpSnoopingModuleDevInfo(igmpRegInfo[index].moduleIndex, &brDevInfo);
+		rtl_set_brSwFwdPortMask(br, brDevInfo.swPortMask);
+
+		if (br != NULL)
+		{
+			init_timer(&br->mCastQuerytimer);
+			br->mCastQuerytimer.data = br;
+
+			br->mCastQuerytimer.expires = jiffies + 1 * HZ;
+			br->mCastQuerytimer.function = (void*)br_mCastQueryTimerExpired;
+			add_timer(&br->mCastQuerytimer);
+		}
+
+
+
+	}
+	else
+	{
+		//unregister igmpsnooping module
+		index = rtl_check_br_igmpmodule(br);
+		if (index != -1)
+		{
+			rtl_unregisterIgmpSnoopingModule(igmpRegInfo[index].moduleIndex);
+			#if defined(CONFIG_RTL_MLD_SNOOPING)
+			if (br && timer_pending(&br->mCastQuerytimer))
+			{
+				del_timer(&br->mCastQuerytimer);
+			}
+			#endif
+			igmpRegInfo[index].br = NULL;
+			igmpRegInfo[index].valid = 0;
+		}
+
+	}
+
+	return ret;
+}
+
+#endif /* CONFIG_RT_MULTIPLE_BR_SUPPORT */
+#endif /* CONFIG_RTL_IGMP_SNOOPING */
+
 int br_add_bridge(struct net *net, const char *name)
 {
 	struct net_device *dev;
@@ -360,6 +715,47 @@ int br_add_bridge(struct net *net, const char *name)
 	res = register_netdev(dev);
 	if (res)
 		free_netdev(dev);
+#if defined(CONFIG_BRIDGE_IGMP_SNOOPING)
+	if (res)
+		return res;
+	bridge0 = netdev_priv(dev);
+#endif
+#if defined(CONFIG_RTL_IGMP_SNOOPING)
+	if (res)
+		return res;
+#if !defined(CONFIG_RT_MULTIPLE_BR_SUPPORT)
+
+	if (strcmp(name,RTL_PS_BR0_DEV_NAME) == 0)
+	{
+		rtl_multicastDeviceInfo_t devInfo;
+		memset(&devInfo, 0, sizeof(rtl_multicastDeviceInfo_t ));
+		strcpy(devInfo.devName, RTL_PS_BR0_DEV_NAME);
+
+		res = rtl_registerIgmpSnoopingModule(&brIgmpModuleIndex);
+#if defined(CONFIG_RTL_HARDWARE_MULTICAST)
+		if (res == 0)
+		{
+				rtl_setIgmpSnoopingModuleDevInfo(brIgmpModuleIndex, &devInfo);
+		}
+#endif
+		bridge0 = netdev_priv(dev);
+		if (bridge0 != NULL)
+		{
+			init_timer(&bridge0->mCastQuerytimer);
+			bridge0->mCastQuerytimer.data = (unsigned long)bridge0;
+			bridge0->mCastQuerytimer.expires = jiffies + MCAST_QUERY_INTERVAL * HZ;
+			bridge0->mCastQuerytimer.function = (void*)br_mCastQueryTimerExpired;
+			add_timer(&bridge0->mCastQuerytimer);
+		}
+		rtl_setIpv4UnknownMCastFloodMap(brIgmpModuleIndex, 0xFFFFFFFF);
+#if defined(CONFIG_RTL_MLD_SNOOPING)
+		rtl_setIpv6UnknownMCastFloodMap(brIgmpModuleIndex, 0xFFFFFFFF);
+#endif
+	}
+#else /* !CONFIG_RT_MULTIPLE_BR_SUPPORT */
+	br_register_igmpsnoopingmodule_process(netdev_priv(dev), 1, 1);
+#endif /* !CONFIG_RT_MULTIPLE_BR_SUPPORT */
+#endif /* CONFIG_RTL_IGMP_SNOOPING */
 	return res;
 }
 
@@ -383,8 +779,36 @@ int br_del_bridge(struct net *net, const char *name)
 		ret = -EBUSY;
 	}
 
-	else
+	else {
+#if defined(CONFIG_RTL_IGMP_SNOOPING)
+#if defined(CONFIG_RT_MULTIPLE_BR_SUPPORT)
+		br_register_igmpsnoopingmodule_process(netdev_priv(dev), 0, 0);
+#endif
+#endif
 		br_dev_delete(dev, NULL);
+	}
+#if defined(CONFIG_BRIDGE_IGMP_SNOOPING) && defined(CONFIG_RTL_HARDWARE_MULTICAST)
+	bridge0 = NULL;
+#endif
+#if defined(CONFIG_RTL_IGMP_SNOOPING)
+#if !defined(CONFIG_RT_MULTIPLE_BR_SUPPORT)
+
+	if (ret)
+		goto outfree;
+	if (strcmp(name, RTL_PS_BR0_DEV_NAME) == 0)
+	{
+		rtl_unregisterIgmpSnoopingModule(brIgmpModuleIndex);
+#if defined(CONFIG_RTL_MLD_SNOOPING)
+		if (bridge0 && timer_pending(&bridge0->mCastQuerytimer))
+		{
+			del_timer(&bridge0->mCastQuerytimer);
+		}
+#endif /* CONFIG_RTL_MLD_SNOOPING */
+		bridge0 = NULL;
+	}
+outfree:
+#endif /* !CONFIG_RT_MULTIPLE_BR_SUPPORT */
+#endif /* CONFIG_RTL_IGMP_SNOOPING */
 
 	rtnl_unlock();
 	return ret;
@@ -439,6 +863,11 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	struct net_bridge_port *p;
 	int err = 0;
 	bool changed_addr;
+#if defined(CONFIG_RT_MULTIPLE_BR_SUPPORT)
+	unsigned int igmpModuleIndex = 0xFFFFFFFF;
+	rtl_multicastDeviceInfo_t brDevInfo;
+#endif
+
 
 	/* Don't allow bridging non-ethernet like devices, or DSA-enabled
 	 * master network devices since the bridge layer rx_handler prevents
@@ -530,6 +959,37 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	dev_set_mtu(br->dev, br_min_mtu(br));
 
 	kobject_uevent(&p->kobj, KOBJ_ADD);
+#if defined(CONFIG_RTL_HARDWARE_MULTICAST)
+#if defined(CONFIG_RTL_IGMP_SNOOPING)
+#if !defined(CONFIG_RT_MULTIPLE_BR_SUPPORT)
+
+	if (strcmp(br->dev->name, RTL_PS_BR0_DEV_NAME) == 0)
+	{
+		rtl_multicastDeviceInfo_t brDevInfo;
+		rtl865x_generateBridgeDeviceInfo(br, &brDevInfo);
+		if (brIgmpModuleIndex != 0xFFFFFFFF)
+		{
+			rtl_setIgmpSnoopingModuleDevInfo(brIgmpModuleIndex, &brDevInfo);
+		}
+		br0SwFwdPortMask = brDevInfo.swPortMask;
+	}
+#else /* !CONFIG_RT_MULTIPLE_BR_SUPPORT */
+//update swPortMask
+	igmpModuleIndex = rtl_get_brIgmpModueIndx(br);
+	if (igmpModuleIndex != 0xFFFFFFFF)
+	{
+		rtl865x_generateBridgeDeviceInfo(br, &brDevInfo);
+		rtl_setIgmpSnoopingModuleDevInfo(igmpModuleIndex, &brDevInfo);
+		rtl_set_brSwFwdPortMask(br, brDevInfo.swPortMask);
+	}
+
+#endif /* !CONFIG_RT_MULTIPLE_BR_SUPPORT */
+#endif /* CONFIG_RTL_IGMP_SNOOPING */
+#endif /* CONFIG_RTL_HARDWARE_MULTICAST */
+#if defined(CONFIG_RT_MULTIPLE_BR_SUPPORT)
+extern int rtk_dev_name_netif_mapping(char *br_name, char *br_port_name, int flag);
+rtk_dev_name_netif_mapping(br->dev->name, dev->name, 1);
+#endif
 
 	return 0;
 
@@ -556,6 +1016,10 @@ int br_del_if(struct net_bridge *br, struct net_device *dev)
 {
 	struct net_bridge_port *p;
 	bool changed_addr;
+#if defined(CONFIG_RT_MULTIPLE_BR_SUPPORT)
+	unsigned int igmpModuleIndex = 0xFFFFFFFF;
+	rtl_multicastDeviceInfo_t brDevInfo;
+#endif
 
 	p = br_port_get_rtnl(dev);
 	if (!p || p->br != br)
@@ -577,6 +1041,35 @@ int br_del_if(struct net_bridge *br, struct net_device *dev)
 		call_netdevice_notifiers(NETDEV_CHANGEADDR, br->dev);
 
 	netdev_update_features(br->dev);
+#if defined(CONFIG_RTL_HARDWARE_MULTICAST)
+#if defined(CONFIG_RTL_IGMP_SNOOPING)
+#if !defined(CONFIG_RT_MULTIPLE_BR_SUPPORT)
+
+	if (strcmp(br->dev->name,RTL_PS_BR0_DEV_NAME) == 0)
+	{
+		rtl_multicastDeviceInfo_t brDevInfo;
+		rtl865x_generateBridgeDeviceInfo(br, &brDevInfo);
+		if (brIgmpModuleIndex != 0xFFFFFFFF)
+		{
+			rtl_setIgmpSnoopingModuleDevInfo(brIgmpModuleIndex, &brDevInfo);
+		}
+		br0SwFwdPortMask = brDevInfo.swPortMask;
+	}
+#else /* !CONFIG_RT_MULTIPLE_BR_SUPPORT */
+	igmpModuleIndex = rtl_get_brIgmpModueIndx(br);
+	if (igmpModuleIndex != 0xFFFFFFFF)
+	{
+		rtl865x_generateBridgeDeviceInfo(br, &brDevInfo);
+		rtl_setIgmpSnoopingModuleDevInfo(igmpModuleIndex, &brDevInfo);
+		rtl_set_brSwFwdPortMask(br, brDevInfo.swPortMask);
+	}
+#endif /* !CONFIG_RT_MULTIPLE_BR_SUPPORT */
+#endif /* CONFIG_RTL_IGMP_SNOOPING */
+#endif /* CONFIG_RTL_HARDWARE_MULTICAST */
+#if defined(CONFIG_RT_MULTIPLE_BR_SUPPORT)
+	extern int rtk_dev_name_netif_mapping(char *br_name, char *br_port_name, int flag);
+	rtk_dev_name_netif_mapping(br->dev->name, dev->name, 2);
+#endif
 
 	return 0;
 }
@@ -588,3 +1081,42 @@ void br_port_flags_change(struct net_bridge_port *p, unsigned long mask)
 	if (mask & BR_AUTO_MASK)
 		nbp_update_port_count(br);
 }
+#if defined(CONFIG_RTL_HARDWARE_MULTICAST)
+#if defined(CONFIG_RTL_IGMP_SNOOPING)
+int rtl865x_generateBridgeDeviceInfo(struct net_bridge *br, rtl_multicastDeviceInfo_t *devInfo)
+{
+	struct net_bridge_port *p, *n;
+	if ((br == NULL) || (devInfo == NULL))
+	{
+		return -1;
+	}
+
+	memset(devInfo, 0, sizeof(rtl_multicastDeviceInfo_t));
+#if defined(CONFIG_RT_MULTIPLE_BR_SUPPORT)
+	int index = -1;
+	index = rtl_check_br_igmpmodule(br);
+	if ((index == -1) || (index >= RTL_IMGP_MAX_BRMODULE))
+#else /* CONFIG_RT_MULTIPLE_BR_SUPPORT */
+	if (strcmp(br->dev->name,RTL_PS_BR0_DEV_NAME) != 0)
+#endif /* CONFIG_RT_MULTIPLE_BR_SUPPORT */
+	{
+		return -1;
+	}
+
+	strcpy(devInfo->devName, br->dev->name);
+
+
+	list_for_each_entry_safe(p, n, &br->port_list, list)
+	{
+		if (memcmp(p->dev->name, RTL_PS_ETH_NAME,3) != 0)
+		{
+			devInfo->swPortMask |= (1<<p->port_no);
+		}
+		devInfo->portMask |= (1 << p->port_no);
+	}
+
+	return 0;
+}
+#endif /* CONFIG_RTL_IGMP_SNOOPING */
+#endif /* CONFIG_RTL_HARDWARE_MULTICAST */
+

@@ -1,0 +1,8 @@
+Package: findutils
+Version: 4.4.2-1
+Depends: libc, librt, libpthread
+Source: realtek/realtek/findutils
+Section: utils
+Architecture: rtd1195
+Installed-Size: 97098
+Description:  The GNU Find Utilities are the basic directory searching utilities of the GNU operating system

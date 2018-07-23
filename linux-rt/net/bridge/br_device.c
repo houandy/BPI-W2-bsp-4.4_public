@@ -30,16 +30,104 @@ EXPORT_SYMBOL_GPL(nf_br_ops);
 
 static struct lock_class_key bridge_netdev_addr_lock_key;
 
+#if defined(CONFIG_RTL_IGMP_SNOOPING)
+/*2008-01-15,for porting igmp snooping to linux kernel 2.6*/
+#include <linux/ip.h>
+#include <linux/in.h>
+#include <linux/igmp.h>
+#include <net/checksum.h>
+#include <net/rtl/rtl865x_igmpsnooping_glue.h>
+#include <net/rtl/rtl865x_igmpsnooping.h>
+extern int igmpsnoopenabled;
+#if defined(CONFIG_RTL_MLD_SNOOPING)
+#include <linux/ipv6.h>
+#include <linux/in6.h>
+extern int mldSnoopEnabled;
+#include <net/rtl/rtl_types.h>
+#endif /* CONFIG_RTL_MLD_SNOOPING */
+#if defined(CONFIG_RTL_HARDWARE_MULTICAST)
+#include <net/rtl/rtl865x_multicast.h>
+#include <net/rtl/rtl865x_netif.h>
+#include <net/rtl/rtl_nic.h>
+#endif /* CONFIG_RTL_HARDWARE_MULTICAST */
+extern unsigned int br0SwFwdPortMask;
+extern unsigned int brIgmpModuleIndex;
+extern unsigned int nicIgmpModuleIndex;
+#if defined(CONFIG_RT_MULTIPLE_BR_SUPPORT)
+#if defined(CONFIG_RTL_VLAN_8021Q) && defined(CONFIG_RTL_MULTICAST_PORT_MAPPING)
+extern int linux_vlan_enable;
+uint32 rtl865x_getVlanPortMask(uint32 vid);
+unsigned int rtl865x_getPhyPortMapMaskbyVlan(struct net_bridge *br,struct sk_buff *skb);
+#endif /* CONFIG_RTL_VLAN_8021Q && CONFIG_RTL_MULTICAST_PORT_MAPPING */
+extern int rtl_get_brIgmpModueIndx(struct net_bridge *br);
+extern unsigned int rtl_get_brSwFwdPortMask(struct net_bridge *br);
+#endif /* CONFIG_RT_MULTIPLE_BR_SUPPORT */
+#endif /* CONFIG_RTL_IGMP_SNOOPING */
+
+#if defined(CONFIG_RTL_HW_VLAN_SUPPORT)
+extern uint32 rtl_hw_vlan_get_tagged_portmask(void);
+#endif /* CONFIG_RTL_HW_VLAN_SUPPORT */
+
+#if defined(CONFIG_RTL_HARDWARE_MULTICAST)
+#if defined(CONFIG_RTL_IGMP_SNOOPING)
+#if defined(CONFIG_RTL_MULTICAST_PORT_MAPPING)
+int rtl865x_ipMulticastHardwareAccelerate(struct net_bridge *br, unsigned int brFwdPortMask,
+					unsigned int srcPort,unsigned int srcVlanId,
+					unsigned int srcIpAddr, unsigned int destIpAddr, unsigned int mapPortMask);
+#else /* CONFIG_RTL_MULTICAST_PORT_MAPPING */
+int rtl865x_ipMulticastHardwareAccelerate(struct net_bridge *br, unsigned int brFwdPortMask,
+					unsigned int srcPort,unsigned int srcVlanId,
+					unsigned int srcIpAddr, unsigned int destIpAddr);
+#endif /* CONFIG_RTL_MULTICAST_PORT_MAPPING */
+
+#if defined(CONFIG_RTL_8198C) || defined(CONFIG_RTL_8197F)
+#if defined(CONFIG_RTL_MULTICAST_PORT_MAPPING)
+int rtl865x_ipv6MulticastHardwareAccelerate(struct net_bridge *br, unsigned int brFwdPortMask,
+					unsigned int srcPort,unsigned int srcVlanId,
+					struct in6_addr srcIpAddr,struct in6_addr destIpAddr, unsigned int mapPortMask);
+#else /* CONFIG_RTL_MULTICAST_PORT_MAPPING */
+int rtl865x_ipv6MulticastHardwareAccelerate(struct net_bridge *br, unsigned int brFwdPortMask,
+					unsigned int srcPort,unsigned int srcVlanId,
+					struct in6_addr srcIpAddr,struct in6_addr destIpAddr);
+#endif /* CONFIG_RTL_MULTICAST_PORT_MAPPING */
+#endif /* CONFIG_RTL_8198C || CONFIG_RTL_8197F */
+#endif /* CONFIG_RTL_IGMP_SNOOPING */
+#endif /* CONFIG_RTL_HARDWARE_MULTICAST */
+
+#if defined(CONFIG_RTL_MLD_SNOOPING)
+extern int re865x_getIpv6TransportProtocol(struct ipv6hdr* ipv6h);
+#endif /* CONFIG_RTL_MLD_SNOOPING */
+
 /* net device transmit always called with BH disabled */
 netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct net_bridge *br = netdev_priv(dev);
 	const unsigned char *dest = skb->data;
 	struct net_bridge_fdb_entry *dst;
+#ifndef CONFIG_RTL_IGMP_SNOOPING
 	struct net_bridge_mdb_entry *mdst;
+#endif /* CONFIG_RTL_IGMP_SNOOPING */
 	struct pcpu_sw_netstats *brstats = this_cpu_ptr(br->stats);
 	const struct nf_br_ops *nf_ops;
 	u16 vid = 0;
+#if defined(CONFIG_RTL_IGMP_SNOOPING)
+	struct iphdr *iph = NULL;
+	unsigned char proto = 0;
+	unsigned char reserved = 0;
+#if defined(CONFIG_RTL_MLD_SNOOPING)
+	struct ipv6hdr *ipv6h = NULL;
+#endif
+	struct rtl_multicastDataInfo multicastDataInfo;
+	struct rtl_multicastFwdInfo multicastFwdInfo;
+	int ret=FAILED;
+#if defined(CONFIG_RTL_HARDWARE_MULTICAST)
+	unsigned int srcPort = skb->srcPort;
+	unsigned int srcVlanId = skb->srcVlanId;
+#if defined(CONFIG_RTL_IGMP_PROXY_MULTIWAN)
+	struct smux_dev_info *dev_info;
+#endif
+#endif/*CONFIG_RTL_HARDWARE_MULTICAST*/
+#endif/*CONFIG_RTL_IGMP_SNOOPING*/
 
 	rcu_read_lock();
 	nf_ops = rcu_dereference(nf_br_ops);
@@ -48,19 +136,183 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_OK;
 	}
 
-	u64_stats_update_begin(&brstats->syncp);
-	brstats->tx_packets++;
-	brstats->tx_bytes += skb->len;
-	u64_stats_update_end(&brstats->syncp);
-
 	BR_INPUT_SKB_CB(skb)->brdev = dev;
 
 	skb_reset_mac_header(skb);
 	skb_pull(skb, ETH_HLEN);
 
+	u64_stats_update_begin(&brstats->syncp);
+	brstats->tx_packets++;
+	/* Exclude ETH_HLEN from byte stats for consistency with Rx chain */
+	brstats->tx_bytes += skb->len;
+	u64_stats_update_end(&brstats->syncp);
+
 	if (!br_allowed_ingress(br, br_vlan_group_rcu(br), skb, &vid))
 		goto out;
 
+#if defined(CONFIG_RTL_IGMP_SNOOPING)
+	if (dest[0] & 1)
+	{
+		if (igmpsnoopenabled || mldSnoopEnabled)
+		{
+		#if defined(CONFIG_RT_MULTIPLE_BR_SUPPORT)
+			unsigned int igmpModuleIndex = 0xFFFFFFFF;
+			extern int rtl_get_brIgmpModueIndx(struct net_bridge *br);
+			igmpModuleIndex = rtl_get_brIgmpModueIndx(br);
+			unsigned int swFwdPortMask = 0xFFFFFFFF;
+			swFwdPortMask = rtl_get_brSwFwdPortMask(br);
+		#endif
+		#if defined(CONFIG_RTL_MULTICAST_PORT_MAPPING)
+			unsigned int mapPortMask = 0xFFFFFFFF;
+		#endif
+			if (MULTICAST_MAC(dest) && igmpsnoopenabled)
+			{
+
+				iph = (struct iphdr *)skb_network_header(skb);
+				proto = iph->protocol;
+
+
+				if (iph->daddr == htonl(0xEFFFFFFA) || iph->daddr == htonl(0xE00000FB))
+				{
+					/*for microsoft upnp*/
+					reserved=1;
+				}
+
+				if (((proto == IPPROTO_UDP) || (proto == IPPROTO_TCP) || (proto == Any_0_hop_protocl)) && (reserved == 0))
+				{
+					multicastDataInfo.ipVersion = 4;
+					multicastDataInfo.sourceIp[0] = (uint32)(iph->saddr);
+					multicastDataInfo.groupAddr[0] = (uint32)(iph->daddr);
+
+					multicastDataInfo.sourceIp[0] = ntohl(multicastDataInfo.sourceIp[0]);
+					multicastDataInfo.groupAddr[0] = ntohl(multicastDataInfo.groupAddr[0]);
+
+				#if defined(CONFIG_RT_MULTIPLE_BR_SUPPORT)
+					ret = rtl_getMulticastDataFwdInfo(igmpModuleIndex, &multicastDataInfo, &multicastFwdInfo);
+				#else
+					ret = rtl_getMulticastDataFwdInfo(brIgmpModuleIndex, &multicastDataInfo, &multicastFwdInfo);
+				#endif
+
+					//printk("fwdPortMask = %x, [%s:%d]\n", multicastFwdInfo.fwdPortMask);
+					br_multicast_deliver(br, multicastFwdInfo.fwdPortMask, skb, 0);
+
+					if ((ret == SUCCESS) && (multicastFwdInfo.cpuFlag == 0))
+					{
+					#if defined(CONFIG_RTL_HARDWARE_MULTICAST)
+						if ((srcVlanId != 0) && (srcPort != 0xFFFF))
+						{
+						#if defined(CONFIG_RTL_MULTICAST_PORT_MAPPING)
+						#if defined(CONFIG_RTL_VLAN_8021Q)
+							if(linux_vlan_enable)
+								mapPortMask = rtl865x_getPhyPortMapMaskbyVlan(br, skb);
+							else
+								mapPortMask = 0xFFFFFFFF;
+						#endif
+							rtl865x_ipMulticastHardwareAccelerate(br, multicastFwdInfo.fwdPortMask,srcPort,srcVlanId, multicastDataInfo.sourceIp[0], multicastDataInfo.groupAddr[0], mapPortMask);
+
+						#else /* CONFIG_RTL_MULTICAST_PORT_MAPPING */
+							rtl865x_ipMulticastHardwareAccelerate(br, multicastFwdInfo.fwdPortMask,srcPort,srcVlanId, multicastDataInfo.sourceIp[0], multicastDataInfo.groupAddr[0]);
+						#endif /* CONFIG_RTL_MULTICAST_PORT_MAPPING */
+						}
+					#endif
+					}
+
+				}
+				else
+				{
+					br_flood_deliver(br, skb, false);
+				}
+
+
+			}
+#if defined(CONFIG_RTL_MLD_SNOOPING)
+			else if (mldSnoopEnabled && IPV6_MULTICAST_MAC(dest))
+			{
+				ipv6h = (struct ipv6hdr *)skb_network_header(skb);
+				proto = re865x_getIpv6TransportProtocol(ipv6h);
+				if ((proto == IPPROTO_UDP) || (proto == IPPROTO_TCP) || (proto == Any_0_hop_protocl))
+				{
+					multicastDataInfo.ipVersion = 6;
+					memcpy(&multicastDataInfo.sourceIp, &ipv6h->saddr, sizeof(struct in6_addr));
+					memcpy(&multicastDataInfo.groupAddr, &ipv6h->daddr, sizeof(struct in6_addr));
+					multicastDataInfo.sourceIp[0] = ntohl(multicastDataInfo.sourceIp[0]);
+					multicastDataInfo.sourceIp[1] = ntohl(multicastDataInfo.sourceIp[1]);
+					multicastDataInfo.sourceIp[2] = ntohl(multicastDataInfo.sourceIp[2]);
+					multicastDataInfo.sourceIp[3] = ntohl(multicastDataInfo.sourceIp[3]);
+					multicastDataInfo.groupAddr[0] = ntohl(multicastDataInfo.groupAddr[0]);
+					multicastDataInfo.groupAddr[1] = ntohl(multicastDataInfo.groupAddr[1]);
+					multicastDataInfo.groupAddr[2] = ntohl(multicastDataInfo.groupAddr[2]);
+					multicastDataInfo.groupAddr[3] = ntohl(multicastDataInfo.groupAddr[3]);
+
+
+				#if defined(CONFIG_RT_MULTIPLE_BR_SUPPORT)
+					ret = rtl_getMulticastDataFwdInfo(igmpModuleIndex, &multicastDataInfo, &multicastFwdInfo);
+				#else
+					ret = rtl_getMulticastDataFwdInfo(brIgmpModuleIndex, &multicastDataInfo, &multicastFwdInfo);
+				#endif
+					br_multicast_deliver(br, multicastFwdInfo.fwdPortMask, skb, 0);
+					#if defined(CONFIG_RTL_HARDWARE_MULTICAST) && (defined(CONFIG_RTL_8198C) || defined(CONFIG_RTL_8197F))
+					if ((ret == SUCCESS) && (multicastFwdInfo.cpuFlag == 0))
+					{
+						struct in6_addr sip;
+						struct in6_addr dip;
+						memcpy(&sip,multicastDataInfo.sourceIp, sizeof(struct in6_addr));
+						memcpy(&dip,multicastDataInfo.groupAddr, sizeof(struct in6_addr));
+						if ((srcVlanId != 0) && (srcPort != 0xFFFF))
+						{
+					#if defined(CONFIG_RTL_MULTICAST_PORT_MAPPING)
+						#if defined(CONFIG_RTL_IGMP_PROXY_MULTIWAN)
+							if (skb->from_dev)
+							{
+								dev_info = SMUX_DEV_INFO(skb->from_dev);
+								mapPortMask = dev_info->member;
+							}
+							else
+								mapPortMask = 0xFFFFFFFF;
+						#elif defined(CONFIG_RTL_VLAN_8021Q)
+							if(linux_vlan_enable)
+								mapPortMask = rtl865x_getPhyPortMapMaskbyVlan(br, skb);
+							else
+								mapPortMask = 0xFFFFFFFF;
+						#endif
+						rtl865x_ipv6MulticastHardwareAccelerate(br, multicastFwdInfo.fwdPortMask, srcPort, srcVlanId, sip, dip, mapPortMask);
+					#else
+						#if defined(CONFIG_RTK_VLAN_SUPPORT)
+							if (rtk_vlan_support_enable == 0)
+							{
+								rtl865x_ipv6MulticastHardwareAccelerate(br, multicastFwdInfo.fwdPortMask, srcPort, srcVlanId, sip, dip);
+							}
+							#else
+							rtl865x_ipv6MulticastHardwareAccelerate(br, multicastFwdInfo.fwdPortMask, srcPort, srcVlanId, sip, dip);
+						#endif
+					#endif
+						}
+					}
+					#endif
+				}
+				else
+				{
+					br_flood_deliver(br, skb, false);
+				}
+			}
+#endif/*CONFIG_RTL_MLD_SNOOPING*/
+			else
+			{
+				br_flood_deliver(br, skb, false);
+			}
+
+		}
+		else
+		{
+			br_flood_deliver(br, skb, false);
+		}
+	}
+	else if ((dst = __br_fdb_get(br, dest,vid)) != NULL)
+		br_deliver(dst->dst, skb);
+	else
+		br_flood_deliver(br, skb, true);
+
+#else/*CONFIG_RTL_IGMP_SNOOPING*/
 	if (is_broadcast_ether_addr(dest))
 		br_flood_deliver(br, skb, false);
 	else if (is_multicast_ether_addr(dest)) {
@@ -84,6 +336,7 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	else
 		br_flood_deliver(br, skb, true);
 
+#endif/*CONFIG_RTL_IGMP_SNOOPING*/
 out:
 	rcu_read_unlock();
 	return NETDEV_TX_OK;
@@ -398,10 +651,480 @@ void br_dev_setup(struct net_device *dev)
 	br->designated_root = br->bridge_id;
 	br->bridge_max_age = br->max_age = 20 * HZ;
 	br->bridge_hello_time = br->hello_time = 2 * HZ;
+#if defined(CONFIG_RTL_819X)
+	br->bridge_forward_delay = br->forward_delay = 10 * HZ;
+#else
 	br->bridge_forward_delay = br->forward_delay = 15 * HZ;
+#endif
 	br->ageing_time = BR_DEFAULT_AGEING_TIME;
 
 	br_netfilter_rtable_init(br);
+#if defined(CONFIG_RTL_IGMP_SNOOPING)
+	br->igmpProxy_pid = 0;
+#endif
 	br_stp_timer_init(br);
 	br_multicast_init(br);
 }
+
+#if defined(CONFIG_RTL_HARDWARE_MULTICAST)
+#if defined(CONFIG_RTL_IGMP_SNOOPING)
+#if defined(CONFIG_RT_MULTIPLE_BR_SUPPORT)
+extern int rtl_get_brIgmpModuleIndexbyId(int idx,char *name);
+#endif
+#if defined(CONFIG_RTL_MULTICAST_PORT_MAPPING) && defined(CONFIG_RTL_VLAN_8021Q)
+extern uint16 rtk_vlan_wan_vid;
+extern int MCastVlanLeakyInfo[MAX_VLAN_NUM];
+extern uint32 rtk_get_vlan_portmask(uint16 vid);
+unsigned int rtl865x_getPhyPortMapMaskbyVlan(struct net_bridge *br,struct sk_buff *skb)
+{
+	unsigned int phyPortMapMask = 0;
+	struct net_bridge_port *p, *n;
+	struct dev_priv *devPriv = NULL;
+	int j, k;
+
+	int vid = 0;
+	if (*(uint16*)skb->linux_vlan_src_tag == __constant_htons(ETH_P_8021Q))
+	{
+		vid = ntohs(*(short *)(skb->linux_vlan_src_tag + 2)) & 0x0fff;
+
+		#if defined(CONFIG_RTL_8021Q_VLAN_SUPPORT_SRC_TAG)
+		//nat vlan is not set, only bridge vlan set, acctually, this case is not support.
+		if (vid == RTL_WANVLANID)
+			vid = RTL_LANVLANID;
+		#endif
+	}
+
+
+	if (br == NULL)
+	{
+		return 0;
+	}
+
+	list_for_each_entry_safe(p, n, &br->port_list, list)
+	{
+
+		devPriv = (struct dev_priv *)netdev_priv(p->dev);
+		if (devPriv)
+		{
+			if (strncmp(p->dev->name, RTL_WLAN_NAME, 4) != 0)
+			{
+				if(p->dev->vlan_id == vid)
+				{
+					phyPortMapMask |= rtk_get_vlan_portmask(vid);
+				}
+			}
+
+		}
+	}
+
+
+	for (j = 0; j < MAX_VLAN_NUM; j++)
+	{
+		if (vid == MCastVlanLeakyInfo[j])
+			break;
+	}
+
+	if (j < MAX_VLAN_NUM)
+	{
+		//vid belong to multicast vlan leaky group
+		for (k = 0; k < MAX_VLAN_NUM; k++)
+		{
+			if (MCastVlanLeakyInfo[k] != 0)
+			{
+				phyPortMapMask |= rtk_get_vlan_portmask(MCastVlanLeakyInfo[k]);
+			}
+		}
+	}
+
+	//remove cpu port
+	if (phyPortMapMask != 0)
+		phyPortMapMask &= ((1 << 6) - 1);
+	else
+		phyPortMapMask = 0xFFFFFFFF;
+	return phyPortMapMask;
+}
+#endif /* CONFIG_RTL_MULTICAST_PORT_MAPPING && CONFIG_RTL_VLAN_8021Q */
+#if defined(CONFIG_RTL_MULTI_LAN_DEV)
+unsigned int rtl865x_getPhyFwdPortMask(struct net_bridge *br,unsigned int brFwdPortMask)
+{
+	unsigned int phyPortMask = 0;
+	unsigned int port_bitmask = 0;
+	struct net_bridge_port *p, *n;
+	struct dev_priv *devPriv = NULL;
+	if (br == NULL)
+	{
+		return 0;
+	}
+	list_for_each_entry_safe(p, n, &br->port_list, list)
+	{
+		port_bitmask = 1 << p->port_no;
+		if (port_bitmask&brFwdPortMask)
+		{
+			#ifdef CONFIG_RTL_VLAN_8021Q
+			if(strncmp(p->dev->name, "eth", 3) == 0 &&
+				p->dev->name[4] == '.')
+			{
+				uint8 devName[16];
+				struct net_device *dev = NULL;
+
+				memcpy(devName, p->dev->name, 4);
+				devName[4] = '\0';
+				dev = dev_get_by_name(&init_net, devName);
+				if (dev)
+					devPriv = (struct dev_priv *)netdev_priv(dev);
+			}
+			else
+				devPriv = (struct dev_priv *)netdev_priv(p->dev);
+			#else
+			devPriv = (struct dev_priv *)netdev_priv(p->dev);
+			#endif
+			if (devPriv){
+
+				if (strncmp(p->dev->name, RTL_WLAN_NAME, 4) != 0)
+					phyPortMask |= devPriv->portmask;
+			}
+		}
+	}
+	return phyPortMask;
+}
+#endif
+#if defined(CONFIG_RTL_MULTICAST_PORT_MAPPING)
+int rtl865x_ipMulticastHardwareAccelerate(struct net_bridge *br, unsigned int brFwdPortMask,
+					unsigned int srcPort,unsigned int srcVlanId,
+					unsigned int srcIpAddr, unsigned int destIpAddr, unsigned int mapPortMask)
+#else
+int rtl865x_ipMulticastHardwareAccelerate(struct net_bridge *br, unsigned int brFwdPortMask,
+					unsigned int srcPort,unsigned int srcVlanId,
+					unsigned int srcIpAddr, unsigned int destIpAddr)
+#endif
+{
+	int ret;
+	unsigned int tagged_portmask = 0;
+	struct rtl_multicastDataInfo multicastDataInfo = {0};
+	struct rtl_multicastFwdInfo  multicastFwdInfo = {0};
+
+	rtl865x_tblDrv_mCast_t *existMulticastEntry;
+	rtl865x_mcast_fwd_descriptor_t fwdDescriptor;
+
+#if defined(CONFIG_RT_MULTIPLE_BR_SUPPORT)
+	unsigned int igmpModuleIndex = 0xFFFFFFFF;
+	unsigned int swFwdPortMask = 0xFFFFFFFF;
+	unsigned int igmpModuleIndex_tmp = 0xFFFFFFFF;
+	unsigned int swFwdPortMask_tmp = 0xFFFFFFFF;
+	int i = 0;
+	unsigned char brName[16] = {0};
+	int cpuFlag = 0;
+	int joinBrNum = 0;
+#endif
+
+	#if 0
+	printk("%s:%d,srcPort is %d,srcVlanId is %d,srcIpAddr is 0x%x,destIpAddr is 0x%x\n",__FUNCTION__,__LINE__,srcPort,srcVlanId,srcIpAddr,destIpAddr);
+	#endif
+
+#if defined(CONFIG_RTL_L2_HW_MULTICAST_SUPPORT)
+	return -1;
+#endif
+
+#if defined(CONFIG_RT_MULTIPLE_BR_SUPPORT)
+	if (br == NULL)
+		return -1;
+
+	igmpModuleIndex = rtl_get_brIgmpModueIndx(br);
+	swFwdPortMask = rtl_get_brSwFwdPortMask(br);
+
+	if (igmpModuleIndex >= RTL_IMGP_MAX_BRMODULE)
+		return -1;
+
+	multicastDataInfo.ipVersion = 4;
+	multicastDataInfo.sourceIp[0] = srcIpAddr;
+	multicastDataInfo.groupAddr[0] = destIpAddr;
+
+	for (i = 0;i < RTL_IMGP_MAX_BRMODULE; i++)
+	{
+		igmpModuleIndex_tmp = rtl_get_brIgmpModuleIndexbyId(i, brName);
+		if (igmpModuleIndex_tmp == 0xFFFFFFFF)
+			continue;
+
+		ret = rtl_getMulticastDataFwdInfo(igmpModuleIndex_tmp, &multicastDataInfo, &multicastFwdInfo);
+		if (ret != 0)
+		{
+			//not normal known mc data pkts
+			continue;
+		}
+
+		joinBrNum++;
+		cpuFlag |= multicastFwdInfo.cpuFlag;
+	}
+	if (cpuFlag == 1 || joinBrNum == 0)
+		return -1;
+
+#else /* CONFIG_RT_MULTIPLE_BR_SUPPORT */
+
+	if (strcmp(br->dev->name, RTL_PS_BR0_DEV_NAME) != 0)
+	{
+		return -1;
+	}
+	if (brFwdPortMask & br0SwFwdPortMask)
+	{
+		return -1;
+	}
+#endif /* CONFIG_RT_MULTIPLE_BR_SUPPORT */
+	existMulticastEntry = rtl865x_findMCastEntry(destIpAddr, srcIpAddr, (unsigned short)srcVlanId, (unsigned short)srcPort);
+	if (existMulticastEntry != NULL)
+	{
+		/*it's already in cache */
+		return 0;
+
+	}
+
+#if !defined(CONFIG_RT_MULTIPLE_BR_SUPPORT)
+	if (brFwdPortMask == 0)
+	{
+		rtl865x_blockMulticastFlow(srcVlanId, srcPort, srcIpAddr, destIpAddr);
+		return 0;
+	}
+#endif
+
+	multicastDataInfo.ipVersion = 4;
+	multicastDataInfo.sourceIp[0] = srcIpAddr;
+	multicastDataInfo.groupAddr[0] = destIpAddr;
+
+/*add hardware multicast entry*/
+#if defined(CONFIG_RTL_MULTI_LAN_DEV)
+	memset(&fwdDescriptor, 0, sizeof(rtl865x_mcast_fwd_descriptor_t));
+#if defined(CONFIG_RT_MULTIPLE_BR_SUPPORT)
+	strcpy(fwdDescriptor.netifName, br->dev->name);
+	ret = rtl_getMulticastDataFwdInfo(igmpModuleIndex, &multicastDataInfo, &multicastFwdInfo);
+#else
+	strcpy(fwdDescriptor.netifName, RTL_BR_NAME);
+	ret = rtl_getMulticastDataFwdInfo(brIgmpModuleIndex, &multicastDataInfo, &multicastFwdInfo);
+#endif
+
+	if (ret != 0)
+		return -1;
+
+	fwdDescriptor.fwdPortMask = rtl865x_getPhyFwdPortMask(br, brFwdPortMask) & (~(1 << srcPort));
+
+	if (fwdDescriptor.fwdPortMask == 0)
+		return -1;
+
+#if defined(CONFIG_RTL_MULTICAST_PORT_MAPPING)
+	fwdDescriptor.fwdPortMask &= (mapPortMask | BIT(6));
+#endif
+
+#if defined(CONFIG_RTL_HW_VLAN_SUPPORT)
+	if (rtl_hw_vlan_ignore_tagged_mc == 1)
+		tagged_portmask = rtl_hw_vlan_get_tagged_portmask();
+#endif
+
+	if (fwdDescriptor.fwdPortMask != 0 &&(fwdDescriptor.fwdPortMask & tagged_portmask) == 0)
+	{
+		#if defined(CONFIG_RTL_MULTICAST_PORT_MAPPING)
+		ret = rtl865x_addMulticastEntry(destIpAddr, srcIpAddr, (unsigned short)srcVlanId, (unsigned short)srcPort,
+							&fwdDescriptor, 1, 0, 0, 0, mapPortMask);
+		#else
+		ret = rtl865x_addMulticastEntry(destIpAddr, srcIpAddr, (unsigned short)srcVlanId, (unsigned short)srcPort,
+							&fwdDescriptor, 1, 0, 0, 0);
+		#endif
+	}
+
+
+#else /* CONFIG_RTL_MULTI_LAN_DEV */
+	memset(&fwdDescriptor, 0, sizeof(rtl865x_mcast_fwd_descriptor_t));
+	strcpy(fwdDescriptor.netifName, "eth*");
+	fwdDescriptor.fwdPortMask = 0xFFFFFFFF;
+
+	ret = rtl_getMulticastDataFwdInfo(nicIgmpModuleIndex, &multicastDataInfo, &multicastFwdInfo);
+	if (ret != 0)
+	{
+		//if(net_ratelimit())printk("[%s:%d]get nic fwd info failed.\n",__FUNCTION__,__LINE__);
+		return -1;
+	}
+	else
+	{
+		if (multicastFwdInfo.cpuFlag)
+		{
+			fwdDescriptor.toCpu = 1;
+		}
+		fwdDescriptor.fwdPortMask = multicastFwdInfo.fwdPortMask & (~(1 << srcPort));
+	}
+
+#if defined(CONFIG_RTL_MULTICAST_PORT_MAPPING)
+	fwdDescriptor.fwdPortMask &= mapPortMask;
+#endif
+
+	if (fwdDescriptor.fwdPortMask == 0)
+		return -1;
+
+#if defined(CONFIG_RTL_HW_VLAN_SUPPORT)
+	if (rtl_hw_vlan_ignore_tagged_mc == 1)
+		tagged_portmask = rtl_hw_vlan_get_tagged_portmask();
+#endif
+
+	if ((fwdDescriptor.fwdPortMask & tagged_portmask) == 0)
+	{
+	#if defined(CONFIG_RTL_MULTICAST_PORT_MAPPING)
+		ret = rtl865x_addMulticastEntry(destIpAddr, srcIpAddr, (unsigned short)srcVlanId, (unsigned short)srcPort,
+							&fwdDescriptor, 1, 0, 0, 0, mapPortMask);
+	#else
+		ret = rtl865x_addMulticastEntry(destIpAddr, srcIpAddr, (unsigned short)srcVlanId, (unsigned short)srcPort,
+							&fwdDescriptor, 1, 0, 0, 0);
+	#endif
+	}
+#endif /* CONFIG_RTL_MULTI_LAN_DEV */
+
+	return 0;
+}
+
+#if defined(CONFIG_RTL_8198C) || defined(CONFIG_RTL_8197F)
+#if defined(CONFIG_RTL_MULTICAST_PORT_MAPPING)
+int rtl865x_ipv6MulticastHardwareAccelerate(struct net_bridge *br, unsigned int brFwdPortMask,
+					unsigned int srcPort,unsigned int srcVlanId,
+					struct in6_addr srcIpAddr,struct in6_addr destIpAddr, unsigned int mapPortMask)
+
+#else
+int rtl865x_ipv6MulticastHardwareAccelerate(struct net_bridge *br, unsigned int brFwdPortMask,
+					unsigned int srcPort,unsigned int srcVlanId,
+					struct in6_addr srcIpAddr,struct in6_addr destIpAddr)
+#endif
+{
+	int ret;
+	unsigned int tagged_portmask = 0;
+	struct rtl_multicastDataInfo multicastDataInfo = {0};
+	struct rtl_multicastFwdInfo  multicastFwdInfo = {0};
+	inv6_addr_t sip,dip;
+
+	rtl8198c_tblDrv_mCastv6_t *existMulticastEntry;
+	rtl8198c_mcast_fwd_descriptor6_t fwdDescriptor;
+
+#if defined(CONFIG_RT_MULTIPLE_BR_SUPPORT)
+	int i = 0, joinBrNum = 0, cpuFlag = 0;
+	unsigned int igmpModuleIndex_tmp = 0xFFFFFFFF;
+	unsigned char brName[16] = {0};
+#endif
+
+	multicastDataInfo.ipVersion = 6;
+	memcpy(multicastDataInfo.sourceIp, &srcIpAddr, sizeof(struct in6_addr));
+	memcpy(multicastDataInfo.groupAddr, &destIpAddr, sizeof(struct in6_addr));
+
+
+#if defined(CONFIG_RT_MULTIPLE_BR_SUPPORT)
+	for (i = 0; i < RTL_IMGP_MAX_BRMODULE; i++)
+	{
+		igmpModuleIndex_tmp = rtl_get_brIgmpModuleIndexbyId(i,brName);
+		if (igmpModuleIndex_tmp == 0xFFFFFFFF)
+			continue;
+
+		ret = rtl_getMulticastDataFwdInfo(igmpModuleIndex_tmp, &multicastDataInfo, &multicastFwdInfo);
+		if (ret != 0)
+		{
+			//not normal known mc data pkts
+			continue;
+		}
+
+		joinBrNum++;
+		cpuFlag |= multicastFwdInfo.cpuFlag;
+	}
+	if (cpuFlag == 1 || joinBrNum == 0)
+		return -1;
+
+#else /* CONFIG_RT_MULTIPLE_BR_SUPPORT */
+	if (strcmp(br->dev->name,RTL_PS_BR0_DEV_NAME) != 0)
+	{
+		return -1;
+	}
+
+	if (brFwdPortMask & br0SwFwdPortMask)
+	{
+		return -1;
+	}
+#endif /* CONFIG_RT_MULTIPLE_BR_SUPPORT */
+	memcpy(&sip,&srcIpAddr, sizeof(struct in6_addr));
+	memcpy(&dip,&destIpAddr, sizeof(struct in6_addr));
+	existMulticastEntry = rtl8198C_findMCastv6Entry(dip,sip, (unsigned short)srcVlanId, (unsigned short)srcPort);
+	if (existMulticastEntry != NULL)
+	{
+		/*it's already in cache */
+		return 0;
+
+	}
+
+#if !defined(CONFIG_RT_MULTIPLE_BR_SUPPORT)
+	if (brFwdPortMask == 0)
+	{
+		rtl8198C_blockMulticastv6Flow(srcVlanId, srcPort, sip,dip);
+		return 0;
+	}
+#endif
+
+	/*add hardware multicast entry*/
+#if !defined(CONFIG_RTL_MULTI_LAN_DEV)
+	memset(&fwdDescriptor, 0, sizeof(rtl8198c_mcast_fwd_descriptor6_t));
+	strcpy(fwdDescriptor.netifName, "eth*");
+	fwdDescriptor.fwdPortMask = 0xFFFFFFFF;
+
+	ret = rtl_getMulticastDataFwdInfo(nicIgmpModuleIndex, &multicastDataInfo, &multicastFwdInfo);
+	if (ret != 0)
+	{
+		return -1;
+	}
+	else
+	{
+		if (multicastFwdInfo.cpuFlag)
+		{
+			fwdDescriptor.toCpu = 1;
+		}
+		fwdDescriptor.fwdPortMask = multicastFwdInfo.fwdPortMask & (~(1 << srcPort));
+	}
+#else/*!CONFIG_RTL_MULTI_LAN_DEV*/
+	memset(&fwdDescriptor, 0, sizeof(rtl8198c_mcast_fwd_descriptor6_t));
+#if defined(CONFIG_RT_MULTIPLE_BR_SUPPORT)
+	strcpy(fwdDescriptor.netifName, br->dev->name);
+#else
+	strcpy(fwdDescriptor.netifName, RTL_BR_NAME);
+	if (multicastFwdInfo.cpuFlag)
+	{
+		fwdDescriptor.toCpu = 1;
+	}
+#endif
+	fwdDescriptor.fwdPortMask = rtl865x_getPhyFwdPortMask(br, brFwdPortMask) & (~(1 << srcPort));
+#endif/*!CONFIG_RTL_MULTI_LAN_DEV*/
+
+#if defined(CONFIG_RTL_MULTICAST_PORT_MAPPING)
+	fwdDescriptor.fwdPortMask &= mapPortMask;
+#endif
+
+	if (fwdDescriptor.fwdPortMask == 0)
+		return -1;
+
+#if defined(CONFIG_RTL_HW_VLAN_SUPPORT)
+	if (rtl_hw_vlan_ignore_tagged_mc == 1)
+		tagged_portmask = rtl_hw_vlan_get_tagged_portmask();
+#endif
+	if ((fwdDescriptor.fwdPortMask & tagged_portmask) == 0)
+	{
+#if defined(CONFIG_RTL_MULTICAST_PORT_MAPPING)
+		ret = rtl8198C_addMulticastv6Entry(dip,sip, (unsigned short)srcVlanId, (unsigned short)srcPort,
+							&fwdDescriptor, 1, 0, 0, 0, mapPortMask);
+
+#else
+		ret = rtl8198C_addMulticastv6Entry(dip,sip, (unsigned short)srcVlanId, (unsigned short)srcPort,
+							&fwdDescriptor, 1, 0, 0, 0);
+#endif
+	}
+
+	return 0;
+}
+
+#endif /* CONFIG_RTL_8198C || CONFIG_RTL_8197F */
+#endif /*CONFIG_RTL_IGMP_SNOOPING*/
+#endif /*CONFIG_RTL_HARDWARE_MULTICAST*/
+
+#ifdef CONFIG_RTK_VLAN_WAN_TAG_SUPPORT
+int rtl865x_same_root(struct net_device *dev1,struct net_device *dev2){
+
+	struct net_bridge_port *p = br_port_get_rcu(dev1);
+	struct net_bridge_port *p2 = br_port_get_rcu(dev2);
+	return !strncmp(p->br->dev->name,p2->br->dev->name,3);
+}
+#endif

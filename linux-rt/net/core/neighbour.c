@@ -41,6 +41,20 @@
 #include <linux/inetdevice.h>
 #include <net/addrconf.h>
 
+#if defined(CONFIG_RTL_819X)
+#include <net/rtl/rtl_types.h>
+#ifdef CONFIG_RTL_LAYERED_DRIVER_L3
+#include <net/rtl/rtl865x_ppp.h>
+#include <net/rtl/rtl865x_route_api.h>
+#include <net/rtl/rtl865x_arp_api.h>
+#endif /* CONFIG_RTL_LAYERED_DRIVER_L3 */
+
+#if defined(CONFIG_RTL_MULTIPLE_WAN)
+#include <net/arp.h>
+#endif /* CONFIG_RTL_MULTIPLE_WAN */
+
+#include <net/rtl/features/rtl_ps_hooks.h>
+#endif /* CONFIG_RTL_819X */
 #define DEBUG
 #define NEIGH_DEBUG 1
 #define neigh_dbg(level, fmt, ...)		\
@@ -146,6 +160,11 @@ static int neigh_forced_gc(struct neigh_table *tbl)
 						  lockdep_is_held(&tbl->lock)));
 				n->dead = 1;
 				shrunk	= 1;
+				#if defined(CONFIG_RTL_819X)
+				/*delete asic arp entry*/
+				rtl_neigh_forced_gc_hooks(tbl, n);
+				#endif /* CONFIG_RTL_819X */
+
 				write_unlock(&n->lock);
 				neigh_cleanup_and_release(n);
 				continue;
@@ -227,6 +246,11 @@ static void neigh_flush_dev(struct neigh_table *tbl, struct net_device *dev)
 				   we must kill timers etc. and move
 				   it to safe state.
 				 */
+				 #if defined(CONFIG_RTL_819X)
+				/*delete asic arp entry*/
+				rtl_neigh_flush_dev_hooks(tbl, dev, n);
+				#endif /* CONFIG_RTL_819X */
+
 				__skb_queue_purge(&n->arp_queue);
 				n->arp_queue_len_bytes = 0;
 				n->output = neigh_blackhole;
@@ -684,6 +708,11 @@ void neigh_destroy(struct neighbour *neigh)
 {
 	struct net_device *dev = neigh->dev;
 
+	#if defined(CONFIG_RTL_819X)
+	/*delete asic arp entry*/
+	rtl_neigh_destroy_hooks(neigh);
+	#endif /* CONFIG_RTL_819X */
+
 	NEIGH_CACHE_STAT_INC(neigh->tbl, destroys);
 
 	if (!neigh->dead) {
@@ -733,6 +762,9 @@ static void neigh_suspect(struct neighbour *neigh)
 static void neigh_connect(struct neighbour *neigh)
 {
 	neigh_dbg(2, "neigh %p is connected\n", neigh);
+	#if defined(CONFIG_RTL_819X)
+	rtl_neigh_connect_hooks(neigh);
+	#endif /* CONFIG_RTL_819X */
 
 	neigh->output = neigh->ops->connected_output;
 }
@@ -787,6 +819,19 @@ static void neigh_periodic_work(struct work_struct *work)
 			if (atomic_read(&n->refcnt) == 1 &&
 			    (state == NUD_FAILED ||
 			     time_after(jiffies, n->used + NEIGH_VAR(n->parms, GC_STALETIME)))) {
+				#if defined(CONFIG_RTL_819X)
+				if (RTL_PS_HOOKS_BREAK == rtl_neigh_periodic_timer_hooks(n, 0)) {
+					write_unlock(&n->lock);
+					goto next_elt;
+				}
+
+				#if 0
+				printk("%s:%d: ip:%pI4, mac:%x:%x:%x:%x:%x:%x,n->nud_state is 0x%x\n",
+				__FUNCTION__, __LINE__, (u32 *)n->primary_key, n->ha[0], n->ha[1],
+				n->ha[2], n->ha[3], n->ha[4], n->ha[5],n->nud_state);
+				#endif
+				#endif /* CONFIG_RTL_819X */
+
 				*np = n->next;
 				n->dead = 1;
 				write_unlock(&n->lock);
@@ -851,7 +896,7 @@ static void neigh_invalidate(struct neighbour *neigh)
 	neigh->arp_queue_len_bytes = 0;
 }
 
-static void neigh_probe(struct neighbour *neigh)
+void neigh_probe(struct neighbour *neigh)
 	__releases(neigh->lock)
 {
 	struct sk_buff *skb = skb_peek_tail(&neigh->arp_queue);
@@ -863,6 +908,7 @@ static void neigh_probe(struct neighbour *neigh)
 	atomic_inc(&neigh->probes);
 	kfree_skb(skb);
 }
+EXPORT_SYMBOL(neigh_probe);
 
 /* Called when a timer expires for a neighbour entry. */
 
@@ -881,6 +927,10 @@ static void neigh_timer_handler(unsigned long arg)
 
 	if (!(state & NUD_IN_TIMER))
 		goto out;
+
+	#if defined(CONFIG_RTL_819X)
+	rtl_neigh_timer_handler_pre_update_hooks(neigh, state);
+	#endif /* CONFIG_RTL_819X */
 
 	if (state & NUD_REACHABLE) {
 		if (time_before_eq(now,
@@ -925,6 +975,10 @@ static void neigh_timer_handler(unsigned long arg)
 		next = now + NEIGH_VAR(neigh->parms, RETRANS_TIME);
 	}
 
+	#if defined(CONFIG_RTL_819X)
+	rtl_neigh_timer_handler_during_update_hooks(neigh, state);
+	#endif /* CONFIG_RTL_819X */
+
 	if ((neigh->nud_state & (NUD_INCOMPLETE | NUD_PROBE)) &&
 	    atomic_read(&neigh->probes) >= neigh_max_probes(neigh)) {
 		neigh->nud_state = NUD_FAILED;
@@ -948,6 +1002,10 @@ out:
 
 	if (notify)
 		neigh_update_notify(neigh);
+
+	#if defined(CONFIG_RTL_819X)
+	rtl_neigh_timer_handler_post_update_hooks(neigh, state);
+	#endif /* CONFIG_RTL_819X */
 
 	neigh_release(neigh);
 }
@@ -993,6 +1051,10 @@ int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 		neigh_add_timer(neigh, jiffies +
 				NEIGH_VAR(neigh->parms, DELAY_PROBE_TIME));
 	}
+
+	#if defined(CONFIG_RTL_819X)
+	rtl___neigh_event_send_post_hooks(neigh, skb);
+	#endif /* CONFIG_RTL_819X */
 
 	if (neigh->nud_state == NUD_INCOMPLETE) {
 		if (skb) {
@@ -1180,6 +1242,11 @@ int neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new,
 			neigh->confirmed = jiffies -
 				      (NEIGH_VAR(neigh->parms, BASE_REACHABLE_TIME) << 1);
 		notify = 1;
+		#if defined(CONFIG_RTL_819X)
+		/*careful:should put these code after "memcpy(&neigh->ha, lladdr, dev->addr_len);"*/
+		/*different mac address, and add new arp mapping entry*/
+		rtl_neigh_update_hooks(neigh, lladdr, old);
+		#endif /* CONFIG_RTL_819X */
 	}
 	if (new == old)
 		goto out;
@@ -1229,6 +1296,12 @@ out:
 			(neigh->flags | NTF_ROUTER) :
 			(neigh->flags & ~NTF_ROUTER);
 	}
+	#if defined(CONFIG_RTL_819X)
+	/*careful:should put these code after "memcpy(&neigh->ha, lladdr, dev->addr_len);"*/
+	/*different mac address, and add new arp mapping entry*/
+	rtl_neigh_update_post_hooks(neigh, lladdr, old);
+	#endif /* CONFIG_RTL_819X */
+
 	write_unlock_bh(&neigh->lock);
 
 	if (notify)
@@ -3220,6 +3293,9 @@ static int __init neigh_init(void)
 	rtnl_register(PF_UNSPEC, RTM_GETNEIGHTBL, NULL, neightbl_dump_info,
 		      NULL);
 	rtnl_register(PF_UNSPEC, RTM_SETNEIGHTBL, neightbl_set, NULL, NULL);
+	#if defined(CONFIG_RTL_819X)
+	rtl_neigh_init_hooks();
+	#endif /* CONFIG_RTL_819X */
 
 	return 0;
 }

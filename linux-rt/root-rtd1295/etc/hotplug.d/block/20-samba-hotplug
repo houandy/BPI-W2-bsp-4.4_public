@@ -1,0 +1,66 @@
+#!/bin/sh
+
+#   Samba...........................PandoraBox..........................
+#=======================================================================
+#
+#   D-Team Technology Co.,Ltd. ShenZhen
+#   ......:Vic
+#
+#
+# ......:.....................,.........................................
+#=======================================================================
+
+
+set_samba(){
+	section=$(echo $get_uuid | sed 's/-//g')
+
+	uci set samba.${section}="sambashare"
+	uci set samba.${section}.name="Disk_${device}"
+	uci set samba.${section}.path="${mountpoint}"
+	uci set samba.${section}.read_only="no"
+	uci set samba.${section}.guest_ok="yes"
+	uci commit samba
+}
+
+set_samba_path(){
+	section=$(echo $get_uuid | sed 's/-//g')
+
+	uci set samba.${section}.path="${mountpoint}"
+	uci commit samba
+}
+
+device=`basename $DEVPATH`
+
+case "$ACTION" in
+	add)
+	
+       case "$device" in
+                sd*) ;;
+                md*) ;;
+                hd*) ;;     
+                *) return;;
+        esac   
+        
+	mountpoint=`sed -ne "s|^[^ ]*/$device ||; T; s/ .*//p" /proc/self/mounts`
+	get_uuid=`block info | grep "/dev/${device}" | awk -F "UUID=" '{print $2}'| awk -F "\"" '{print $2}'`
+	have_uuid=$(uci show samba | grep -c "$get_uuid")
+	[ "$have_uuid" = "0" ] && set_samba
+	[ "$have_uuid" -gt "0" ] && set_samba_path
+	/etc/init.d/samba restart
+	;;
+
+	remove)
+
+       case "$device" in
+                sd*) ;;
+                md*) ;;
+                hd*) ;;     
+                *) return;;
+        esac   
+        
+	section=$(uci show samba | grep /mnt/${device}  | awk 'BEGIN { FS = "." } ; { print $2 }')
+	uci delete samba.${section}
+	uci commit samba
+	/etc/init.d/samba restart
+	;;
+esac

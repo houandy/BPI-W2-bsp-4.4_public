@@ -33,6 +33,10 @@
 #include <net/netfilter/nf_conntrack_timestamp.h>
 #include <linux/rculist_nulls.h>
 
+#if defined(CONFIG_RTL_819X)
+#include <net/rtl/features/rtl_ps_hooks.h>
+#endif /* CONFIG_RTL_819X */
+
 MODULE_LICENSE("GPL");
 
 #ifdef CONFIG_NF_CONNTRACK_PROCFS
@@ -219,6 +223,12 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	NF_CT_ASSERT(l4proto);
 
 	ret = -ENOSPC;
+
+#if defined(CONFIG_RTL_819X)
+	if (rtl_ct_seq_show_hooks(s,ct) == RTL_PS_HOOKS_BREAK)
+		goto release;
+#endif /* CONFIG_RTL_819X */
+
 	seq_printf(s, "%-8s %u %-8s %u %ld ",
 		   l3proto->name, nf_ct_l3num(ct),
 		   l4proto->name, nf_ct_protonum(ct),
@@ -434,7 +444,35 @@ static int log_invalid_proto_max = 255;
 
 static struct ctl_table_header *nf_ct_netfilter_header;
 
+#if defined(CONFIG_RTL_819X)
+static unsigned int nf_conntrack_reserved_num = 1024;
+static int conntrack_dointvec_819x(struct ctl_table *table, int write,
+				   void *buffer, size_t *lenp, loff_t *ppos)
+{
+	int err;
+
+	err = proc_dointvec(table, write,  buffer, lenp, ppos);
+	if (err != 0)
+		return err;
+
+	rtl_nf_conntrack_threshold = (nf_conntrack_max * 4) / 5;
+	if ((nf_conntrack_max - rtl_nf_conntrack_threshold) > nf_conntrack_reserved_num)
+		rtl_nf_conntrack_threshold = nf_conntrack_max - nf_conntrack_reserved_num;
+
+	return 0;
+}
+#endif /* CONFIG_RTL_819X */
+
 static struct ctl_table nf_ct_sysctl_table[] = {
+#if defined(CONFIG_RTL_819X)
+	{
+		.procname	= "nf_conntrack_max",
+		.data		= &nf_conntrack_max,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &conntrack_dointvec_819x,
+	},
+#else
 	{
 		.procname	= "nf_conntrack_max",
 		.data		= &nf_conntrack_max,
@@ -442,6 +480,7 @@ static struct ctl_table nf_ct_sysctl_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
+#endif /* CONFIG_RTL_819X */
 	{
 		.procname	= "nf_conntrack_count",
 		.data		= &init_net.ct.count,
@@ -479,6 +518,15 @@ static struct ctl_table nf_ct_sysctl_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
+#if defined(CONFIG_RTL_819X)
+	{
+		.procname	= "nf_conntrack_reserved_num",
+		.data		= &nf_conntrack_reserved_num,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	   },
+#endif /* CONFIG_RTL_819X */
 	{ }
 };
 
@@ -490,7 +538,11 @@ static struct ctl_table nf_ct_netfilter_table[] = {
 		.data		= &nf_conntrack_max,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
+#if defined(CONFIG_RTL_819X)
+		.proc_handler	= &conntrack_dointvec_819x,
+#else
 		.proc_handler	= proc_dointvec,
+#endif /* CONFIG_RTL_819X */
 	},
 	{ }
 };

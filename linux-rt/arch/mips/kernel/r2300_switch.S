@@ -21,7 +21,9 @@
 
 #include <asm/asmmacro.h>
 
+#ifndef CONFIG_CPU_RLX
 	.set	mips1
+#endif
 	.align	5
 
 /*

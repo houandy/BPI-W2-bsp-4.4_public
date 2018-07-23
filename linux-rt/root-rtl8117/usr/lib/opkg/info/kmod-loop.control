@@ -1,0 +1,10 @@
+Package: kmod-loop
+Version: 4.4.18-1
+Depends: kernel (=4.4.18-1-623606fabb92c53d7574b1788ecb2d3d)
+Source: package/kernel/linux
+License: GPLv2
+Section: kernel
+Status: unknown hold not-installed
+Architecture: rtl8117
+Installed-Size: 13722
+Description:  Kernel module for loopback device support

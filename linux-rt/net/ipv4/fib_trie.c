@@ -84,6 +84,10 @@
 #include <trace/events/fib.h>
 #include "fib_lookup.h"
 
+#if defined(CONFIG_RTL_819X)
+#include <net/rtl/features/rtl_ps_hooks.h>
+#endif /* CONFIG_RTL_819X */
+
 #define MAX_STAT_DEPTH 32
 
 #define KEYLENGTH	(8*sizeof(t_key))
@@ -1164,6 +1168,10 @@ int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 			if (!new_fa)
 				goto out;
 
+			#if defined(CONFIG_RTL_819X)
+			rtl_fn_hash_replace_hooks(tb, cfg, fi);
+			#endif /* CONFIG_RTL_819X */
+
 			fi_drop = fa->fa_info;
 			new_fa->fa_tos = fa->fa_tos;
 			new_fa->fa_info = fi;
@@ -1245,6 +1253,11 @@ int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 	rt_cache_flush(cfg->fc_nlinfo.nl_net);
 	rtmsg_fib(RTM_NEWROUTE, htonl(key), new_fa, plen, new_fa->tb_id,
 		  &cfg->fc_nlinfo, nlflags);
+
+	#if defined(CONFIG_RTL_819X)
+	rtl_fn_hash_insert_hooks(tb, cfg, fi);
+	#endif /* CONFIG_RTL_819X */
+
 succeeded:
 	return 0;
 
@@ -1540,6 +1553,10 @@ int fib_table_delete(struct fib_table *tb, struct fib_config *cfg)
 	if (!fa_to_delete)
 		return -ESRCH;
 
+	#if defined(CONFIG_RTL_819X)
+	rtl_fn_hash_delete_hooks(tb, cfg);
+	#endif /* CONFIG_RTL_819X */
+
 	switchdev_fib_ipv4_del(key, plen, fa_to_delete->fa_info, tos,
 			       cfg->fc_type, tb->tb_id);
 
@@ -1790,6 +1807,11 @@ void fib_table_flush_external(struct fib_table *tb)
 			if (!fi || !(fi->fib_flags & RTNH_F_OFFLOAD))
 				continue;
 
+			#if defined(CONFIG_RTL_FASTPATH_HWNAT_SUPPORT_KERNEL_3_X)
+			if (net_eq(fi->fib_net, &init_net))
+				rtl_fib_flush_list_hooks(tb->tb_id, n->key, ntohl(inet_make_mask(KEYLENGTH - fa->fa_slen)));
+			#endif /* CONFIG_RTL_FASTPATH_HWNAT_SUPPORT_KERNEL_3_X */
+
 			switchdev_fib_ipv4_del(n->key, KEYLENGTH - fa->fa_slen,
 					       fi, fa->fa_tos, fa->fa_type,
 					       tb->tb_id);
@@ -1854,6 +1876,11 @@ int fib_table_flush(struct fib_table *tb)
 				slen = fa->fa_slen;
 				continue;
 			}
+
+			#if defined(CONFIG_RTL_FASTPATH_HWNAT_SUPPORT_KERNEL_3_X)
+			if (net_eq(fi->fib_net, &init_net))
+				rtl_fib_flush_list_hooks(tb->tb_id, n->key, ntohl(inet_make_mask(KEYLENGTH - fa->fa_slen)));
+			#endif /* CONFIG_RTL_FASTPATH_HWNAT_SUPPORT_KERNEL_3_X */
 
 			switchdev_fib_ipv4_del(n->key, KEYLENGTH - fa->fa_slen,
 					       fi, fa->fa_tos, fa->fa_type,

@@ -76,7 +76,7 @@ pcibios_align_resource(void *data, const struct resource *res,
 	return start;
 }
 
-static void pcibios_scanbus(struct pci_controller *hose)
+void pcibios_scanbus(struct pci_controller *hose)
 {
 	static int next_busno;
 	static int need_domain_info;
@@ -86,8 +86,12 @@ static void pcibios_scanbus(struct pci_controller *hose)
 	if (!hose->iommu)
 		PCI_DMA_BUS_IS_PHYS = 1;
 
+#ifndef CONFIG_SOC_RTL8117
 	if (hose->get_busno && pci_has_flag(PCI_PROBE_ONLY))
 		next_busno = (*hose->get_busno)();
+#else
+	next_busno = (*hose->get_busno)();
+#endif
 
 	pci_add_resource_offset(&resources,
 				hose->mem_resource, hose->mem_offset);
@@ -121,6 +125,7 @@ static void pcibios_scanbus(struct pci_controller *hose)
 	}
 	pci_bus_add_devices(bus);
 }
+EXPORT_SYMBOL(pcibios_scanbus);
 
 #ifdef CONFIG_OF
 void pci_load_of_ranges(struct pci_controller *hose, struct device_node *node)
@@ -158,6 +163,7 @@ void pci_load_of_ranges(struct pci_controller *hose, struct device_node *node)
 			of_pci_range_to_resource(&range, node, res);
 	}
 }
+EXPORT_SYMBOL(pci_load_of_ranges);
 
 struct device_node *pcibios_get_phb_of_node(struct pci_bus *bus)
 {
@@ -216,6 +222,7 @@ out:
 	printk(KERN_WARNING
 	       "Skipping PCI bus scan due to resource conflict\n");
 }
+EXPORT_SYMBOL(register_pci_controller);
 
 static void __init pcibios_set_cache_line_size(void)
 {

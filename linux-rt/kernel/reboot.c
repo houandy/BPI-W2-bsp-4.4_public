@@ -231,7 +231,14 @@ static void kernel_shutdown_prepare(enum system_states state)
 		(state == SYSTEM_HALT) ? SYS_HALT : SYS_POWER_OFF, NULL);
 	system_state = state;
 	usermodehelper_disable();
+
+#if defined(CONFIG_ARCH_RTD119X) || defined(CONFIG_ARCH_RTD129X)
+	if (state != SYSTEM_POWER_OFF)
+		device_shutdown();
+#else
 	device_shutdown();
+#endif
+
 }
 /**
  *	kernel_halt - halt the system

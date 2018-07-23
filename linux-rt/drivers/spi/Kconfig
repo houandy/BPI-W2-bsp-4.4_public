@@ -455,6 +455,19 @@ config SPI_RSPI
 	help
 	  SPI driver for Renesas RSPI and QSPI blocks.
 
+config SPI_RTK129X
+	tristate "Realtek SPI"
+	depends on ARCH_RTD129X
+	select SPI_BITBANG
+	help
+	  This driver supports GSPI on Realtek SoC
+
+config SPI_RTK
+	tristate "Realtek SPI controller driver"
+	depends on SOC_RTL8117
+	help
+	  This driver supports SPI bus controller on Realtek RTL8117
+
 config SPI_QUP
 	tristate "Qualcomm SPI controller with QUP interface"
 	depends on ARCH_QCOM || (ARM && COMPILE_TEST)

@@ -1,0 +1,8 @@
+Package: sysvinit
+Version: 2.88-1
+Depends: libc, librt, libpthread
+Source: realtek/realtek/sysvinit
+Section: utils
+Architecture: rtd1295
+Installed-Size: 13620
+Description:  System V style init programs

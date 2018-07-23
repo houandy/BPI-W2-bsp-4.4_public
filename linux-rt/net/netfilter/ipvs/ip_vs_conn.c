@@ -41,6 +41,10 @@
 #include <net/net_namespace.h>
 #include <net/ip_vs.h>
 
+#if defined(CONFIG_RTL_819X)
+#include <net/rtl/features/rtl_ps_hooks.h>
+#endif /* CONFIG_RTL_819X */
+
 
 #ifndef CONFIG_IP_VS_TAB_BITS
 #define CONFIG_IP_VS_TAB_BITS	12
@@ -804,6 +808,12 @@ static void ip_vs_conn_expire(unsigned long data)
 	struct ip_vs_conn *cp = (struct ip_vs_conn *)data;
 	struct netns_ipvs *ipvs = cp->ipvs;
 
+#if defined(CONFIG_RTL_819X)
+	if (rtl_ip_vs_conn_expire_hooks1(cp) == RTL_PS_HOOKS_RETURN) {
+		return;
+	}
+#endif /* CONFIG_RTL_819X */
+
 	/*
 	 *	do I control anybody?
 	 */
@@ -818,6 +828,10 @@ static void ip_vs_conn_expire(unsigned long data)
 		/* does anybody control me? */
 		if (cp->control)
 			ip_vs_control_del(cp);
+
+#if defined(CONFIG_RTL_819X)
+		rtl_ip_vs_conn_expire_hooks2(cp);
+#endif /* CONFIG_RTL_819X */
 
 		if (cp->flags & IP_VS_CONN_F_NFCT) {
 			/* Do not access conntracks during subsys cleanup

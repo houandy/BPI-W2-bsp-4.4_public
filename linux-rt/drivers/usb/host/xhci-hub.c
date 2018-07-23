@@ -27,6 +27,10 @@
 #include "xhci.h"
 #include "xhci-trace.h"
 
+#ifdef CONFIG_ARCH_RTD119X
+extern void rtk_usb2_phy_state(u32 state);
+#endif
+
 #define	PORT_WAKE_BITS	(PORT_WKOC_E | PORT_WKDISC_E | PORT_WKCONN_E)
 #define	PORT_RWC_BITS	(PORT_CSC | PORT_PEC | PORT_WRC | PORT_OCC | \
 			 PORT_RC | PORT_PLC | PORT_PE)
@@ -763,6 +767,10 @@ static u32 xhci_get_port_status(struct usb_hcd *hcd,
 					wIndex + 1);
 			bus_state->resume_done[wIndex] = 0;
 			clear_bit(wIndex, &bus_state->resuming_ports);
+
+#ifdef CONFIG_ARCH_RTD119X
+			rtk_usb2_phy_state(1);
+#endif
 
 			set_bit(wIndex, &bus_state->rexit_ports);
 			xhci_set_link_state(xhci, port_array, wIndex,

@@ -1,0 +1,4 @@
+/usr/sbin/lspci
+/usr/sbin/setpci
+/usr/sbin/update-pciids
+/usr/share/pci.ids.gz

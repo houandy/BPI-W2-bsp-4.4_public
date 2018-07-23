@@ -20,6 +20,11 @@
 
 #ifndef __ASSEMBLY__
 
+#ifdef  CONFIG_RTK_RBUS_BARRIER //Realtek RTD1295 R-bus barrier, jamestai20151211
+extern void rtk_bus_sync(void);
+#endif
+
+
 #define sev()		asm volatile("sev" : : : "memory")
 #define wfe()		asm volatile("wfe" : : : "memory")
 #define wfi()		asm volatile("wfi" : : : "memory")
@@ -30,7 +35,11 @@
 
 #define mb()		dsb(sy)
 #define rmb()		dsb(ld)
+#ifdef  CONFIG_RTK_RBUS_BARRIER //Realtek RTD1295 R-bus barrier, jamestai20151211
+#define wmb()		do { dsb(st); rtk_bus_sync(); } while (0)
+#else
 #define wmb()		dsb(st)
+#endif
 
 #define dma_rmb()	dmb(oshld)
 #define dma_wmb()	dmb(oshst)

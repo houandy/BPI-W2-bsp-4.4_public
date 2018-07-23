@@ -120,6 +120,10 @@
 
 #include <linux/netfilter_arp.h>
 
+#if defined(CONFIG_RTD_1295_HWNAT)
+#include <net/rtl/rtl865x_netif.h>
+#endif /* defined(CONFIG_RTD_1295_HWNAT) */
+
 /*
  *	Interface to generic neighbour cache.
  */
@@ -1036,6 +1040,10 @@ static unsigned int arp_state_to_flags(struct neighbour *neigh)
 		return 0;
 }
 
+#if defined(CONFIG_RTL_819X)
+extern int get_dev_ip_mask(const char * name,unsigned int * ip,unsigned int * mask);
+#endif
+
 /*
  *	Get an ARP cache entry.
  */
@@ -1045,6 +1053,11 @@ static int arp_req_get(struct arpreq *r, struct net_device *dev)
 	__be32 ip = ((struct sockaddr_in *) &r->arp_pa)->sin_addr.s_addr;
 	struct neighbour *neigh;
 	int err = -ENXIO;
+#if defined(CONFIG_RTL_819X)
+	unsigned int dev_ip, dev_mask;
+	unsigned char zero_ha[ALIGN(MAX_ADDR_LEN, sizeof(unsigned long))];
+	int ret = -1;
+#endif
 
 	neigh = neigh_lookup(&arp_tbl, &ip, dev);
 	if (neigh) {
@@ -1059,6 +1072,49 @@ static int arp_req_get(struct arpreq *r, struct net_device *dev)
 		}
 		neigh_release(neigh);
 	}
+
+#if defined(CONFIG_RTL_819X)
+	if (neigh)
+	{
+		memset(zero_ha, 0 , sizeof(zero_ha));
+		#if defined(CONFIG_RTD_1295_HWNAT)
+		if ((memcmp(neigh->ha, zero_ha , dev->addr_len) == 0) &&
+			((dev != NULL) && (strcmp(RTL_BR_NAME, dev->name) == 0)))
+		#else /* CONFIG_RTD_1295_HWNAT */
+		if ((memcmp(neigh->ha, zero_ha , dev->addr_len) == 0) &&
+			((dev != NULL) && (strncmp(dev->name, "br0", 3) == 0)))
+		#endif /* CONFIG_RTD_1295_HWNAT */
+		{
+			ret = get_dev_ip_mask(dev->name, &dev_ip, &dev_mask);
+			if ((ret == 0) && (dev_ip != 0) && (dev_mask != 0) && (ip != dev_ip) && ((ip & dev_mask) == (dev_ip & dev_mask)))
+			{
+				arp_send(ARPOP_REQUEST, ETH_P_ARP, ip, dev, dev_ip, NULL, dev->dev_addr, NULL);
+			}
+		}
+
+	}
+	else
+	{
+		#if defined(CONFIG_RTD_1295_HWNAT)
+		if ((dev != NULL) && (strcmp(RTL_BR_NAME, dev->name) == 0))
+		#else /* CONFIG_RTD_1295_HWNAT */
+		if ((dev != NULL) && (strncmp(dev->name, "br0", 3) == 0))
+		#endif /* CONFIG_RTD_1295_HWNAT */
+		{
+
+			ret = get_dev_ip_mask(dev->name, &dev_ip, &dev_mask);
+			if ((ret == 0) && (dev_ip != 0) && (dev_mask != 0) && (ip != dev_ip) && ((ip & dev_mask) == (dev_ip & dev_mask)))
+			{
+				neigh = __neigh_lookup(&arp_tbl, &ip, dev, 1);
+				arp_send(ARPOP_REQUEST, ETH_P_ARP, ip, dev, dev_ip, NULL, dev->dev_addr, NULL);
+				if (neigh)
+					neigh_release(neigh);
+			}
+		}
+
+	}
+#endif /* CONFIG_RTL_819X */
+
 	return err;
 }
 

@@ -24,22 +24,49 @@ MODULE_ALIAS("ip6t_dscp");
 MODULE_ALIAS("ipt_tos");
 MODULE_ALIAS("ip6t_tos");
 
+#if defined(CONFIG_RTL_HW_QOS_SUPPORT) && defined(CONFIG_RTL_SW_QUEUE_DECISION_PRIORITY)
+static bool
+dscp_mt(struct sk_buff *skb, struct xt_action_param *par)
+#else
 static bool
 dscp_mt(const struct sk_buff *skb, struct xt_action_param *par)
+#endif /* CONFIG_RTL_HW_QOS_SUPPORT && CONFIG_RTL_SW_QUEUE_DECISION_PRIORITY */
 {
 	const struct xt_dscp_info *info = par->matchinfo;
 	u_int8_t dscp = ipv4_get_dsfield(ip_hdr(skb)) >> XT_DSCP_SHIFT;
 
+#if defined(CONFIG_RTL_HW_QOS_SUPPORT) && defined(CONFIG_RTL_SW_QUEUE_DECISION_PRIORITY)
+	if ((dscp == info->dscp) ^ !!info->invert) {
+		skb->decision_bitmap |= DSCP_DECISION_PRIORITY_BITMAP;
+		return true;
+	} else
+		return false;
+#else
 	return (dscp == info->dscp) ^ !!info->invert;
+#endif /* CONFIG_RTL_HW_QOS_SUPPORT && CONFIG_RTL_SW_QUEUE_DECISION_PRIORITY */
 }
 
+#if defined(CONFIG_RTL_HW_QOS_SUPPORT) && defined(CONFIG_RTL_SW_QUEUE_DECISION_PRIORITY)
+static bool
+dscp_mt6(struct sk_buff *skb, struct xt_action_param *par)
+#else
 static bool
 dscp_mt6(const struct sk_buff *skb, struct xt_action_param *par)
+#endif /* CONFIG_RTL_HW_QOS_SUPPORT && CONFIG_RTL_SW_QUEUE_DECISION_PRIORITY */
 {
 	const struct xt_dscp_info *info = par->matchinfo;
 	u_int8_t dscp = ipv6_get_dsfield(ipv6_hdr(skb)) >> XT_DSCP_SHIFT;
 
+#if defined(CONFIG_RTL_HW_QOS_SUPPORT) && defined(CONFIG_RTL_SW_QUEUE_DECISION_PRIORITY)
+	if ((dscp == info->dscp) ^ !!info->invert) {
+		skb->decision_bitmap |= DSCP_DECISION_PRIORITY_BITMAP;
+		return true;
+	} else {
+		return false;
+	}
+#else
 	return (dscp == info->dscp) ^ !!info->invert;
+#endif /* CONFIG_RTL_HW_QOS_SUPPORT && CONFIG_RTL_SW_QUEUE_DECISION_PRIORITY */
 }
 
 static int dscp_mt_check(const struct xt_mtchk_param *par)
@@ -54,16 +81,64 @@ static int dscp_mt_check(const struct xt_mtchk_param *par)
 	return 0;
 }
 
+#if defined(CONFIG_RTL_HW_QOS_SUPPORT)
+#if defined(CONFIG_RTL_HW_QOS_SUPPORT) && defined(CONFIG_RTL_SW_QUEUE_DECISION_PRIORITY)
+static bool
+tos_mt_v0(struct sk_buff *skb, struct xt_action_param *par)
+#else
+static bool
+tos_mt_v0(const struct sk_buff *skb, struct xt_action_param *par)
+#endif /* CONFIG_RTL_HW_QOS_SUPPORT && CONFIG_RTL_SW_QUEUE_DECISION_PRIORITY */
+{
+	const struct ipt_tos_info *info = par->matchinfo;
+
+#if defined(CONFIG_RTL_HW_QOS_SUPPORT) && defined(CONFIG_RTL_SW_QUEUE_DECISION_PRIORITY)
+	if ((ip_hdr(skb)->tos == info->tos) ^ info->invert) {
+		skb->decision_bitmap |= DSCP_DECISION_PRIORITY_BITMAP;
+		return true;
+	} else {
+		return false;
+	}
+#else
+	return (ip_hdr(skb)->tos == info->tos) ^ info->invert;
+#endif /* CONFIG_RTL_HW_QOS_SUPPORT && CONFIG_RTL_SW_QUEUE_DECISION_PRIORITY */
+}
+#endif /* CONFIG_RTL_HW_QOS_SUPPORT */
+
+#if defined(CONFIG_RTL_HW_QOS_SUPPORT) && defined(CONFIG_RTL_SW_QUEUE_DECISION_PRIORITY)
+static bool tos_mt(struct sk_buff *skb, struct xt_action_param *par)
+#else
 static bool tos_mt(const struct sk_buff *skb, struct xt_action_param *par)
+#endif /* CONFIG_RTL_HW_QOS_SUPPORT && CONFIG_RTL_SW_QUEUE_DECISION_PRIORITY */
 {
 	const struct xt_tos_match_info *info = par->matchinfo;
 
-	if (par->family == NFPROTO_IPV4)
+	if (par->family == NFPROTO_IPV4) {
+#if defined(CONFIG_RTL_HW_QOS_SUPPORT) && defined(CONFIG_RTL_SW_QUEUE_DECISION_PRIORITY)
+		if (((ip_hdr(skb)->tos & info->tos_mask) == info->tos_value) ^ !!info->invert) {
+			skb->decision_bitmap |= DSCP_DECISION_PRIORITY_BITMAP;
+			return true;
+		} else {
+			return false;
+		}
+#else
 		return ((ip_hdr(skb)->tos & info->tos_mask) ==
 		       info->tos_value) ^ !!info->invert;
-	else
+#endif /* CONFIG_RTL_HW_QOS_SUPPORT && CONFIG_RTL_SW_QUEUE_DECISION_PRIORITY */
+	}
+	else {
+#if defined(CONFIG_RTL_HW_QOS_SUPPORT) && defined(CONFIG_RTL_SW_QUEUE_DECISION_PRIORITY)
+		if (((ipv6_get_dsfield(ipv6_hdr(skb)) & info->tos_mask) == info->tos_value) ^ !!info->invert) {
+			skb->decision_bitmap |= DSCP_DECISION_PRIORITY_BITMAP;
+			return true;
+		} else {
+			return false;
+		}
+#else
 		return ((ipv6_get_dsfield(ipv6_hdr(skb)) & info->tos_mask) ==
 		       info->tos_value) ^ !!info->invert;
+#endif /* CONFIG_RTL_HW_QOS_SUPPORT && CONFIG_RTL_SW_QUEUE_DECISION_PRIORITY */
+	}
 }
 
 static struct xt_match dscp_mt_reg[] __read_mostly = {
@@ -83,6 +158,16 @@ static struct xt_match dscp_mt_reg[] __read_mostly = {
 		.matchsize	= sizeof(struct xt_dscp_info),
 		.me		= THIS_MODULE,
 	},
+#if defined(CONFIG_RTL_HW_QOS_SUPPORT)
+	{
+		.name		= "tos",
+		.revision	= 0,
+		.family		= NFPROTO_IPV4,
+		.match		= tos_mt_v0,
+		.matchsize	= sizeof(struct ipt_tos_info),
+		.me		= THIS_MODULE,
+	},
+#endif /* CONFIG_RTL_HW_QOS_SUPPORT */
 	{
 		.name		= "tos",
 		.revision	= 1,

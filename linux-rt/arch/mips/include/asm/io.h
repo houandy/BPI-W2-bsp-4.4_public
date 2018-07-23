@@ -311,7 +311,7 @@ static inline void iounmap(const volatile void __iomem *addr)
 
 #define __BUILD_MEMORY_SINGLE(pfx, bwlq, type, irq)			\
 									\
-static inline void pfx##write##bwlq(type val,				\
+static inline void pfx##write_raw##bwlq(type val,				\
 				    volatile void __iomem *mem)		\
 {									\
 	volatile type *__mem;						\
@@ -347,7 +347,7 @@ static inline void pfx##write##bwlq(type val,				\
 		BUG();							\
 }									\
 									\
-static inline type pfx##read##bwlq(const volatile void __iomem *mem)	\
+static inline type pfx##read_raw##bwlq(const volatile void __iomem *mem)	\
 {									\
 	volatile type *__mem;						\
 	type __val;							\
@@ -429,6 +429,165 @@ BUILDIO_MEM(w, u16)
 BUILDIO_MEM(l, u32)
 BUILDIO_MEM(q, u64)
 
+#ifdef CONFIG_PCIE_RTL8117_CORE
+extern u32 pcieh_mem32_read(volatile u32 Haddr, volatile u32 Laddr,volatile u32 *value);
+extern u32 pcieh_mem32_write(volatile u32 Haddr, u32 Laddr, u32 value);
+extern u32 pcieh_mem16_read(volatile u32 Haddr, volatile u32 Laddr, volatile u32 *value);
+extern u32 pcieh_mem16_write(volatile u32 Haddr, volatile u32 Laddr,volatile u32 value);
+extern u32 pcieh_mem8_read(volatile u32 Haddr, volatile u32 Laddr, volatile u32 *value);
+extern u32 pcieh_mem8_write(volatile u32 Haddr, volatile u32 Laddr, volatile u32 value);
+
+static inline int is_pci_memory(u32 addr)
+{
+	return (( addr & 0xf0000000 ) == 0xc0000000);
+}
+#endif
+
+static inline void writeb(u8 value, volatile void __iomem *p)
+{
+
+#ifdef CONFIG_PCIE_RTL8117_CORE
+	u32 addr = (u32)p;
+	u32 val = value;
+
+	if (is_pci_memory(addr)) {
+		pcieh_mem8_write(0x0, addr, val);
+		return;
+	}
+#endif
+
+	write_rawb(value, p);
+}
+
+static inline void writew(u16 value, volatile void __iomem *p)
+{
+#ifdef CONFIG_PCIE_RTL8117_CORE
+	u32 addr = (u32)p;
+	u32 val = value;
+
+	if (is_pci_memory(addr)) {
+		pcieh_mem16_write(0x0, addr, val);
+		return;
+	}
+#endif
+
+	write_raww(value, p);
+}
+
+static inline void writel(u32 value, volatile void __iomem *p)
+{
+#ifdef CONFIG_PCIE_RTL8117_CORE
+	u32 addr = (__force u32)p;
+	u32 val = value;
+
+	if (is_pci_memory(addr)) {
+		pcieh_mem32_write(0x0, addr, val);
+		return;
+	}
+#endif
+
+	write_rawl(value, p);
+}
+
+static inline void writeq(u64 value, volatile void __iomem *p)
+{
+#ifdef CONFIG_PCIE_RTL8117_CORE
+	u32 addr = (__force u32)p;
+	u32 val_low = (u32)value;
+	u32 val_high = (u32)(value >> 32);
+
+	if (is_pci_memory(addr)) {
+		pcieh_mem32_write(0x0, addr, val_low);
+		pcieh_mem32_write(0x0, addr+4, val_high);
+		return;
+	}
+#endif
+
+	write_rawl(value, p);
+}
+
+#define __raw_writeb __raw_write_rawb
+#define __raw_writew __raw_write_raww
+#define __raw_writel __raw_write_rawl
+#define __raw_writeq __raw_write_rawq
+
+#define __mem_writeb __mem_write_rawb
+#define __mem_writew __mem_write_raww
+#define __mem_writel __mem_write_rawl
+#define __mem_writeq __mem_write_rawq
+
+static inline u8 readb(const volatile void __iomem *p)
+{
+#ifdef CONFIG_PCIE_RTL8117_CORE
+	u32 addr = (__force u32)p;
+	u32 data;
+
+	if (is_pci_memory(addr)) {
+		pcieh_mem8_read(0x0, addr, &data);
+		return (u8)data;
+	}
+#endif
+
+	return read_rawb(p);
+}
+
+static inline u16 readw(const volatile void __iomem *p)
+{
+#ifdef CONFIG_PCIE_RTL8117_CORE
+	u32 addr = (__force u32)p;
+	u32 data;
+
+	if (is_pci_memory(addr)) {
+		pcieh_mem16_read(0x0, addr, &data);
+		return (u16)data;
+	}
+#endif
+
+	return read_raww(p);
+}
+
+static inline u32 readl(const volatile void __iomem *p)
+{
+#ifdef CONFIG_PCIE_RTL8117_CORE
+	u32 addr = (__force u32)p;
+	u32 data;
+
+	if (is_pci_memory(addr)) {
+		pcieh_mem32_read(0x0, addr, &data);
+		return data;
+	}
+#endif
+
+	return read_rawl(p);
+}
+
+static inline u64 readq(const volatile void __iomem *p)
+{
+#ifdef CONFIG_PCIE_RTL8117_CORE
+
+	u32 data_low, data_high;
+	u32 addr = (__force u32)p;
+
+	if (is_pci_memory(addr)) {
+		pcieh_mem32_read(0x0, addr, &data_low);
+		pcieh_mem32_read(0x0, addr+4, &data_high);
+		return data_low + ((u64)data_high << 32);;
+	}
+#endif
+
+	return read_rawq(p);
+}
+
+#define __raw_readb __raw_read_rawb
+#define __raw_readw __raw_read_raww
+#define __raw_readl __raw_read_rawl
+#define __raw_readq __raw_read_rawq
+
+#define __mem_readb __mem_read_rawb
+#define __mem_readw __mem_read_raww
+#define __mem_readl __mem_read_rawl
+#define __mem_readq __mem_read_rawq
+
 #define __BUILD_IOPORT_PFX(bus, bwlq, type)				\
 	__BUILD_IOPORT_SINGLE(bus, bwlq, type, ,)			\
 	__BUILD_IOPORT_SINGLE(bus, bwlq, type, _p, SLOW_DOWN_IO)
@@ -481,8 +640,8 @@ __BUILDIO(q, u64)
 /*
  * Some code tests for these symbols
  */
-#define readq				readq
-#define writeq				writeq
+//#define readq				readq
+//#define writeq				writeq
 
 #define __BUILD_MEMORY_STRING(bwlq, type)				\
 									\
@@ -546,6 +705,8 @@ BUILDSTRING(q, u64)
 
 
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
+#define mmiowb() wmb()
+#elif defined(CONFIG_CPU_RLX)
 #define mmiowb() wmb()
 #else
 /* Depends on MIPS II instruction set */

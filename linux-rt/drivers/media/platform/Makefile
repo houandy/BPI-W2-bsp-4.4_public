@@ -54,4 +54,12 @@ obj-$(CONFIG_VIDEO_AM437X_VPFE)		+= am437x/
 
 obj-$(CONFIG_VIDEO_XILINX)		+= xilinx/
 
+obj-$(CONFIG_RTK_HDMITX)	+= rtk_hdmitx/
+obj-$(CONFIG_RTK_HDCP_1x)	+= rtk_hdcptx/
+obj-$(CONFIG_RTK_HDMIRX)    += rtk_hdmirx/
+obj-$(CONFIG_RTK_HDCPRX_2P2)    += rtk_hdcprx2p2/
+obj-$(CONFIG_CEC)     += rtk_cec/
+
+obj-$(CONFIG_RTK_DPTX)        += rtk_dptx/
+
 ccflags-y += -I$(srctree)/drivers/media/i2c

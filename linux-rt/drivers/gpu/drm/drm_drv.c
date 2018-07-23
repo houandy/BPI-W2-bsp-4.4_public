@@ -607,7 +607,7 @@ struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 		if (ret)
 			goto err_minors;
 
-		WARN_ON(driver->suspend || driver->resume);
+		//WARN_ON(driver->suspend || driver->resume);
 	}
 
 	if (drm_core_check_feature(dev, DRIVER_RENDER)) {

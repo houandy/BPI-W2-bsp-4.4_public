@@ -22,6 +22,10 @@
 #include <net/netfilter/nf_nat.h>
 #include <net/netfilter/ipv4/nf_nat_masquerade.h>
 
+#if defined(CONFIG_RTL_819X)
+#include <net/rtl/features/rtl_ps_hooks.h>
+#endif /* CONFIG_RTL_819X */
+
 unsigned int
 nf_nat_masquerade_ipv4(struct sk_buff *skb, unsigned int hooknum,
 		       const struct nf_nat_range *range,
@@ -101,6 +105,10 @@ static int masq_device_event(struct notifier_block *this,
 				      (void *)(long)dev->ifindex, 0, 0);
 	}
 
+#if defined(CONFIG_RTL_819X)
+	rtl_masq_device_event_hooks(this, (struct net_device *)dev, event);
+#endif /* CONFIG_RTL_819X */
+
 	return NOTIFY_DONE;
 }
 
@@ -110,6 +118,10 @@ static int masq_inet_event(struct notifier_block *this,
 {
 	struct in_device *idev = ((struct in_ifaddr *)ptr)->ifa_dev;
 	struct netdev_notifier_info info;
+
+#if defined(CONFIG_RTL_819X)
+	rtl_masq_inet_event_hooks(this, event, ptr);
+#endif /* CONFIG_RTL_819X */
 
 	/* The masq_dev_notifier will catch the case of the device going
 	 * down.  So if the inetdev is dead and being destroyed we have

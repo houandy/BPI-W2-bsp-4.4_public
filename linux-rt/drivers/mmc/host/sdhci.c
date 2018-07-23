@@ -2908,9 +2908,19 @@ int sdhci_add_host(struct sdhci_host *host)
 
 	sdhci_do_reset(host, SDHCI_RESET_ALL);
 
+#ifdef CONFIG_MMC_SDHCI_RTK_PATCH
+/*#ifdef CONFIG_MMC_SDHCI_RTK_PATCH_SDIO30  //Workaround: sdhci host version incorrect, jamestai20151224
+	host->version = SDHCI_SPEC_300;
+#else // SDIO2.0
+	host->version = SDHCI_SPEC_200;
+#endif*/
+	host->version = SDHCI_SPEC_300;
+#else
 	host->version = sdhci_readw(host, SDHCI_HOST_VERSION);
 	host->version = (host->version & SDHCI_SPEC_VER_MASK)
 				>> SDHCI_SPEC_VER_SHIFT;
+#endif
+
 	if (host->version > SDHCI_SPEC_300) {
 		pr_err("%s: Unknown controller version (%d). "
 			"You may experience problems.\n", mmc_hostname(mmc),
@@ -2919,6 +2929,10 @@ int sdhci_add_host(struct sdhci_host *host)
 
 	caps[0] = (host->quirks & SDHCI_QUIRK_MISSING_CAPS) ? host->caps :
 		sdhci_readl(host, SDHCI_CAPABILITIES);
+
+#ifdef CONFIG_MMC_SDHCI_RTK_PATCH
+	caps[0] |= SDHCI_CAN_VDD_180 | SDHCI_CAN_VDD_330;
+#endif
 
 	if (host->version >= SDHCI_SPEC_300)
 		caps[1] = (host->quirks & SDHCI_QUIRK_MISSING_CAPS) ?
@@ -3036,12 +3050,19 @@ int sdhci_add_host(struct sdhci_host *host)
 		mmc_dev(mmc)->dma_mask = &host->dma_mask;
 	}
 
+#ifdef CONFIG_MMC_SDHCI_RTK_PATCH
+	if (host->version >= SDHCI_SPEC_300)
+		host->max_clk = 200;
+	else
+		host->max_clk = 100;
+#else
 	if (host->version >= SDHCI_SPEC_300)
 		host->max_clk = (caps[0] & SDHCI_CLOCK_V3_BASE_MASK)
 			>> SDHCI_CLOCK_BASE_SHIFT;
 	else
 		host->max_clk = (caps[0] & SDHCI_CLOCK_BASE_MASK)
 			>> SDHCI_CLOCK_BASE_SHIFT;
+#endif
 
 	host->max_clk *= 1000000;
 	if (host->max_clk == 0 || host->quirks &

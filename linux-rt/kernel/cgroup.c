@@ -1232,12 +1232,12 @@ static struct kernfs_syscall_ops cgroup_kf_syscall_ops;
 static const struct file_operations proc_cgroupstats_operations;
 
 static char *cgroup_file_name(struct cgroup *cgrp, const struct cftype *cft,
-			      char *buf)
+			      char *buf, bool force_prefix)
 {
 	struct cgroup_subsys *ss = cft->ss;
 
 	if (cft->ss && !(cft->flags & CFTYPE_NO_PREFIX) &&
-	    !(cgrp->root->flags & CGRP_ROOT_NOPREFIX))
+	    (!(cgrp->root->flags & CGRP_ROOT_NOPREFIX) || force_prefix))
 		snprintf(buf, CGROUP_FILE_NAME_MAX, "%s.%s",
 			 cgroup_on_dfl(cgrp) ? ss->name : ss->legacy_name,
 			 cft->name);
@@ -1415,7 +1415,12 @@ static void cgroup_rm_file(struct cgroup *cgrp, const struct cftype *cft)
 		spin_unlock_irq(&cgroup_file_kn_lock);
 	}
 
-	kernfs_remove_by_name(cgrp->kn, cgroup_file_name(cgrp, cft, name));
+	kernfs_remove_by_name(cgrp->kn, cgroup_file_name(cgrp, cft, name, 0));
+#ifdef CONFIG_ARCH_RTD129X
+	if (cgrp->root->flags & CGRP_ROOT_NOPREFIX) {
+	kernfs_remove_by_name(cgrp->kn, cgroup_file_name(cgrp, cft, name, 1));
+	}
+#endif
 }
 
 /**
@@ -2671,6 +2676,45 @@ static int cgroup_attach_task(struct cgroup *dst_cgrp,
 	return ret;
 }
 
+int subsys_cgroup_allow_attach(struct cgroup_taskset *tset)
+{
+	const struct cred *cred = current_cred(), *tcred;
+	struct task_struct *task;
+	struct cgroup_subsys_state *css;
+
+	if (capable(CAP_SYS_NICE))
+		return 0;
+
+	cgroup_taskset_for_each(task, css, tset) {
+		tcred = __task_cred(task);
+
+		if (current != task && !uid_eq(cred->euid, tcred->uid) &&
+		    !uid_eq(cred->euid, tcred->suid))
+			return -EACCES;
+	}
+
+	return 0;
+}
+
+static int cgroup_allow_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
+{
+	struct cgroup_subsys_state *css;
+	int i;
+	int ret;
+
+	for_each_css(css, i, cgrp) {
+		if (css->ss->allow_attach) {
+			ret = css->ss->allow_attach(tset);
+			if (ret)
+				return ret;
+		} else {
+			return -EACCES;
+		}
+	}
+
+	return 0;
+}
+
 static int cgroup_procs_write_permission(struct task_struct *task,
 					 struct cgroup *dst_cgrp,
 					 struct kernfs_open_file *of)
@@ -2685,8 +2729,24 @@ static int cgroup_procs_write_permission(struct task_struct *task,
 	 */
 	if (!uid_eq(cred->euid, GLOBAL_ROOT_UID) &&
 	    !uid_eq(cred->euid, tcred->uid) &&
-	    !uid_eq(cred->euid, tcred->suid))
-		ret = -EACCES;
+	    !uid_eq(cred->euid, tcred->suid)) {
+		/*
+		 * if the default permission check fails, give each
+		 * cgroup a chance to extend the permission check
+		 */
+		struct cgroup_taskset tset = {
+			.src_csets = LIST_HEAD_INIT(tset.src_csets),
+			.dst_csets = LIST_HEAD_INIT(tset.dst_csets),
+			.csets = &tset.src_csets,
+		};
+		struct css_set *cset;
+		cset = task_css_set(task);
+		list_add(&cset->mg_node, &tset.src_csets);
+		ret = cgroup_allow_attach(dst_cgrp, &tset);
+		list_del(&tset.src_csets);
+		if (ret)
+			ret = -EACCES;
+	}
 
 	if (!ret && cgroup_on_dfl(dst_cgrp)) {
 		struct super_block *sb = of->file->f_path.dentry->d_sb;
@@ -3356,9 +3416,17 @@ static int cgroup_add_file(struct cgroup_subsys_state *css, struct cgroup *cgrp,
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	key = &cft->lockdep_key;
 #endif
-	kn = __kernfs_create_file(cgrp->kn, cgroup_file_name(cgrp, cft, name),
+	kn = __kernfs_create_file(cgrp->kn, cgroup_file_name(cgrp, cft, name, 0),
 				  cgroup_file_mode(cft), 0, cft->kf_ops, cft,
 				  NULL, key);
+#ifdef CONFIG_ARCH_RTD129X
+	if (cgrp->root->flags & CGRP_ROOT_NOPREFIX) {
+	kn = __kernfs_create_file(cgrp->kn, cgroup_file_name(cgrp, cft, name, 1),
+				  cgroup_file_mode(cft), 0, cft->kf_ops, cft,
+				  NULL, key);
+	}
+#endif
+
 	if (IS_ERR(kn))
 		return PTR_ERR(kn);
 

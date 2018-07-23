@@ -1,0 +1,8 @@
+Package: luci-lib-nixio
+Version: git-16.253.40466-a8354c0-1
+Depends: libc, librt, libpthread, liblua
+Source: realtek/luci/libs/luci-lib-nixio
+Section: luci
+Architecture: rtd1295
+Installed-Size: 28837
+Description:  NIXIO POSIX library

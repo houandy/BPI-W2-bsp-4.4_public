@@ -1709,8 +1709,8 @@ static void ahci_error_intr(struct ata_port *ap, u32 irq_stat)
 		ata_port_abort(ap);
 }
 
-static void ahci_handle_port_interrupt(struct ata_port *ap,
-				       void __iomem *port_mmio, u32 status)
+void ahci_handle_port_interrupt(struct ata_port *ap,
+				void __iomem *port_mmio, u32 status)
 {
 	struct ata_eh_info *ehi = &ap->link.eh_info;
 	struct ahci_port_priv *pp = ap->private_data;
@@ -1792,6 +1792,7 @@ static void ahci_handle_port_interrupt(struct ata_port *ap,
 		ata_port_freeze(ap);
 	}
 }
+EXPORT_SYMBOL_GPL(ahci_handle_port_interrupt);
 
 static void ahci_port_intr(struct ata_port *ap)
 {

@@ -75,7 +75,16 @@ obj-$(CONFIG_MMC_SDHCI_BCM2835)		+= sdhci-bcm2835.o
 obj-$(CONFIG_MMC_SDHCI_IPROC)		+= sdhci-iproc.o
 obj-$(CONFIG_MMC_SDHCI_MSM)		+= sdhci-msm.o
 obj-$(CONFIG_MMC_SDHCI_ST)		+= sdhci-st.o
+obj-$(CONFIG_MMC_SDHCI_RTK)             += sdhci-rtk.o
 
 ifeq ($(CONFIG_CB710_DEBUG),y)
 	CFLAGS-cb710-mmc	+= -DDEBUG
 endif
+
+obj-$(CONFIG_MMC_RTK_EMMC)             += rtkemmc.o
+obj-$(CONFIG_MMC_RTK_EMMC)             += rtkemmc_ops.o
+
+obj-$(CONFIG_MMC_RTK_SDMMC)		+= rtk-sdmmc.o
+obj-y					+= sdmmc_export.o
+#obj-$(CONFIG_MMC_RTK_EMMC)		+= rtkemmc.o
+#obj-$(CONFIG_MMC_RTK_EMMC)		+= rtkemmc_ops.o

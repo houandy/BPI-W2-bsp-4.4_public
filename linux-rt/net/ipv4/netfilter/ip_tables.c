@@ -31,6 +31,17 @@
 #include <net/netfilter/nf_log.h>
 #include "../../netfilter/xt_repldata.h"
 
+#if defined(CONFIG_RTL_819X)
+#include <net/rtl/features/rtl_ps_hooks.h>
+#endif /* CONFIG_RTL_819X */
+
+#if  defined(CONFIG_RTL_HW_QOS_SUPPORT)
+#include <net/rtl/rtl865x_netif.h>
+#include <net/rtl/rtl865x_outputQueue.h>
+#define	RTL865X_QOS_TABLE_NAME		"mangle"
+#define	RTL865X_QOS_TABLE_LEN		6
+#endif /* CONFIG_RTL_HW_QOS_SUPPORT */
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Netfilter Core Team <coreteam@netfilter.org>");
 MODULE_DESCRIPTION("IPv4 packet filter");
@@ -184,7 +195,8 @@ ipt_get_target_c(const struct ipt_entry *e)
 	return ipt_get_target((struct ipt_entry *)e);
 }
 
-#if IS_ENABLED(CONFIG_NETFILTER_XT_TARGET_TRACE)
+#define CONFIG_RTL_AVOID_UPNP_RULE_TO_ACL 1
+#if IS_ENABLED(CONFIG_NETFILTER_XT_TARGET_TRACE) || defined(CONFIG_RTL_AVOID_UPNP_RULE_TO_ACL)
 static const char *const hooknames[] = {
 	[NF_INET_PRE_ROUTING]		= "PREROUTING",
 	[NF_INET_LOCAL_IN]		= "INPUT",
@@ -205,6 +217,7 @@ static const char *const comments[] = {
 	[NF_IP_TRACE_COMMENT_POLICY]	= "policy",
 };
 
+#if IS_ENABLED(CONFIG_NETFILTER_XT_TARGET_TRACE)
 static struct nf_loginfo trace_loginfo = {
 	.type = NF_LOG_TYPE_LOG,
 	.u = {
@@ -214,6 +227,7 @@ static struct nf_loginfo trace_loginfo = {
 		},
 	},
 };
+#endif
 
 /* Mildly perf critical (only if packet tracing is on) */
 static inline int
@@ -246,6 +260,7 @@ get_chainname_rulenum(const struct ipt_entry *s, const struct ipt_entry *e,
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_NETFILTER_XT_TARGET_TRACE)
 static void trace_packet(struct net *net,
 			 const struct sk_buff *skb,
 			 unsigned int hook,
@@ -276,6 +291,7 @@ static void trace_packet(struct net *net,
 }
 #endif
 
+#endif
 static inline
 struct ipt_entry *ipt_next_entry(const struct ipt_entry *entry)
 {
@@ -300,6 +316,12 @@ ipt_do_table(struct sk_buff *skb,
 	const struct xt_table_info *private;
 	struct xt_action_param acpar;
 	unsigned int addend;
+	int irqs_disabled_status = 0;
+
+	if(irqs_disabled())
+		irqs_disabled_status = 1;
+	else
+		irqs_disabled_status = 0;
 
 	/* Initialization */
 	stackidx = 0;
@@ -322,7 +344,10 @@ ipt_do_table(struct sk_buff *skb,
 	acpar.hooknum = hook;
 
 	IP_NF_ASSERT(table->valid_hooks & (1 << hook));
-	local_bh_disable();
+
+	if(!irqs_disabled_status)
+		local_bh_disable();
+
 	addend = xt_write_recseq_begin();
 	private = table->private;
 	cpu        = smp_processor_id();
@@ -432,7 +457,9 @@ ipt_do_table(struct sk_buff *skb,
 	pr_debug("Exiting %s; sp at %u\n", __func__, stackidx);
 
 	xt_write_recseq_end(addend);
-	local_bh_enable();
+
+	if(!irqs_disabled_status)
+		local_bh_enable();
 
 #ifdef DEBUG_ALLOW_ALL
 	return NF_ACCEPT;
@@ -813,6 +840,16 @@ translate_table(struct net *net, struct xt_table_info *newinfo, void *entry0,
 	struct ipt_entry *iter;
 	unsigned int i;
 	int ret = 0;
+#if defined(CONFIG_RTL_819X)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 4, 0)
+	char *name;
+	unsigned int *hook_entries;
+	unsigned int valid_hooks;
+	unsigned int size;
+	unsigned int *underflows;
+	unsigned int number;
+#endif
+#endif /* CONFIG_RTL_819X */
 
 	newinfo->size = repl->size;
 	newinfo->number = repl->num_entries;
@@ -883,6 +920,20 @@ translate_table(struct net *net, struct xt_table_info *newinfo, void *entry0,
 		}
 		return ret;
 	}
+#if defined(CONFIG_RTL_819X)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 4, 0)
+	name		= (char *)(repl->name);
+	hook_entries	=(unsigned int *) (repl->hook_entry);
+	valid_hooks	= repl->valid_hooks;
+	size		= repl->size;
+	underflows	=(unsigned int *) (repl->underflow);
+	number		= repl->num_entries;
+#endif
+#endif /* CONFIG_RTL_819X */
+
+	#if defined(CONFIG_RTL_819X)
+	rtl_translate_table_hooks(name,valid_hooks,newinfo,entry0,size,number,hook_entries,underflows);
+	#endif /* CONFIG_RTL_819X */
 
 	return ret;
 }
@@ -2101,6 +2152,14 @@ static int __init ip_tables_init(void)
 	if (ret < 0)
 		goto err5;
 
+	#if defined(CONFIG_RTL_819X)
+	rtl_ip_tables_init_hooks();
+	#endif /* CONFIG_RTL_819X */
+
+#if defined(CONFIG_RTL_IGMP_SNOOPING) && defined(CONFIG_NETFILTER)
+	IgmpRxFilter_Hook = ipt_do_table;
+#endif /* CONFIG_RTL_IGMP_SNOOPING && CONFIG_NETFILTER */
+
 	pr_info("(C) 2000-2006 Netfilter Core Team\n");
 	return 0;
 
@@ -2121,6 +2180,9 @@ static void __exit ip_tables_fini(void)
 	xt_unregister_matches(ipt_builtin_mt, ARRAY_SIZE(ipt_builtin_mt));
 	xt_unregister_targets(ipt_builtin_tg, ARRAY_SIZE(ipt_builtin_tg));
 	unregister_pernet_subsys(&ip_tables_net_ops);
+#if defined(CONFIG_RTL_IGMP_SNOOPING) && defined(CONFIG_NETFILTER)
+	IgmpRxFilter_Hook = NULL;
+#endif /* CONFIG_RTL_IGMP_SNOOPING && CONFIG_NETFILTER */
 }
 
 EXPORT_SYMBOL(ipt_register_table);

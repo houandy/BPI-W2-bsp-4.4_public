@@ -30,6 +30,23 @@
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <linux/netfilter/nf_nat.h>
 
+#if defined(CONFIG_RTL_819X)
+#include <linux/inetdevice.h>
+#include <net/rtl/rtl_types.h>
+#include <net/rtl/rtl865x_netif.h>
+#include <net/rtl/rtl_nic.h>
+#include <net/rtl/features/rtl_ps_hooks.h>
+#include <net/rtl/features/rtl_ps_log.h>
+#endif /* CONFIG_RTL_819X */
+
+#if defined(CONFIG_RTL_LAYERED_DRIVER) && defined(CONFIG_RTL_LAYERED_DRIVER_L4) && defined(CONFIG_RTL_HARDWARE_NAT)
+#include <net/rtl/rtl865x_nat.h>
+#endif /* CONFIG_RTL_LAYERED_DRIVER && CONFIG_RTL_LAYERED_DRIVER_L4 && CONFIG_RTL_HARDWARE_NAT */
+
+#if defined (CONFIG_RTL_HARDWARE_NAT) && defined (CONFIG_RTL_INBOUND_COLLISION_AVOIDANCE)
+extern __DRAM_GEN int gHwNatEnabled;
+#endif
+
 static DEFINE_SPINLOCK(nf_nat_lock);
 
 static DEFINE_MUTEX(nf_nat_proto_mutex);
@@ -345,6 +362,40 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 
 	/* Only bother mapping if it's not already in range and unique */
 	if (!(range->flags & NF_NAT_RANGE_PROTO_RANDOM_ALL)) {
+#if defined(CONFIG_RTL_HARDWARE_NAT) && defined(CONFIG_RTL_INBOUND_COLLISION_AVOIDANCE)
+	/* Only bother mapping if it's not already in range and unique */
+	if ((!(range->flags & NF_NAT_RANGE_PROTO_SPECIFIED) ||
+	     l4proto->in_range(tuple, maniptype, &range->min_proto, &range->max_proto)) &&
+	    !nf_nat_used_tuple(tuple, ct)) {
+		if ((gHwNatEnabled) && (maniptype == NF_NAT_MANIP_SRC) &&
+			((orig_tuple->dst.protonum == IPPROTO_TCP) ||(orig_tuple->dst.protonum == IPPROTO_UDP)))
+		{
+			unsigned int asicNaptHashScore = 0;
+			rtl865x_napt_entry rtl865xNaptEntry;
+
+			rtl865xNaptEntry.protocol = (ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum == IPPROTO_TCP) ? 1 : 0;
+
+			rtl865xNaptEntry.intIp = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u3.ip;
+			rtl865xNaptEntry.remIp = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.u3.ip;
+			rtl865xNaptEntry.extIp = tuple->src.u3.ip;
+			rtl865xNaptEntry.intPort = rtl865xNaptEntry.protocol ? ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u.tcp.port : ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u.udp.port;
+			rtl865xNaptEntry.remPort = rtl865xNaptEntry.protocol ? ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.u.tcp.port : ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.u.udp.port;
+			rtl865xNaptEntry.extPort = rtl865xNaptEntry.protocol ? tuple->src.u.tcp.port : tuple->src.u.udp.port;
+
+			rtl865x_getAsicNaptHashScore(&rtl865xNaptEntry, &asicNaptHashScore);
+			if (asicNaptHashScore == 100)
+			{
+				rtl865x_preReserveConn(&rtl865xNaptEntry);
+				goto out;
+			}
+
+		}
+		else
+		{
+			goto out;
+		}
+	}
+#else /* CONFIG_RTL_HARDWARE_NAT && CONFIG_RTL_INBOUND_COLLISION_AVOIDANCE */
 		if (range->flags & NF_NAT_RANGE_PROTO_SPECIFIED) {
 			if (l4proto->in_range(tuple, maniptype,
 					      &range->min_proto,
@@ -355,6 +406,7 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 		} else if (!nf_nat_used_tuple(tuple, ct)) {
 			goto out;
 		}
+#endif /* CONFIG_RTL_HARDWARE_NAT && CONFIG_RTL_INBOUND_COLLISION_AVOIDANCE */
 	}
 
 	/* Last change: get protocol to try to obtain unique tuple. */
@@ -471,6 +523,15 @@ nf_nat_alloc_null_binding(struct nf_conn *ct, unsigned int hooknum)
 }
 EXPORT_SYMBOL_GPL(nf_nat_alloc_null_binding);
 
+#if 1//defined(CONFIG_RTL_ETH_DRIVER_REFINE)
+#if defined(CONFIG_RTL_IPTABLES_FAST_PATH)
+extern int fast_nat_fw;
+#endif
+#if defined(CONFIG_RTL_HARDWARE_NAT)
+extern int gHwNatEnabled;
+#endif /* CONFIG_RTL_HARDWARE_NAT */
+#endif
+
 /* Do packet manipulations according to nf_nat_setup_info. */
 unsigned int nf_nat_packet(struct nf_conn *ct,
 			   enum ip_conntrack_info ctinfo,
@@ -482,6 +543,10 @@ unsigned int nf_nat_packet(struct nf_conn *ct,
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	unsigned long statusbit;
 	enum nf_nat_manip_type mtype = HOOK2MANIP(hooknum);
+#if defined(CONFIG_RTL_819X)
+	rtl_nf_conntrack_inso_s conn_info;
+#endif /* CONFIG_RTL_819X */
+
 
 	if (mtype == NF_NAT_MANIP_SRC)
 		statusbit = IPS_SRC_NAT;
@@ -504,6 +569,29 @@ unsigned int nf_nat_packet(struct nf_conn *ct,
 						target.dst.protonum);
 		if (!l3proto->manip_pkt(skb, 0, l4proto, &target, mtype))
 			return NF_DROP;
+
+		#if defined(CONFIG_RTL_819X)
+		#if 1//defined(CONFIG_RTL_ETH_DRIVER_REFINE)
+		if (
+			#if defined(CONFIG_RTL_IPTABLES_FAST_PATH)
+			fast_nat_fw
+			#else
+			0 //mark_hap
+			#endif
+			#if defined(CONFIG_RTL_HARDWARE_NAT)
+			|| gHwNatEnabled
+			#endif
+			)
+		#endif
+		{
+			conn_info.ct = ct;
+			conn_info.skb = skb;
+			conn_info.hooknum = hooknum;
+			conn_info.ctinfo = ctinfo;
+			rtl_nf_nat_packet_hooks(&conn_info);
+		}
+		#endif /* CONFIG_RTL_819X */
+
 	}
 	return NF_ACCEPT;
 }
@@ -874,6 +962,11 @@ static int __init nf_nat_init(void)
 	BUG_ON(nf_nat_decode_session_hook != NULL);
 	RCU_INIT_POINTER(nf_nat_decode_session_hook, __nf_nat_decode_session);
 #endif
+
+	#if defined(CONFIG_RTL_819X)
+	rtl_nat_init_hooks();
+	#endif /* CONFIG_RTL_819X */
+
 	return 0;
 
  cleanup_extend:
@@ -884,6 +977,10 @@ static int __init nf_nat_init(void)
 static void __exit nf_nat_cleanup(void)
 {
 	unsigned int i;
+
+	#if defined(CONFIG_RTL_819X)
+	rtl_nat_cleanup_hooks();
+	#endif /* CONFIG_RTL_819X */
 
 	unregister_pernet_subsys(&nf_nat_net_ops);
 	nf_ct_extend_unregister(&nat_extend);

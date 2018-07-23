@@ -1,0 +1,37 @@
+#!/bin/sh /etc/rc.common
+
+START=99
+
+DESC="Realtek XEN inital sequence"
+NAME=realtek
+
+export PATH=$PATH:/usr/local/sbin:/usr/local/bin
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
+
+IRDA=/usr/local/sbin/xenirda
+
+log() {
+	local level="$1"
+	shift
+	logger -p "daemon.$level" -- "$0:" "$@" || echo "$0 $@" >&2
+}
+
+start() {
+	if [ -f /etc/init.d/xencommons ]; then
+		/etc/init.d/xencommons start
+		mount -t ext4 -L xen /domu
+		ln -sf /etc/sysconfig/OTT_cfg_2G /domu/OTT_cfg
+	else
+		log debug "xencommons not detected"
+		# exit without error if xen environment not detected
+		exit 0
+	fi
+
+	if [ -f $IRDA ]; then
+		$IRDA &
+	else
+		log debug "xen irda not detected"
+	fi
+
+	OTT_start &
+}

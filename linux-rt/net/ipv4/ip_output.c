@@ -79,6 +79,9 @@
 #include <linux/mroute.h>
 #include <linux/netlink.h>
 #include <linux/tcp.h>
+#if defined(CONFIG_RTL_819X)
+#include <net/rtl/features/rtl_ps_hooks.h>
+#endif /* CONFIG_RTL_819X */
 
 int sysctl_ip_default_ttl __read_mostly = IPDEFTTL;
 EXPORT_SYMBOL(sysctl_ip_default_ttl);
@@ -208,6 +211,10 @@ static int ip_finish_output2(struct net *net, struct sock *sk, struct sk_buff *s
 		neigh = __neigh_create(&arp_tbl, &nexthop, dev, false);
 	if (!IS_ERR(neigh)) {
 		int res = dst_neigh_output(dst, neigh, skb);
+
+		#if defined(CONFIG_RTL_819X)
+		rtl_update_ps_neigh_confirm(neigh);
+		#endif /* CONFIG_RTL_819X */
 
 		rcu_read_unlock_bh();
 		return res;
@@ -479,6 +486,15 @@ static void ip_copy_metadata(struct sk_buff *to, struct sk_buff *from)
 
 	/* Copy the flags to each fragment. */
 	IPCB(to)->flags = IPCB(from)->flags;
+
+/* #if (defined(CONFIG_RTL_QOS_PATCH) || defined(CONFIG_RTK_VOIP_QOS) || defined(CONFIG_RTK_VLAN_WAN_TAG_SUPPORT) || defined(CONFIG_RTL_HW_QOS_SUPPORT_WLAN)) && defined(CONFIG_RTL_819X) */
+#if defined(CONFIG_RTD_1295_HWNAT)
+	to->srcPhyPort = from->srcPhyPort;
+#endif /* CONFIG_RTD_1295_HWNAT */
+
+#if defined(CONFIG_RTL_CUSTOM_PASSTHRU) && defined (CONFIG_RTL_VLAN_8021Q) && defined(CONFIG_RTL_8021Q_VLAN_SUPPORT_SRC_TAG)
+	to->passThruFlag = from->passThruFlag;
+#endif /* CONFIG_RTL_CUSTOM_PASSTHRU && CONFIG_RTL_VLAN_8021Q && CONFIG_RTL_8021Q_VLAN_SUPPORT_SRC_TAG */
 
 #ifdef CONFIG_NET_SCHED
 	to->tc_index = from->tc_index;
@@ -1577,7 +1593,8 @@ void ip_send_unicast_reply(struct sock *sk, struct sk_buff *skb,
 			   RT_SCOPE_UNIVERSE, ip_hdr(skb)->protocol,
 			   ip_reply_arg_flowi_flags(arg),
 			   daddr, saddr,
-			   tcp_hdr(skb)->source, tcp_hdr(skb)->dest);
+			   tcp_hdr(skb)->source, tcp_hdr(skb)->dest,
+			   arg->uid);
 	security_skb_classify_flow(skb, flowi4_to_flowi(&fl4));
 	rt = ip_route_output_key(net, &fl4);
 	if (IS_ERR(rt))

@@ -1,0 +1,12 @@
+Package: pciutils
+Version: 3.3.1-1
+Depends: libc, librt, libpthread, libkmod, zlib
+Source: realtek/packages/utils/pciutils
+License: GPL-2.0
+LicenseFiles: COPYING
+Section: utils
+Maintainer: Álvaro Fernández Rojas <noltari@gmail.com>
+Architecture: rtd1295
+Installed-Size: 287342
+Description:  contains collection of programs for inspecting and manipulating configuration
+ of PCI devices

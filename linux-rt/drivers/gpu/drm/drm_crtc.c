@@ -5393,22 +5393,32 @@ int drm_mode_create_dumb_ioctl(struct drm_device *dev,
 	struct drm_mode_create_dumb *args = data;
 	u32 cpp, stride, size;
 
+    DRM_DEBUG_PRIME("DRM %s dev->driver->dumb_create %p\n", __func__,dev->driver->dumb_create);
 	if (!dev->driver->dumb_create)
 		return -ENOSYS;
+
+    DRM_DEBUG_PRIME("DRM %s args->width %d %d %d\n", __func__,args->width ,args->height ,args->bpp);
+
 	if (!args->width || !args->height || !args->bpp)
 		return -EINVAL;
 
 	/* overflow checks for 32bit size calculations */
 	/* NOTE: DIV_ROUND_UP() can overflow */
 	cpp = DIV_ROUND_UP(args->bpp, 8);
+    DRM_DEBUG_PRIME("DRM %s cpp %d %d %d\n", __func__,cpp ,0xffffffffU / args->width);
+
 	if (!cpp || cpp > 0xffffffffU / args->width)
 		return -EINVAL;
 	stride = cpp * args->width;
+    DRM_DEBUG_PRIME("DRM %s stride %d %d %d\n", __func__,stride ,0xffffffffU / stride);
+
 	if (args->height > 0xffffffffU / stride)
 		return -EINVAL;
 
 	/* test for wrap-around */
 	size = args->height * stride;
+    DRM_DEBUG_PRIME("DRM %s size %d %d %d\n", __func__,size ,PAGE_ALIGN(size));
+
 	if (PAGE_ALIGN(size) == 0)
 		return -EINVAL;
 

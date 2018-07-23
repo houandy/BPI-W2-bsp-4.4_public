@@ -19,7 +19,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
 
-#if defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX)
+#if defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX) || defined(CONFIG_CPU_RLX)
 #define STATMASK 0x3f
 #else
 #define STATMASK 0x1f
@@ -143,6 +143,49 @@
 		.endm
 #endif
 
+		.macro  SAVE_SP
+		.set	push
+		.set	noat
+		.set	reorder
+		mfc0	k0, CP0_STATUS
+		sll	k0, 3       /* extract cu0 bit */
+		.set	noreorder
+		bltz	k0, 8f
+		move	k1, sp
+		.set	reorder
+		/* Called from user mode, new stack. */
+		get_saved_sp
+8:		move	k0, sp
+		PTR_SUBU sp, k1, PT_SIZE
+		LONG_S	k0, PT_R29(sp)
+		.set    pop
+		.endm
+
+		.macro	SAVE_SOME_BUT_SP
+		.set	push
+		.set	noat
+		.set	reorder
+		LONG_S	$3, PT_R3(sp)
+		LONG_S	$0, PT_R0(sp)
+		mfc0	v1, CP0_STATUS
+		LONG_S	$2, PT_R2(sp)
+		LONG_S	$4, PT_R4(sp)
+		LONG_S	$5, PT_R5(sp)
+		LONG_S	v1, PT_STATUS(sp)
+		mfc0	v1, CP0_CAUSE
+		LONG_S	$6, PT_R6(sp)
+		LONG_S	$7, PT_R7(sp)
+		LONG_S	v1, PT_CAUSE(sp)
+		MFC0	v1, CP0_EPC
+		LONG_S	$25, PT_R25(sp)
+		LONG_S	$28, PT_R28(sp)
+		LONG_S	$31, PT_R31(sp)
+		LONG_S	v1, PT_EPC(sp)
+		ori	$28, sp, _THREAD_MASK
+		xori	$28, _THREAD_MASK
+		.set	pop
+		.endm
+
 		.macro	SAVE_SOME
 		.set	push
 		.set	noat
@@ -225,6 +268,13 @@
 		.set	pop
 		.endm
 
+		.macro  SAVE_ALL_BUT_SP
+		SAVE_SOME_BUT_SP
+		SAVE_AT
+		SAVE_TEMP
+		SAVE_STATIC
+		.endm
+
 		.macro	SAVE_ALL
 		SAVE_SOME
 		SAVE_AT
@@ -282,7 +332,7 @@
 		LONG_L	$30, PT_R30(sp)
 		.endm
 
-#if defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX)
+#if defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX) || defined(CONFIG_CPU_RLX)
 
 		.macro	RESTORE_SOME
 		.set	push
@@ -418,7 +468,7 @@
 		.macro	KMODE
 		mfc0	t0, CP0_STATUS
 		li	t1, ST0_CU0 | (STATMASK & ~1)
-#if defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX)
+#if defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX) || defined(CONFIG_CPU_RLX)
 		andi	t2, t0, ST0_IEP
 		srl	t2, 2
 		or	t0, t2

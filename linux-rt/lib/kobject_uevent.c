@@ -26,6 +26,10 @@
 #include <net/sock.h>
 #include <net/net_namespace.h>
 
+#ifdef CONFIG_RTL8117_EHCI
+int rtl8117_ehci_close_file(void);
+void rtl8117_ehci_intep_disabled(u8 portnum);
+#endif
 
 u64 uevent_seqnum;
 #ifdef CONFIG_UEVENT_HELPER
@@ -50,6 +54,11 @@ static const char *kobject_actions[] = {
 	[KOBJ_MOVE] =		"move",
 	[KOBJ_ONLINE] =		"online",
 	[KOBJ_OFFLINE] =	"offline",
+	[KOBJ_LINKUP] =		"linkup",
+	[KOBJ_LINKDOWN] =	"linkdown",
+	[KOBJ_ISOLATE] = 	"isolate",
+	[KOBJ_ATTACH_USB] = 	"attachusb",
+	[KOBJ_DEATTACH_USB] = 	"deattachusb",
 };
 
 /**
@@ -350,6 +359,15 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 			retval = call_usermodehelper_exec(info, UMH_NO_WAIT);
 			env = NULL;	/* freed by cleanup_uevent_env */
 		}
+	}
+#endif
+
+#ifdef CONFIG_RTL8117_EHCI
+	if ((strcmp(kobject_name(kobj), "sda") == 0) &&
+	    (strcmp(action_string, "remove") == 0)) {
+		printk(KERN_INFO "[EHCI] detach sda from ehci\n");
+		rtl8117_ehci_close_file();
+		rtl8117_ehci_intep_disabled(1);
 	}
 #endif
 

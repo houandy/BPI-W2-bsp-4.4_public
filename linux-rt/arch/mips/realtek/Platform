@@ -1,0 +1,5 @@
+platform-$(CONFIG_REALTEK)	+= realtek/
+cflags-$(CONFIG_REALTEK)	+= -I$(srctree)/arch/mips/include/asm/mach-realtek/
+cflags-$(CONFIG_SOC_RTL8117)	+= -I$(srctree)/arch/mips/include/asm/mach-realtek/rtl8117
+
+load-$(CONFIG_SOC_RTL8117)	+= 0xffffffff88000000

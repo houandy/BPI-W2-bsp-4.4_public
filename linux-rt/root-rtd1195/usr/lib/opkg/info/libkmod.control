@@ -1,0 +1,11 @@
+Package: libkmod
+Version: 20-1
+Depends: libc, librt, libpthread, zlib
+Source: realtek/packages/utils/kmod
+License: LGPL-2.1+
+LicenseFiles: COPYING
+Section: libs
+Maintainer: Jeff Waugh <jdub@bethesignal.org>
+Architecture: rtd1195
+Installed-Size: 27978
+Description:  Linux kernel module handling (library)

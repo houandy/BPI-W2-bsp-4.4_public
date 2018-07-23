@@ -70,6 +70,23 @@ enum ion_heap_type {
 					 * caches must be managed
 					 * manually
 					 */
+#if defined(CONFIG_ION_RTK_PHOENIX)
+#define ION_FLAG_NONCACHED              (1 << 31)
+#define ION_FLAG_SCPUACC                (1 << 30)
+#define ION_FLAG_ACPUACC                (1 << 29)
+#define ION_FLAG_HWIPACC                (1 << 28)
+#define ION_FLAG_VE_SPEC                (1 << 27)
+#define ION_FLAG_SECURE_AUDIO           (1 << 26)
+#define RTK_ION_FLAG_POOL_CONDITION     (ION_FLAG_ACPUACC | ION_FLAG_SCPUACC | ION_FLAG_HWIPACC | ION_FLAG_VE_SPEC | ION_FLAG_SECURE_AUDIO)
+#define RTK_ION_FLAG_MASK               (RTK_ION_FLAG_POOL_CONDITION) /* legacy */
+
+#define ION_USAGE_PROTECTED             (1 << 23)
+#define ION_USAGE_MMAP_NONCACHED        (1 << 22)
+#define ION_USAGE_MMAP_CACHED           (1 << 21)
+#define ION_USAGE_MMAP_WRITECOMBINE     (1 << 20)
+#define ION_USAGE_ALGO_LAST_FIT         (1 << 19) /* 0:first fit(default), 1:last fit */
+#define ION_USAGE_MASK                  (ION_USAGE_PROTECTED | ION_USAGE_MMAP_NONCACHED | ION_USAGE_MMAP_CACHED | ION_USAGE_MMAP_WRITECOMBINE | ION_USAGE_ALGO_LAST_FIT)
+#endif
 
 /**
  * DOC: Ion Userspace API
@@ -133,6 +150,14 @@ struct ion_custom_data {
 	unsigned int cmd;
 	unsigned long arg;
 };
+
+#if 1 //20130208 charleslin: support getting physical address
+struct ion_phys_data {
+	ion_user_handle_t handle;
+	unsigned long addr;
+	unsigned int len;
+};
+#endif
 
 #define ION_IOC_MAGIC		'I'
 
@@ -199,5 +224,9 @@ struct ion_custom_data {
  * passes appropriate userdata for that ioctl
  */
 #define ION_IOC_CUSTOM		_IOWR(ION_IOC_MAGIC, 6, struct ion_custom_data)
+
+#if 1 //20130208 charleslin: support getting physical address
+#define ION_IOC_PHYS _IOWR(ION_IOC_MAGIC, 8, struct ion_phys_data)
+#endif
 
 #endif /* _UAPI_LINUX_ION_H */

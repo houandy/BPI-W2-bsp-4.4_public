@@ -242,6 +242,14 @@ static int gic_irq_set_irqchip_state(struct irq_data *d,
 	}
 
 	gic_poke_irq(d, reg);
+#ifdef CONFIG_ARCH_RTD129X
+	if(GIC_DIST_ACTIVE_CLEAR == reg && d->hwirq > 15L && d->hwirq < 32L)
+	{
+		d->chip->irq_eoi(d);
+		pr_info("EOI IRQ:%lu\n", d->hwirq);
+	}
+#endif
+
 	return 0;
 }
 
@@ -317,7 +325,13 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 
 	raw_spin_lock_irqsave(&irq_controller_lock, flags);
 	mask = 0xff << shift;
+
+#if defined(CONFIG_ARCH_RTD119X) || defined(CONFIG_ARCH_RTD129X)
+	bit = ((u8)*cpumask_bits(mask_val)|gic_cpu_map[cpu]) << shift;
+#else
 	bit = gic_cpu_map[cpu] << shift;
+#endif
+
 	val = readl_relaxed(reg) & ~mask;
 	writel_relaxed(val | bit, reg);
 	raw_spin_unlock_irqrestore(&irq_controller_lock, flags);
@@ -484,8 +498,17 @@ static void __init gic_dist_init(struct gic_chip_data *gic)
 	cpumask = gic_get_cpumask(gic);
 	cpumask |= cpumask << 8;
 	cpumask |= cpumask << 16;
+
+#if defined(CONFIG_ARCH_RTD119X)
+	for (i = 32; i < gic_irqs; i += 4)
+		writel_relaxed(0x03030303, base + GIC_DIST_TARGET + i * 4 / 4);
+#elif defined(CONFIG_ARCH_RTD129X)
+	for (i = 32; i < gic_irqs; i += 4)
+		writel_relaxed(0x0F0F0F0F, base + GIC_DIST_TARGET + i * 4 / 4);
+#else
 	for (i = 32; i < gic_irqs; i += 4)
 		writel_relaxed(cpumask, base + GIC_DIST_TARGET + i * 4 / 4);
+#endif
 
 	gic_dist_config(base, gic_irqs, NULL);
 

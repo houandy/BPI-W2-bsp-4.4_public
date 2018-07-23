@@ -89,6 +89,9 @@
 #define PRID_IMP_R5500		0x5500
 #define PRID_IMP_LOONGSON_64	0x6300  /* Loongson-2/3 */
 
+#define PRID_IMP_RLX4281	0xdc01  /* Realtek */
+#define PRID_IMP_RLX5281	0xdc02  /* Realtek */
+
 #define PRID_IMP_UNKNOWN	0xff00
 
 /*
@@ -318,6 +321,10 @@ enum cpu_type_enum {
 	CPU_CAVIUM_OCTEON2, CPU_CAVIUM_OCTEON3, CPU_XLR, CPU_XLP,
 
 	CPU_QEMU_GENERIC,
+	/*
+	 * Realtek class processors
+	*/
+	CPU_RLX4281, CPU_RLX5281,
 
 	CPU_LAST
 };

@@ -582,6 +582,10 @@ enum {
 #define SNDRV_PCM_IOCTL_READN_FRAMES	_IOR('A', 0x53, struct snd_xfern)
 #define SNDRV_PCM_IOCTL_LINK		_IOW('A', 0x60, int)
 #define SNDRV_PCM_IOCTL_UNLINK		_IO('A', 0x61)
+#define SNDRV_PCM_IOCTL_VOLUME_SET  _IOW('A', 0xE0, int)
+#define SNDRV_PCM_IOCTL_VOLUME_GET  _IOR('A', 0xE1, int)
+#define SNDRV_PCM_IOCTL_GET_LATENCY _IOR('A', 0xF0, int)
+#define SNDRV_PCM_IOCTL_GET_FW_DELAY _IOR('A', 0xF1, snd_pcm_sframes_t)
 
 /*****************************************************************************
  *                                                                           *

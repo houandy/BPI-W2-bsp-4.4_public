@@ -308,6 +308,10 @@ void pci_bus_add_devices(const struct pci_bus *bus)
 	struct pci_dev *dev;
 	struct pci_bus *child;
 
+#ifdef CONFIG_SOC_RTL8117
+	pci_fixup_irqs(pci_common_swizzle, pcibios_map_irq);
+#endif
+
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		/* Skip already-added devices */
 		if (dev->is_added)

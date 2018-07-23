@@ -59,6 +59,7 @@
 
 #include <net/arp.h>
 #include <net/ip.h>
+#include <net/tcp.h>
 #include <net/route.h>
 #include <net/ip_fib.h>
 #include <net/rtnetlink.h>
@@ -66,6 +67,9 @@
 #include <net/addrconf.h>
 
 #include "fib_lookup.h"
+#if defined(CONFIG_RTL_HARDWARE_NAT)
+#include <net/rtl/rtl865x_netif.h>
+#endif /* CONFIG_RTL_HARDWARE_NAT */
 
 static struct ipv4_devconf ipv4_devconf = {
 	.data = {
@@ -1091,6 +1095,19 @@ int devinet_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 		}
 		set_ifa_lifetime(ifa, INFINITY_LIFE_TIME, INFINITY_LIFE_TIME);
 		ret = inet_set_ifa(dev, ifa);
+#if defined(CONFIG_RTL_IPTABLES_FAST_PATH) || defined(CONFIG_RTL_HARDWARE_NAT) || defined(CONFIG_RTL_WLAN_DOS_FILTER) ||defined(CONFIG_RTL_BATTLENET_ALG)
+		#if defined(CONFIG_RTD_1295_HWNAT)
+		if (strcmp(RTL_BR_NAME, ifr.ifr_name) == 0)
+		#else /* CONFIG_RTD_1295_HWNAT */
+		if (strcmp("br0", ifr.ifr_name) == 0)
+		#endif /* CONFIG_RTD_1295_HWNAT */
+		{
+			extern unsigned int _br0_ip;
+			extern unsigned int _br0_mask;
+			_br0_ip = ifa->ifa_address;
+			_br0_mask = ifa->ifa_mask;
+		}
+#endif /* CONFIG_RTL_HARDWARE_NAT */
 		break;
 
 	case SIOCSIFBRDADDR:	/* Set the broadcast address */

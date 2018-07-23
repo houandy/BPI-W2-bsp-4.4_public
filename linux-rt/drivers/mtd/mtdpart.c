@@ -678,6 +678,24 @@ int add_mtd_partitions(struct mtd_info *master,
 
 		cur_offset = slave->offset + slave->mtd.size;
 	}
+//#ifdef CONFIG_MTD_NAND_DISC
+#if defined(CONFIG_ARCH_RTD129X) || defined(CONFIG_ARCH_RTD119X)
+	struct mtd_partition partDISC = {0};
+
+	// The name that represents the whole MTD Flash device
+	partDISC.name = "disc";
+	partDISC.size = master->size;
+	partDISC.offset = 0;
+	slave = allocate_partition(master, &partDISC, nbparts, 0);
+	if (IS_ERR(slave))
+		return PTR_ERR(slave);
+
+	mutex_lock(&mtd_partitions_mutex);
+	list_add(&slave->list, &mtd_partitions);
+	mutex_unlock(&mtd_partitions_mutex);
+
+	add_mtd_device(&slave->mtd);
+#endif
 
 	return 0;
 }

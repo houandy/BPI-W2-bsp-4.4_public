@@ -1,0 +1,10 @@
+Package: coreutils-unexpand
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Source: realtek/packages/utils/coreutils
+Section: utils
+Maintainer: Jo-Philipp Wich <jow@openwrt.org>
+Architecture: rtd1295
+Installed-Size: 12839
+Description:  Full version of standard GNU unexpand utility. Normally, you would not use this
+ package, since the functionality in BusyBox is more than sufficient.

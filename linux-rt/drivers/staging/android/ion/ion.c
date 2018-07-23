@@ -40,6 +40,9 @@
 #include "ion.h"
 #include "ion_priv.h"
 #include "compat_ion.h"
+#if defined(CONFIG_ION_RTK_PHOENIX)
+#include "../uapi/rtk_phoenix_ion.h"
+#endif
 
 /**
  * struct ion_device - the metadata of the ion device node
@@ -468,6 +471,25 @@ static int ion_handle_add(struct ion_client *client, struct ion_handle *handle)
 
 	return 0;
 }
+
+#if defined(CONFIG_ION_RTK_PHOENIX)
+struct ion_heap * ion_get_client_heap_by_mask(struct ion_client *client,  unsigned int heap_id_mask)
+{
+    struct ion_device *dev = client->dev;
+    struct ion_heap *heap = NULL;
+
+    down_read(&dev->lock);
+    plist_for_each_entry(heap, &dev->heaps, node) {
+        /* if the caller didn't specify this heap id */
+        if (!((1 << heap->id) & heap_id_mask))
+            continue;
+        break;
+    }
+    up_read(&dev->lock);
+    return heap;
+}
+EXPORT_SYMBOL(ion_get_client_heap_by_mask);
+#endif /* End of CONFIG_ION_RTK_PHOENIX */
 
 struct ion_handle *ion_alloc(struct ion_client *client, size_t len,
 			     size_t align, unsigned int heap_id_mask,
@@ -1025,6 +1047,17 @@ static int ion_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 		return 0;
 	}
 
+#if defined(CONFIG_ION_RTK_PHOENIX)
+#if 0
+    if (    buffer->heap->type == RTK_PHOENIX_ION_HEAP_TYPE_MEDIA ||
+            buffer->heap->type == RTK_PHOENIX_ION_HEAP_TYPE_AUDIO ||
+            buffer->heap->type == RTK_PHOENIX_ION_HEAP_TYPE_TILER)
+#else
+    if (buffer->flags & ION_FLAG_NONCACHED)
+#endif
+		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+    else
+#endif
 	if (!(buffer->flags & ION_FLAG_CACHED))
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 
@@ -1039,6 +1072,15 @@ static int ion_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 
 	return ret;
 }
+
+int ion_mmap_by_handle(struct ion_handle *handle, struct vm_area_struct *vma) {
+    struct dma_buf dmabuf;
+    if (handle == NULL)
+        return -1;
+    dmabuf.priv = handle->buffer;
+    return ion_mmap(&dmabuf, vma);
+}
+EXPORT_SYMBOL(ion_mmap_by_handle);
 
 static void ion_dma_buf_release(struct dma_buf *dmabuf)
 {
@@ -1201,6 +1243,24 @@ end:
 }
 EXPORT_SYMBOL(ion_import_dma_buf);
 
+int rtk_ion_sync(int fd, enum dma_data_direction dir)
+{
+    struct dma_buf *dmabuf;
+    struct ion_buffer *buffer;
+
+    dmabuf = dma_buf_get(fd);
+    if (IS_ERR(dmabuf))
+        return PTR_ERR(dmabuf);
+
+    buffer = dmabuf->priv;
+
+    dma_sync_sg_for_device(NULL, buffer->sg_table->sgl,
+                   buffer->sg_table->nents, dir);
+    dma_buf_put(dmabuf);
+    return 0;
+}
+EXPORT_SYMBOL(rtk_ion_sync);
+
 static int ion_sync_for_device(struct ion_client *client, int fd)
 {
 	struct dma_buf *dmabuf;
@@ -1251,6 +1311,7 @@ static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		struct ion_allocation_data allocation;
 		struct ion_handle_data handle;
 		struct ion_custom_data custom;
+		struct ion_phys_data phys;
 	} data;
 
 	dir = ion_ioctl_dir(cmd);
@@ -1290,6 +1351,35 @@ static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		ion_handle_put(handle);
 		break;
 	}
+#if 1   //20130208 charleslin: add ioctl to get physical address
+	case ION_IOC_PHYS:
+	{
+		bool valid;
+		int ret;
+		ion_phys_addr_t addr;
+		size_t len;
+
+		if (copy_from_user(&data, (void __user *)arg, sizeof(data)))
+			return -EFAULT;
+
+		struct ion_handle *handle;
+
+		handle = ion_handle_get_by_id(client, data.phys.handle);
+		if (IS_ERR(handle))
+			return PTR_ERR(handle);
+		ret = ion_phys(client, handle, &addr, &len);
+
+		ion_handle_put(handle);
+		pr_debug("%s: addr:%lx len:%x\n", __func__, addr, len);
+		data.phys.addr = addr;
+		data.phys.len = len;
+		if(ret != 0)
+			return ret;
+		if (copy_to_user((void __user *)arg, &data.phys, sizeof(data.phys)))
+			return -EFAULT;
+		break;
+	}
+#endif
 	case ION_IOC_SHARE:
 	case ION_IOC_MAP:
 	{

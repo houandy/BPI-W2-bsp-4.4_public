@@ -1,0 +1,10 @@
+Package: kernel
+Version: 4.4.18-1-623606fabb92c53d7574b1788ecb2d3d
+Depends: libc
+Source: package/kernel/linux
+License: GPLv2
+Section: sys
+Status: unknown hold not-installed
+Architecture: rtl8117
+Installed-Size: 105
+Description:  Virtual kernel package

@@ -96,3 +96,4 @@ obj-$(CONFIG_SERIAL_STM32)	+= stm32-usart.o
 
 # GPIOLIB helpers for modem control lines
 obj-$(CONFIG_SERIAL_MCTRL_GPIO)	+= serial_mctrl_gpio.o
+obj-$(CONFIG_SERIAL_TCR_RTL8117)	+= tcr_rtl8117.o

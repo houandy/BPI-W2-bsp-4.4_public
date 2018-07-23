@@ -54,6 +54,25 @@
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 
+#if defined(CONFIG_RTL_PPPOE_HWACC) || defined (CONFIG_RTL_FAST_PPPOE)
+#include <linux/if_pppox.h>
+#endif
+
+#if defined(CONFIG_RTL_819X)
+#include <linux/interrupt.h>
+#include <net/rtl/rtl_types.h>
+#include <net/rtl/rtl_nic.h>
+
+#include <net/rtl/rtl865x_netif.h>
+#endif
+#ifdef CONFIG_RTL_LAYERED_DRIVER_L3
+#include <net/rtl/rtl865x_ppp.h>
+#endif
+
+#if defined (CONFIG_RTL_HW_QOS_SUPPORT)	// sync from voip customer for multiple ppp
+#include <net/rtl/rtl865x_outputQueue.h>
+#endif
+
 #define PPP_VERSION	"2.4.2"
 
 /*
@@ -69,6 +88,32 @@
 
 #define MPHDRLEN	6	/* multilink protocol header length */
 #define MPHDRLEN_SSN	4	/* ditto with short sequence numbers */
+
+#if defined(CONFIG_RTL_819X)
+#if defined(NAT_SPEEDUP)||defined(CONFIG_RTL_IPTABLES_FAST_PATH)
+	#define FAST_PPTP
+	#define FAST_L2TP
+extern int is_l2tp_device(char *ppp_device);	// sync from voip customer for multiple ppp
+#endif
+
+#ifdef CONFIG_RTL_LAYERED_DRIVER
+enum SE_TYPE
+{
+	/*1:if_ether, 2:pppoe,3:pptp,4:l2tp*/
+	SE_ETHER = 1,
+	SE_PPPOE = 2,
+	SE_PPTP = 3,
+	SE_L2TP = 4,
+};
+#else
+enum SE_TYPE
+{
+	SE_PPPOE = 1,
+	SE_PPTP = 2,
+	SE_L2TP = 3,
+};
+#endif /*CONFIG_RTL_LAYERED_DRIVER */
+#endif /* CONFIG_RTL_819X */
 
 /*
  * An instance of /dev/ppp can be associated with either a ppp
@@ -88,7 +133,11 @@ struct ppp_file {
 	int		dead;		/* unit/channel has been shut down */
 };
 
+#if defined(CONFIG_PPP_MPPE_MPPC)
+#define PF_TO_X(pf, X)         ((X *)((char *)(pf) - offsetof(X, file)))
+#else
 #define PF_TO_X(pf, X)		container_of(pf, X, file)
+#endif
 
 #define PF_TO_PPP(pf)		PF_TO_X(pf, struct ppp)
 #define PF_TO_CHANNEL(pf)	PF_TO_X(pf, struct channel)
@@ -119,6 +168,10 @@ struct ppp {
 	spinlock_t	rlock;		/* lock for receive side 58 */
 	spinlock_t	wlock;		/* lock for transmit side 5c */
 	int		mru;		/* max receive unit 60 */
+#if defined(CONFIG_PPP_MPPE_MPPC)
+	int		mru_alloc;	/* MAX(1500,MRU) for dev_alloc_skb() */
+#endif
+
 	unsigned int	flags;		/* control bits 64 */
 	unsigned int	xstate;		/* transmit state bits 68 */
 	unsigned int	rstate;		/* receive state bits 6c */
@@ -150,6 +203,67 @@ struct ppp {
 	struct ppp_link_stats stats64;	/* 64 bit network stats */
 };
 
+#ifdef FAST_PPTP
+#define MPPE_CCOUNT(p) ((((p)[2] & 0x0f) << 8) + (p)[3])
+typedef struct {
+	unsigned i;
+	unsigned j;
+	unsigned char S[256];
+} arcfour_context;
+
+
+#define MPPE_MAX_KEY_LEN       16      /* largest key length (128-bit) */	/* reference from ppp_mppe.h */
+
+
+#if defined(CONFIG_PPP_MPPE_MPPC)
+typedef struct ppp_mppe_state {		/* reference from ppp_mppe_mppc.c	*/
+	struct crypto_tfm *arc4_tfm;
+	u8	master_key[MPPE_MAX_KEY_LEN];
+	u8	session_key[MPPE_MAX_KEY_LEN];
+	u8	mppc;		/* do we use compression (MPPC)? */
+	u8	mppe;		/* do we use encryption (MPPE)? */
+	u8	keylen;		/* key length in bytes */
+	u8	bitkeylen;	/* key length in bits */
+	u16	ccount;		/* coherency counter */
+	u16	bits;		/* MPPC/MPPE control bits */
+	u8	stateless;	/* do we use stateless mode? */
+	u8	nextflushed;	/* set A bit in the next outgoing packet;
+				   used only by compressor*/
+	u8	flushexpected;	/* drop packets until A bit is received;
+				   used only by decompressor*/
+	u8	*hist;		/* MPPC history */
+	u16	*hash;		/* Hash table; used only by compressor */
+	u16	histptr;	/* history "cursor" */
+	int	unit;
+	int	debug;
+	int	mru;
+	struct compstat stats;
+}ppp_mppe_state;
+#else
+typedef struct ppp_mppe_state {			/* reference from ppp_mppe.c	*/
+	struct crypto_blkcipher *arc4;
+	struct crypto_hash *sha1;
+	unsigned char *sha1_digest;
+	unsigned char master_key[MPPE_MAX_KEY_LEN];
+	unsigned char session_key[MPPE_MAX_KEY_LEN];
+	unsigned keylen;	/* key length in bytes             */
+	/* NB: 128-bit == 16, 40-bit == 8! */
+	/* If we want to support 56-bit,   */
+	/* the unit has to change to bits  */
+	unsigned char bits;	/* MPPE control bits */
+	unsigned ccount;	/* 12-bit coherency count (seqno)  */
+	unsigned stateful;	/* stateful mode flag */
+	int discard;		/* stateful mode packet loss flag */
+	int sanity_errors;	/* take down LCP if too many */
+	int unit;
+	int debug;
+	struct compstat stats;
+} ppp_mppe_state;
+#endif
+
+#endif
+
+
 /*
  * Bits in flags: SC_NO_TCP_CCID, SC_CCP_OPEN, SC_CCP_UP, SC_LOOP_TRAFFIC,
  * SC_MULTILINK, SC_MP_SHORTSEQ, SC_MP_XSHORTSEQ, SC_COMP_TCP, SC_REJ_COMP_TCP,
@@ -157,9 +271,16 @@ struct ppp {
  * Bits in rstate: SC_DECOMP_RUN, SC_DC_ERROR, SC_DC_FERROR.
  * Bits in xstate: SC_COMP_RUN
  */
+
+#if defined(CONFIG_PPP_MPPE_MPPC)
+#define SC_FLAG_BITS	(SC_NO_TCP_CCID|SC_CCP_OPEN|SC_CCP_UP|SC_LOOP_TRAFFIC \
+			 |SC_MULTILINK|SC_MP_SHORTSEQ|SC_MP_XSHORTSEQ \
+			 |SC_COMP_TCP|SC_REJ_COMP_TCP)
+#else
 #define SC_FLAG_BITS	(SC_NO_TCP_CCID|SC_CCP_OPEN|SC_CCP_UP|SC_LOOP_TRAFFIC \
 			 |SC_MULTILINK|SC_MP_SHORTSEQ|SC_MP_XSHORTSEQ \
 			 |SC_COMP_TCP|SC_REJ_COMP_TCP|SC_MUST_COMP)
+#endif
 
 /*
  * Private data structure for each channel.
@@ -181,6 +302,11 @@ struct channel {
 	u32		lastseq;	/* MP: last sequence # received */
 	int		speed;		/* speed of the corresponding ppp channel*/
 #endif /* CONFIG_PPP_MULTILINK */
+#if defined(CONFIG_RTL_PPPOE_HWACC) || defined (CONFIG_RTL_FAST_PPPOE)
+	u8		pppoe;
+	u8		rsv1;
+	u16		rsv2;
+#endif /* defined(CONFIG_RTL_PPPOE_HWACC) || defined (CONFIG_RTL_FAST_PPPOE) */
 };
 
 /*
@@ -248,13 +374,28 @@ struct ppp_net {
 static int ppp_unattached_ioctl(struct net *net, struct ppp_file *pf,
 			struct file *file, unsigned int cmd, unsigned long arg);
 static void ppp_xmit_process(struct ppp *ppp);
+#ifdef FAST_PPTP
+static void ppp_send_frame(struct ppp *ppp, struct sk_buff *skb, int is_fast_fw);
+#else
 static void ppp_send_frame(struct ppp *ppp, struct sk_buff *skb);
+#endif
 static void ppp_push(struct ppp *ppp);
 static void ppp_channel_push(struct channel *pch);
 static void ppp_receive_frame(struct ppp *ppp, struct sk_buff *skb,
 			      struct channel *pch);
 static void ppp_receive_error(struct ppp *ppp);
+#ifdef FAST_PPTP
+struct sk_buff *ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb, int is_fast_fw);
+#ifdef CONFIG_FAST_PATH_MODULE
+int (*FastPath_hook9)( void )=NULL;
+int (*FastPath_hook10)(struct sk_buff *skb)=NULL;
+EXPORT_SYMBOL(FastPath_hook9);
+EXPORT_SYMBOL(FastPath_hook10);
+EXPORT_SYMBOL(ppp_receive_nonmp_frame);
+#endif
+#else
 static void ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb);
+#endif
 static struct sk_buff *ppp_decompress_frame(struct ppp *ppp,
 					    struct sk_buff *skb);
 #ifdef CONFIG_PPP_MULTILINK
@@ -272,6 +413,7 @@ static void ppp_get_stats(struct ppp *ppp, struct ppp_stats *st);
 static struct ppp *ppp_create_interface(struct net *net, int unit,
 					struct file *file, int *retp);
 static void init_ppp_file(struct ppp_file *pf, int kind);
+static void ppp_shutdown_interface(struct ppp *ppp);
 static void ppp_destroy_interface(struct ppp *ppp);
 static struct ppp *ppp_find_unit(struct ppp_net *pn, int unit);
 static struct channel *ppp_find_channel(struct ppp_net *pn, int unit);
@@ -368,6 +510,27 @@ static const int npindex_to_ethertype[NUM_NP] = {
 #define ppp_unlock(ppp)		do { ppp_recv_unlock(ppp); \
 				     ppp_xmit_unlock(ppp); } while (0)
 
+#if defined(CONFIG_RTL_819X)
+void rtl_ppp_xmit_lock(struct ppp *ppp)
+{
+	ppp_xmit_lock(ppp);
+}
+void rtl_ppp_xmit_unlock(struct ppp *ppp)
+{
+	ppp_xmit_unlock(ppp);
+}
+
+void rtl_ppp_recv_lock(struct ppp *ppp)
+{
+	ppp_recv_lock(ppp);
+}
+
+void rtl_ppp_recv_unlock(struct ppp *ppp)
+{
+	ppp_recv_unlock(ppp);
+}
+#endif /* CONFIG_RTL_819X */
+
 /*
  * /dev/ppp device routines.
  * The /dev/ppp device is used by pppd to control the ppp unit.
@@ -385,19 +548,63 @@ static int ppp_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
+#if defined(CONFIG_RTL_PPPOE_HWACC)
+extern int rtl865x_delPppoeRouter(char *name);
+#endif
+
 static int ppp_release(struct inode *unused, struct file *file)
 {
 	struct ppp_file *pf = file->private_data;
 	struct ppp *ppp;
+	#if defined(CONFIG_RTD_1295_HWNAT)
+	bool hit = false;
+	#ifdef CONFIG_RTL_PPPOE_HWACC
+	char dev_name[IFNAMSIZ];
+	#endif
+	#endif /* CONFIG_RTD_1295_HWNAT */
 
 	if (pf) {
 		file->private_data = NULL;
 		if (pf->kind == INTERFACE) {
 			ppp = PF_TO_PPP(pf);
+			#if defined(CONFIG_RTD_1295_HWNAT)
+			#ifdef CONFIG_RTL_PPPOE_HWACC
+			memcpy(dev_name, ppp->dev->name, IFNAMSIZ);
+			#endif
+
 			rtnl_lock();
-			if (file == ppp->owner)
+			if (file == ppp->owner) {
 				unregister_netdevice(ppp->dev);
+				hit = true;
+			}
 			rtnl_unlock();
+
+			if (hit) {
+				#ifdef CONFIG_RTL_PPPOE_HWACC
+				#ifdef CONFIG_RTL_LAYERED_DRIVER
+				#ifdef CONFIG_RTL_LAYERED_DRIVER_L3
+				rtl865x_detachMasterNetif(dev_name);
+				#ifdef CONFIG_RTL_LAYERED_DRIVER_L2	// sync from voip customer for multiple ppp
+				#if defined (CONFIG_RTL_HW_QOS_SUPPORT)
+				rtl865x_qosFlushMarkRuleByDev(dev_name);
+				#endif /* CONFIG_RTL_HW_QOS_SUPPORT */
+				#endif /* CONFIG_RTL_LAYERED_DRIVER_L2 */
+				rtl865x_delPppoeRouter(dev_name);
+				rtl865x_delPppbyIfName(dev_name);
+				#endif /* CONFIG_RTL_LAYERED_DRIVER_L3 */
+				#else /* CONFIG_RTL_LAYERED_DRIVER */
+				rtl865x_delPppSession(dev_name,  SE_PPPOE);
+				#endif /* CONFIG_RTL_LAYERED_DRIVER */
+				#endif /* CONFIG_RTL_PPPOE_HWACC */
+			}
+			#else /* !CONFIG_RTD_1295_HWNAT */
+			rtnl_lock();
+			if (file == ppp->owner) {
+				ppp_shutdown_interface(ppp);
+				unregister_netdevice(ppp->dev);
+			}
+			rtnl_unlock();
+			#endif /* CONFIG_RTD_1295_HWNAT */
 		}
 		if (atomic_dec_and_test(&pf->refcnt)) {
 			switch (pf->kind) {
@@ -565,6 +772,21 @@ static int get_filter(void __user *arg, struct sock_filter **p)
 }
 #endif /* CONFIG_PPP_FILTER */
 
+#if defined (CONFIG_RTL_FAST_PPPOE)
+extern int set_pppoe_info(char *ppp_dev, char *wan_dev, unsigned short sid,
+			unsigned int our_ip,unsigned int peer_ip,
+			unsigned char * our_mac, unsigned char *peer_mac);
+
+extern int clear_pppoe_info(char *ppp_dev, char *wan_dev, unsigned short sid,
+			unsigned int our_ip,unsigned int peer_ip,
+			unsigned char * our_mac, unsigned char *peer_mac);
+extern int get_pppoe_last_rx_tx(char * ppp_dev,char * wan_dev,unsigned short sid,
+			unsigned int our_ip,unsigned int peer_ip,
+			unsigned char * our_mac,unsigned char * peer_mac,
+			unsigned long * last_rx,unsigned long * last_tx);
+extern int fast_pppoe_fw;
+
+#endif
 static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct ppp_file *pf;
@@ -576,6 +798,12 @@ static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	struct slcompress *vj;
 	void __user *argp = (void __user *)arg;
 	int __user *p = argp;
+	#if defined(CONFIG_RTD_1295_HWNAT)
+	bool hit = false;
+	#ifdef CONFIG_RTL_PPPOE_HWACC
+	char dev_name[IFNAMSIZ];
+	#endif
+	#endif /* CONFIG_RTD_1295_HWNAT */
 
 	mutex_lock(&ppp_mutex);
 
@@ -601,10 +829,44 @@ static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		err = -EINVAL;
 		if (pf->kind == INTERFACE) {
 			ppp = PF_TO_PPP(pf);
+			#if defined(CONFIG_RTD_1295_HWNAT)
+			#ifdef CONFIG_RTL_PPPOE_HWACC
+			memcpy(dev_name, ppp->dev->name, IFNAMSIZ);
+			#endif
+
 			rtnl_lock();
-			if (file == ppp->owner)
+			if (file == ppp->owner) {
 				unregister_netdevice(ppp->dev);
+				hit = true;
+			}
 			rtnl_unlock();
+
+			if (hit) {
+				#ifdef CONFIG_RTL_PPPOE_HWACC
+				#ifdef CONFIG_RTL_LAYERED_DRIVER
+				#ifdef CONFIG_RTL_LAYERED_DRIVER_L3
+				rtl865x_detachMasterNetif(dev_name);
+				#ifdef CONFIG_RTL_LAYERED_DRIVER_L2	// sync from voip customer for multiple ppp
+				#if defined (CONFIG_RTL_HW_QOS_SUPPORT)
+				rtl865x_qosFlushMarkRuleByDev(dev_name);
+				#endif /* CONFIG_RTL_HW_QOS_SUPPORT */
+				#endif /* CONFIG_RTL_LAYERED_DRIVER_L2 */
+				rtl865x_delPppoeRouter(dev_name);
+				rtl865x_delPppbyIfName(dev_name);
+				#endif /* CONFIG_RTL_LAYERED_DRIVER_L3 */
+				#else /* CONFIG_RTL_LAYERED_DRIVER */
+				rtl865x_delPppSession(dev_name,  SE_PPPOE);
+				#endif /* CONFIG_RTL_LAYERED_DRIVER */
+				#endif /* CONFIG_RTL_PPPOE_HWACC */
+			}
+			#else /* !CONFIG_RTD_1295_HWNAT */
+			rtnl_lock();
+			if (file == ppp->owner) {
+				ppp_shutdown_interface(ppp);
+				unregister_netdevice(ppp->dev);
+			}
+			rtnl_unlock();
+			#endif /* CONFIG_RTD_1295_HWNAT */
 		}
 		if (atomic_long_read(&file->f_count) < 2) {
 			ppp_release(NULL, file);
@@ -618,6 +880,9 @@ static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	if (pf->kind == CHANNEL) {
 		struct channel *pch;
 		struct ppp_channel *chan;
+#if defined(CONFIG_RTL_PPPOE_HWACC) || defined (CONFIG_RTL_FAST_PPPOE)
+		char dev_name[IFNAMSIZ];
+#endif
 
 		pch = PF_TO_CHANNEL(pf);
 
@@ -626,10 +891,92 @@ static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			if (get_user(unit, p))
 				break;
 			err = ppp_connect_channel(pch, unit);
+#if defined(CONFIG_RTL_PPPOE_HWACC) || defined (CONFIG_RTL_FAST_PPPOE)
+			if(err == 0 && pch->pppoe==TRUE)
+			{
+				struct sock *sk = (struct sock *) pch->chan->private;
+				struct pppox_sock *po = pppox_sk(sk);
+				struct net_device *local_dev = po->pppoe_dev;
+#ifdef CONFIG_RTL_LAYERED_DRIVER
+#ifdef CONFIG_RTL_LAYERED_DRIVER_L3
+				{
+
+					rtl865x_attachMasterNetif(pch->ppp->dev->name, local_dev->name);
+					//add the netif mapping table
+					rtl_add_ps_drv_netif_mapping(pch->ppp->dev,pch->ppp->dev->name);	// sync from voip customer for multiple ppp
+				}
+				rtl865x_addPpp(pch->ppp->dev->name , (ether_addr_t*)po->pppoe_pa.remote, htons(po->pppoe_pa.sid), SE_PPPOE);
+#endif
+
+#endif
+
+#if defined (CONFIG_RTL_FAST_PPPOE)
+				set_pppoe_info(pch->ppp->dev->name, local_dev->name, htons(po->pppoe_pa.sid),
+							0,0,NULL, (unsigned char *)po->pppoe_pa.remote);
+#endif
+
+			}
+#endif
+
+#ifdef FAST_PPTP // sync from voip customer for multiple ppp
+			{
+				extern void set_pptp_device(char *ppp_device);
+				extern int fast_pptp_fw;
+				if (err==0 && fast_pptp_fw)
+					set_pptp_device(pch->ppp->dev->name);
+			}
+#endif
+
+#ifdef FAST_L2TP // sync from voip customer for multiple ppp
+			{
+				extern void set_l2tp_device(char *ppp_device);
+				if (err==0)
+					set_l2tp_device(pch->ppp->dev->name);
+			}
+#endif
+
 			break;
 
 		case PPPIOCDISCONN:
+#if defined(CONFIG_RTL_PPPOE_HWACC) || defined (CONFIG_RTL_FAST_PPPOE)
+			dev_name[0]='\0';
+			if (pch->ppp)
+				memcpy(dev_name, pch->ppp->dev->name, IFNAMSIZ);
+			#if defined(CONFIG_RTL_LAYERED_DRIVER) && defined(CONFIG_RTL_LAYERED_DRIVER_L3)
+			rtl_del_ps_drv_netif_mapping(pch->ppp->dev);
+			#endif
+#endif
 			err = ppp_disconnect_channel(pch);
+#if defined(CONFIG_RTL_PPPOE_HWACC) || defined (CONFIG_RTL_FAST_PPPOE)
+			if (err == 0 && pch->pppoe==TRUE)
+			{
+				pch->pppoe = FALSE;
+
+#if defined(CONFIG_RTL_PPPOE_HWACC)
+#ifdef CONFIG_RTL_LAYERED_DRIVER
+#ifdef CONFIG_RTL_LAYERED_DRIVER_L3
+				rtl865x_detachMasterNetif(dev_name);
+				//del the netif mapping table
+				//rtl_del_ps_drv_netif_mapping(pch->ppp->dev);
+				rtl865x_delPppoeRouter(dev_name);
+				rtl865x_delPppbyIfName(dev_name);
+#if defined(CONFIG_RTL_ISP_MULTI_WAN_SUPPORT)
+				rtl865x_delNetif(dev_name);
+#endif
+#endif
+#endif
+#endif
+
+#if defined (CONFIG_RTL_FAST_PPPOE)
+				clear_pppoe_info(dev_name, NULL, 0, 0,0,NULL, NULL);
+#endif
+
+#if defined (CONFIG_RTL_PPPOE_DIRECT_REPLY)
+				clear_magicNum();
+#endif
+			}
+#endif
+
 			break;
 
 		default:
@@ -655,7 +1002,13 @@ static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case PPPIOCSMRU:
 		if (get_user(val, p))
 			break;
+#if defined(CONFIG_PPP_MPPE_MPPC)
+		ppp->mru_alloc = ppp->mru = val;
+		if (ppp->mru_alloc < PPP_MRU)
+			ppp->mru_alloc = PPP_MRU;   /* increase for broken peers */
+#else
 		ppp->mru = val;
+#endif
 		err = 0;
 		break;
 
@@ -706,6 +1059,56 @@ static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 
 	case PPPIOCGIDLE:
+#ifdef FAST_L2TP
+		{
+			extern int fast_l2tp_fw;
+			extern uint32 state;
+			unsigned long get_fast_l2tp_lastxmit(void);
+			unsigned long fastl2tp_lastxmit;
+			#define L2TP_CONNECTED 2
+			if(fast_l2tp_fw && state == L2TP_CONNECTED)
+			{
+				fastl2tp_lastxmit = get_fast_l2tp_lastxmit();
+				if(ppp->last_xmit < fastl2tp_lastxmit)
+					ppp->last_xmit = fastl2tp_lastxmit;
+			}
+		}
+#endif
+
+#ifdef FAST_PPTP
+		{
+			extern int fast_pptp_fw;
+			extern unsigned long get_fastpptp_lastxmit(void);
+			unsigned long fastpptp_lastxmit;
+			if(fast_pptp_fw)
+			{
+				fastpptp_lastxmit = get_fastpptp_lastxmit();
+				if(ppp->last_xmit < fastpptp_lastxmit)
+					ppp->last_xmit = fastpptp_lastxmit;
+			}
+		}
+#endif
+
+#if defined (CONFIG_RTL_FAST_PPPOE)
+		{
+			unsigned long fast_pppoe_last_rx=0;
+			unsigned long fast_pppoe_last_tx=0;
+
+			if(fast_pppoe_fw)
+			{
+				if(ppp->dev!=NULL)
+				{
+					get_pppoe_last_rx_tx(ppp->dev->name,NULL,0,0,0,NULL,NULL,&fast_pppoe_last_rx,&fast_pppoe_last_tx);
+
+					if(ppp->last_xmit < fast_pppoe_last_tx)
+						ppp->last_xmit = fast_pppoe_last_tx;
+
+					if(ppp->last_recv < fast_pppoe_last_rx)
+						ppp->last_xmit = fast_pppoe_last_rx;
+				}
+			}
+		}
+#endif
 		idle.xmit_idle = (jiffies - ppp->last_xmit) / HZ;
 		idle.recv_idle = (jiffies - ppp->last_recv) / HZ;
 		if (copy_to_user(argp, &idle, sizeof(idle)))
@@ -849,6 +1252,7 @@ static int ppp_unattached_ioctl(struct net *net, struct ppp_file *pf,
 		if (!ppp)
 			break;
 		file->private_data = &ppp->file;
+		ppp->owner = file;
 		err = -EFAULT;
 		if (put_user(ppp->file.index, p))
 			break;
@@ -993,15 +1397,111 @@ out:
 	return err;
 }
 
+#ifdef CONFIG_RTL_819X
+static void add_ppp_address_ctrl(struct sk_buff *skb, struct ppp *ppp)
+{
+	struct list_head *list;
+	struct channel *pch;
+
+	unsigned char *pp;
+	unsigned long flag = 0;
+
+	if (skb==NULL || ppp==NULL )
+		return;
+
+	list = &ppp->channels;
+	if (list_empty(list)) {
+		return;
+	}
+
+	if ((ppp->flags & SC_MULTILINK) == 0) {
+		/* not doing multilink: send it down the first channel */
+		list = list->next;
+		pch = list_entry(list, struct channel, clist);
+
+		spin_lock_bh(&pch->downl);
+		if (pch->chan!=NULL &&  pch->chan->ops!=NULL && pch->chan->ops->ioctl!=NULL) {
+
+			pch->chan->ops->ioctl(pch->chan, RTLPPPIOCGFLAGS, (unsigned long)&flag);
+
+			//panic_printk("\n%s:%d flag=%08x\n",__FUNCTION__,__LINE__,flag);
+
+			if ((flag & SC_COMP_AC) == 0)
+			{
+				//panic_printk("\n%s:%d ADD 0XFF03!!!!!!\n",__FUNCTION__,__LINE__);
+				pp = skb_push(skb, 2);
+				pp[0]=0xff;
+				pp[1]=0x03;
+			}
+		}
+		spin_unlock_bh(&pch->downl);
+		return;
+	}
+	return;
+}
+#endif
+
+ #if defined(FAST_L2TP)
+extern int fast_l2tp_to_wan(void *skb);
+extern int check_for_fast_l2tp_to_wan(void *skb);
+extern void event_ppp_dev_down(const char * name);
+#endif
+
+
 /*
  * Network interface unit routines.
  */
+#if defined(FAST_PPTP) || defined(FAST_L2TP)
+netdev_tx_t ppp_start_xmit(struct sk_buff *skb, struct net_device *dev)
+#else
 static netdev_tx_t
 ppp_start_xmit(struct sk_buff *skb, struct net_device *dev)
+#endif
 {
 	struct ppp *ppp = netdev_priv(dev);
 	int npi, proto;
 	unsigned char *pp;
+
+#ifdef FAST_PPTP
+	int is_fast_fw=0;
+#if defined(CONFIG_RTL_IPTABLES_FAST_PATH)
+	extern int fast_pptp_fw;
+	#ifdef CONFIG_FAST_PATH_MODULE
+	if((FastPath_hook9!=NULL) &&(FastPath_hook10!=NULL))
+	{
+		if (FastPath_hook9()) {
+			if (skb->cb[0]=='R' && skb->cb[1]=='T' && skb->cb[2]=='L')
+			{
+				is_fast_fw=1;
+				memset(skb->cb, '\x0', 3);
+			}
+			else {
+				extern int fast_pptp_to_wan(struct sk_buff *skb);
+				if (FastPath_hook10(skb))
+					return 0;
+			}
+		}
+	}
+	#else
+	if (fast_pptp_fw) {
+		if (skb->cb[0]=='R' && skb->cb[1]=='T' && skb->cb[2]=='L')
+		{
+			is_fast_fw=1;
+			memset(skb->cb, '\x0', 3);
+		}
+		else {
+			extern int is_pptp_device(char *ppp_device);	// sync from voip customer for multiple ppp
+			extern int fast_pptp_to_wan(void *skb);
+			if (is_pptp_device(ppp->dev->name) && fast_pptp_to_wan((void*)skb))	// sync from voip customer for multiple ppp
+				return 0;
+		}
+	}
+	#endif
+#else
+	if (skb->cb[0]=='R' && skb->cb[1]=='T' && skb->cb[2]=='L')
+		is_fast_fw=1;
+#endif
+#endif
 
 	npi = ethertype_to_npindex(ntohs(skb->protocol));
 	if (npi < 0)
@@ -1029,9 +1529,43 @@ ppp_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	proto = npindex_to_proto[npi];
 	put_unaligned_be16(proto, pp);
 
+#ifdef FAST_PPTP
+	if (is_fast_fw) {
+
+#ifdef CONFIG_RTL_819X
+		//check whether add 0xff03
+		add_ppp_address_ctrl(skb, ppp);
+#endif
+		/*jwj: Because fast_pptp_to_wan() already have called ppp_xmit_lock()
+		before call ppp_start_xmit(), so here ppp_xmit_lock is not needed.*/
+		//ppp_xmit_lock(ppp);
+		ppp_send_frame(ppp, skb, 1);
+		//ppp_xmit_unlock(ppp);
+	} else {
+#ifdef FAST_L2TP
+		skb_pull(skb,2);
+		if (is_l2tp_device(ppp->dev->name) && (check_for_fast_l2tp_to_wan((void*)skb)==1) && (fast_l2tp_to_wan((void*)skb) == 1)) // sync from voip customer for multiple ppp
+		{
+			/* Note: if pkt go here, l2tp dial-on-demand will not be triggered,
+			so some risk exist here! -- 2010/04/25 zj */
+			return 0;
+		}
+#endif
+		{
+			pp = skb_push(skb, 2);
+			proto = npindex_to_proto[npi];
+			put_unaligned_be16(proto, pp);
+		}
+		skb_scrub_packet(skb, !net_eq(ppp->ppp_net, dev_net(dev)));
+		skb_queue_tail(&ppp->file.xq, skb);
+		ppp_xmit_process(ppp);
+	}
+#else
 	skb_scrub_packet(skb, !net_eq(ppp->ppp_net, dev_net(dev)));
 	skb_queue_tail(&ppp->file.xq, skb);
 	ppp_xmit_process(ppp);
+#endif
+
 	return NETDEV_TX_OK;
 
  outf:
@@ -1147,7 +1681,11 @@ static void ppp_setup(struct net_device *dev)
 	dev->hard_header_len = PPP_HDRLEN;
 	dev->mtu = PPP_MRU;
 	dev->addr_len = 0;
+#if defined(CONFIG_RTL_819X)
+	dev->tx_queue_len = 64;
+#else
 	dev->tx_queue_len = 3;
+#endif
 	dev->type = ARPHRD_PPP;
 	dev->flags = IFF_POINTOPOINT | IFF_NOARP | IFF_MULTICAST;
 	netif_keep_dst(dev);
@@ -1171,7 +1709,11 @@ ppp_xmit_process(struct ppp *ppp)
 		ppp_push(ppp);
 		while (!ppp->xmit_pending &&
 		       (skb = skb_dequeue(&ppp->file.xq)))
+			#ifdef FAST_PPTP
+			ppp_send_frame(ppp, skb, 0);
+			#else
 			ppp_send_frame(ppp, skb);
+			#endif
 		/* If there's no work left to do, tell the core net
 		   code that we can accept some more. */
 		if (!ppp->xmit_pending && !skb_peek(&ppp->file.xq))
@@ -1182,6 +1724,7 @@ ppp_xmit_process(struct ppp *ppp)
 	ppp_xmit_unlock(ppp);
 }
 
+#if !defined(CONFIG_PPP_MPPE_MPPC)
 static inline struct sk_buff *
 pad_compress_skb(struct ppp *ppp, struct sk_buff *skb)
 {
@@ -1231,14 +1774,67 @@ pad_compress_skb(struct ppp *ppp, struct sk_buff *skb)
 	}
 	return new_skb;
 }
+#endif
 
+/*
+ * return value 1 means this packet won't set the ppp to active
+ */
+#if defined(CONFIG_PPP_IDLE_TIMEOUT_REFINE)
+int timeoutCheck_skipp_pkt(struct iphdr *iph)
+{
+	if(iph == NULL)
+	{
+		printk("the iphdr for PPP_IDLE_TIMEOUT_REFINE is NULL, is may cause some isses\n");
+		return 0;
+	}
+
+	if(iph->protocol == IPPROTO_ICMP)
+	{
+		struct icmphdr *icmph= (void *)iph + iph->ihl*4;
+		// we don't care dest unreacheable pkts(to wan) while recode last tx time
+		if(icmph->type==ICMP_DEST_UNREACH)
+		{
+			printk("it is ICMP dest unreacheable packet\n");
+			//if(net_ratelimit())printk("skip a icmp dest unreachable pkt from lan to wan\n");
+			return 1;
+		}
+	}
+	else if(iph->protocol == IPPROTO_TCP)
+	{
+		struct tcphdr *tcph;
+		tcph = (void *)iph + iph->ihl*4;
+		// we don't care tcp fin/rst pkts(to wan) while recode last tx time
+		if(tcph->fin || tcph->rst)
+		{
+			//if(net_ratelimit())printk("skip a tcp fin/rst pkt fin: %d rst :%d from lan to wan\n", tcph->fin, tcph->rst);
+			return 1;
+		}
+	}
+	else if(iph->protocol == IPPROTO_IGMP)
+	{
+		// we don't care IGMP packets
+		printk("it is ICMP packet\n");
+		return 1;
+	}
+	return 0;
+}
+#else //fastpath assemble code will call this function anyway.
+int timeoutCheck_skipp_pkt(struct iphdr *iph)
+{
+	return 0;
+}
+#endif
 /*
  * Compress and send a frame.
  * The caller should have locked the xmit path,
  * and xmit_pending should be 0.
  */
+#ifdef FAST_PPTP
+static void ppp_send_frame(struct ppp *ppp, struct sk_buff *skb, int is_fast_fw)
+#else
 static void
 ppp_send_frame(struct ppp *ppp, struct sk_buff *skb)
+#endif
 {
 	int proto = PPP_PROTO(skb);
 	struct sk_buff *new_skb;
@@ -1273,6 +1869,13 @@ ppp_send_frame(struct ppp *ppp, struct sk_buff *skb)
 
 	++ppp->stats64.tx_packets;
 	ppp->stats64.tx_bytes += skb->len - 2;
+#if defined(FAST_PPTP) && defined(NAT_SPEEDUP)
+	{
+		extern void update_fast_pptp_state(void);
+		update_fast_pptp_state();
+	}
+#endif
+
 
 	switch (proto) {
 	case PPP_IP:
@@ -1312,12 +1915,69 @@ ppp_send_frame(struct ppp *ppp, struct sk_buff *skb)
 	case PPP_CCP:
 		/* peek at outbound CCP frames */
 		ppp_ccp_peek(ppp, skb, 0);
+#if defined(CONFIG_PPP_MPPE_MPPC)
+		if (CCP_CODE(skb->data+2) == CCP_RESETACK
+			&& (ppp->xcomp->compress_proto == CI_MPPE
+			|| ppp->xcomp->compress_proto == CI_LZS)) {
+			--ppp->dev->stats.tx_packets;
+			ppp->dev->stats.tx_bytes -= skb->len - 2;
+			kfree_skb(skb);
+			return;
+		}
+#endif
 		break;
 	}
 
 	/* try to do packet compression */
 	if ((ppp->xstate & SC_COMP_RUN) && ppp->xc_state &&
 	    proto != PPP_LCP && proto != PPP_CCP) {
+#if defined(CONFIG_PPP_MPPE_MPPC)
+		int comp_ovhd = 0;
+		/*
+		 * because of possible data expansion when MPPC or LZS
+		 * is used, allocate compressor's buffer 12.5% bigger
+		 * than MTU
+		 */
+		if (ppp->xcomp->compress_proto == CI_MPPE)
+			comp_ovhd = ((ppp->dev->mtu * 9) / 8) + 1 + MPPE_OVHD;
+		else if (ppp->xcomp->compress_proto == CI_LZS)
+			comp_ovhd = ((ppp->dev->mtu * 9) / 8) + 1 + LZS_OVHD;
+		new_skb = alloc_skb(ppp->dev->mtu + ppp->dev->hard_header_len
+			+ comp_ovhd, GFP_ATOMIC);
+		if (new_skb == 0) {
+			printk(KERN_ERR "PPP: no memory (comp pkt)\n");
+			goto drop;
+		}
+		if (ppp->dev->hard_header_len > PPP_HDRLEN)
+			skb_reserve(new_skb,
+				ppp->dev->hard_header_len - PPP_HDRLEN);
+
+		/* compressor still expects A/C bytes in hdr */
+		len = ppp->xcomp->compress(ppp->xc_state, skb->data - 2,
+			new_skb->data, skb->len + 2,
+			ppp->dev->mtu + PPP_HDRLEN);
+		if (len > 0 && (ppp->flags & SC_CCP_UP)) {
+			kfree_skb(skb);
+			skb = new_skb;
+			skb_put(skb, len);
+			skb_pull(skb, 2);	/* pull off A/C bytes */
+		} else if (len == 0) {
+			/* didn't compress, or CCP not up yet */
+			kfree_skb(new_skb);
+		} else {
+			/*
+			 * (len < 0)
+			 * MPPE requires that we do not send unencrypted
+			 * frames.  The compressor will return -1 if we
+			 * should drop the frame.  We cannot simply test
+			 * the compress_proto because MPPE and MPPC share
+			 * the same number.
+			 */
+			printk(KERN_ERR "ppp: compressor dropped pkt\n");
+			kfree_skb(new_skb);
+			goto drop;
+		}
+#else
 		if (!(ppp->flags & SC_CCP_UP) && (ppp->flags & SC_MUST_COMP)) {
 			if (net_ratelimit())
 				netdev_err(ppp->dev,
@@ -1328,6 +1988,7 @@ ppp_send_frame(struct ppp *ppp, struct sk_buff *skb)
 		skb = pad_compress_skb(ppp, skb);
 		if (!skb)
 			goto drop;
+#endif
 	}
 
 	/*
@@ -1343,6 +2004,9 @@ ppp_send_frame(struct ppp *ppp, struct sk_buff *skb)
 	}
 
 	ppp->xmit_pending = skb;
+#ifdef FAST_PPTP
+	if (!is_fast_fw)
+#endif
 	ppp_push(ppp);
 	return;
 
@@ -1768,7 +2432,11 @@ ppp_receive_frame(struct ppp *ppp, struct sk_buff *skb, struct channel *pch)
 			ppp_receive_mp_frame(ppp, skb, pch);
 		else
 #endif /* CONFIG_PPP_MULTILINK */
+#ifdef FAST_PPTP
+			ppp_receive_nonmp_frame(ppp, skb, 0);
+#else
 			ppp_receive_nonmp_frame(ppp, skb);
+#endif
 	} else {
 		kfree_skb(skb);
 		ppp_receive_error(ppp);
@@ -1783,11 +2451,36 @@ ppp_receive_error(struct ppp *ppp)
 		slhc_toss(ppp->vj);
 }
 
+#ifdef FAST_PPTP
+struct sk_buff *ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb, int is_fast_fw)
+#else
 static void
 ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
+#endif
 {
 	struct sk_buff *ns;
 	int proto, len, npi;
+
+#ifdef FAST_PPTP
+	if(is_fast_fw){
+		ppp_mppe_state *state;
+		unsigned int curr_ccount=0;
+			if((skb->data[2] & 0x10) == 0x10){
+					state = (ppp_mppe_state *) ppp->rc_state;
+					curr_ccount = MPPE_CCOUNT(skb->data);
+					if(state->ccount < 4096 && state->ccount != 0 ){
+						if(curr_ccount < state->ccount && curr_ccount > 0){
+								kfree_skb(skb);
+								return NULL;
+							}
+					}else if(curr_ccount == 4095 && state->ccount == 0){
+								kfree_skb(skb);
+								return NULL;
+
+					}
+			}
+		}
+#endif
 
 	/*
 	 * Decompress the frame, if compressed.
@@ -1798,8 +2491,10 @@ ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
 	    (ppp->rstate & (SC_DC_FERROR | SC_DC_ERROR)) == 0)
 		skb = ppp_decompress_frame(ppp, skb);
 
+#if !defined(CONFIG_PPP_MPPE_MPPC)
 	if (ppp->flags & SC_MUST_COMP && ppp->rstate & SC_DC_FERROR)
 		goto err;
+#endif
 
 	proto = PPP_PROTO(skb);
 	switch (proto) {
@@ -1865,6 +2560,13 @@ ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
 
 	npi = proto_to_npindex(proto);
 	if (npi < 0) {
+#ifdef FAST_PPTP
+		if (is_fast_fw) {
+			kfree_skb(skb);
+			return NULL;
+		}
+#endif
+
 		/* control or unknown frame - pass it to pppd */
 		skb_queue_tail(&ppp->file.rq, skb);
 		/* limit queue length by dropping old frames */
@@ -1914,15 +2616,35 @@ ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
 			skb_reset_mac_header(skb);
 			skb_scrub_packet(skb, !net_eq(ppp->ppp_net,
 						      dev_net(ppp->dev)));
+#ifdef FAST_PPTP
+			if (is_fast_fw)
+				return skb;
+			else
+#endif
+
+#if defined(CONFIG_RTL_819X)&&defined(RX_TASKLET)
+			netif_receive_skb(skb);
+#else
 			netif_rx(skb);
+#endif
+
 		}
 	}
+#ifdef FAST_PPTP
+	return NULL;
+#else
 	return;
+#endif
 
  err:
 	kfree_skb(skb);
 	ppp_receive_error(ppp);
+#ifdef FAST_PPTP
+	return NULL;
+#endif
+
 }
+EXPORT_SYMBOL(ppp_receive_nonmp_frame);
 
 static struct sk_buff *
 ppp_decompress_frame(struct ppp *ppp, struct sk_buff *skb)
@@ -1942,10 +2664,18 @@ ppp_decompress_frame(struct ppp *ppp, struct sk_buff *skb)
 
 		switch(ppp->rcomp->compress_proto) {
 		case CI_MPPE:
+#if defined(CONFIG_PPP_MPPE_MPPC)
+			obuff_size = ppp->mru_alloc + PPP_HDRLEN + 1;
+#else
 			obuff_size = ppp->mru + PPP_HDRLEN + 1;
+#endif
 			break;
 		default:
+#if defined(CONFIG_PPP_MPPE_MPPC)
+			obuff_size = ppp->mru_alloc + PPP_HDRLEN;
+#else
 			obuff_size = ppp->mru + PPP_HDRLEN;
+#endif
 			break;
 		}
 
@@ -1983,7 +2713,18 @@ ppp_decompress_frame(struct ppp *ppp, struct sk_buff *skb)
 	return skb;
 
  err:
+ #if defined(CONFIG_PPP_MPPE_MPPC)
+	if (ppp->rcomp->compress_proto != CI_MPPE
+		&& ppp->rcomp->compress_proto != CI_LZS) {
+		/*
+		 * If decompression protocol isn't MPPE/MPPC or LZS, we set
+		 * SC_DC_ERROR flag and wait for CCP_RESETACK
+		 */
+		ppp->rstate |= SC_DC_ERROR;
+	}
+ #else
 	ppp->rstate |= SC_DC_ERROR;
+ #endif
 	ppp_receive_error(ppp);
 	return skb;
 }
@@ -2073,7 +2814,11 @@ ppp_receive_mp_frame(struct ppp *ppp, struct sk_buff *skb, struct channel *pch)
 	/* Pull completed packets off the queue and receive them. */
 	while ((skb = ppp_mp_reconstruct(ppp))) {
 		if (pskb_may_pull(skb, 2))
+#ifdef FAST_PPTP
+			ppp_receive_nonmp_frame(ppp, skb, 0);
+#else
 			ppp_receive_nonmp_frame(ppp, skb);
+#endif
 		else {
 			++ppp->dev->stats.rx_length_errors;
 			kfree_skb(skb);
@@ -2342,6 +3087,19 @@ int ppp_unit_number(struct ppp_channel *chan)
 	return unit;
 }
 
+#if defined (CONFIG_RTL_PPPOE_HWACC) || defined (CONFIG_RTL_FAST_PPPOE)
+/*
+ * Mark the pppoe type for a channel
+ */
+void ppp_channel_pppoe(struct ppp_channel *chan)
+{
+	struct channel *pch = chan->ppp;
+
+	pch->pppoe = TRUE;
+}
+EXPORT_SYMBOL(ppp_channel_pppoe);
+#endif
+
 /*
  * Return the PPP device interface name of a channel.
  */
@@ -2390,8 +3148,6 @@ ppp_unregister_channel(struct ppp_channel *chan)
 	spin_lock_bh(&pn->all_channels_lock);
 	list_del(&pch->list);
 	spin_unlock_bh(&pn->all_channels_lock);
-	put_net(pch->chan_net);
-	pch->chan_net = NULL;
 
 	pch->file.dead = 1;
 	wake_up_interruptible(&pch->file.rwait);
@@ -2735,6 +3491,9 @@ static struct ppp *ppp_create_interface(struct net *net, int unit,
 	ppp = netdev_priv(dev);
 	ppp->dev = dev;
 	ppp->mru = PPP_MRU;
+#if defined(CONFIG_PPP_MPPE_MPPC)
+	ppp->mru_alloc = PPP_MRU;
+#endif
 	init_ppp_file(&ppp->file, INTERFACE);
 	ppp->file.hdrlen = PPP_HDRLEN - 2;	/* don't count proto bytes */
 	ppp->owner = file;
@@ -2826,6 +3585,72 @@ init_ppp_file(struct ppp_file *pf, int kind)
 	skb_queue_head_init(&pf->rq);
 	atomic_set(&pf->refcnt, 1);
 	init_waitqueue_head(&pf->rwait);
+}
+
+/*
+ * Take down a ppp interface unit - called when the owning file
+ * (the one that created the unit) is closed or detached.
+ */
+static void ppp_shutdown_interface(struct ppp *ppp)
+{
+	struct ppp_net *pn;
+
+#ifdef CONFIG_RTL_PPPOE_HWACC
+	char dev_name[IFNAMSIZ];
+	memcpy(dev_name, ppp->dev->name, IFNAMSIZ);
+#endif
+
+#if defined (CONFIG_RTL_FAST_PPPOE)
+	clear_pppoe_info(ppp->dev->name, NULL, 0,
+		0, 0, NULL, NULL);
+#endif
+
+	pn = ppp_pernet(ppp->ppp_net);
+	mutex_lock(&pn->all_ppp_mutex);
+
+	/* This will call dev_close() for us. */
+	ppp_lock(ppp);
+	if (!ppp->closing) {
+		ppp->closing = 1;
+		ppp_unlock(ppp);
+		unregister_netdev(ppp->dev);
+		unit_put(&pn->units_idr, ppp->file.index);
+	} else
+		ppp_unlock(ppp);
+
+	ppp->file.dead = 1;
+	ppp->owner = NULL;
+
+#if defined(FAST_L2TP)
+	{
+		extern int fast_l2tp_fw;
+		if(fast_l2tp_fw)
+			event_ppp_dev_down(dev_name);
+	}
+#endif
+
+#ifdef CONFIG_RTL_PPPOE_HWACC
+#ifdef CONFIG_RTL_LAYERED_DRIVER
+#ifdef CONFIG_RTL_LAYERED_DRIVER_L3
+#if 1
+	rtl865x_detachMasterNetif(dev_name);
+#endif
+#ifdef CONFIG_RTL_LAYERED_DRIVER_L2	// sync from voip customer for multiple ppp
+	#if defined (CONFIG_RTL_HW_QOS_SUPPORT)
+	rtl865x_qosFlushMarkRuleByDev(dev_name);
+	#endif
+#endif
+	rtl865x_delPppoeRouter(dev_name);
+	rtl865x_delPppbyIfName(dev_name);
+#endif
+#else
+	rtl865x_delPppSession(dev_name,  SE_PPPOE);
+#endif
+#endif
+
+	wake_up_interruptible(&ppp->file.rwait);
+
+	mutex_unlock(&pn->all_ppp_mutex);
 }
 
 /*
@@ -2984,6 +3809,9 @@ ppp_disconnect_channel(struct channel *pch)
  */
 static void ppp_destroy_channel(struct channel *pch)
 {
+	put_net(pch->chan_net);
+	pch->chan_net = NULL;
+
 	atomic_dec(&channel_count);
 
 	if (!pch->file.dead) {
@@ -3045,6 +3873,13 @@ static void *unit_find(struct idr *p, int n)
 
 module_init(ppp_init);
 module_exit(ppp_cleanup);
+
+#if defined(CONFIG_RTL_IPTABLES_FAST_PATH)
+#if defined(CONFIG_FAST_PATH_MODULE)
+EXPORT_SYMBOL(ppp_start_xmit);
+#endif
+#endif
+
 
 EXPORT_SYMBOL(ppp_register_net_channel);
 EXPORT_SYMBOL(ppp_register_channel);

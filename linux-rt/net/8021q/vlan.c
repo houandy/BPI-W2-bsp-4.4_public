@@ -263,6 +263,9 @@ static int register_vlan_device(struct net_device *real_dev, u16 vlan_id)
 	new_dev->mtu = real_dev->mtu;
 	new_dev->priv_flags |= (real_dev->priv_flags & IFF_UNICAST_FLT);
 
+	#ifdef CONFIG_RTL_VLAN_8021Q
+	new_dev->vlan_id = vlan_id;
+	#endif
 	vlan = vlan_dev_priv(new_dev);
 	vlan->vlan_proto = htons(ETH_P_8021Q);
 	vlan->vlan_id = vlan_id;
@@ -792,6 +795,14 @@ static void __exit vlan_cleanup_module(void)
 	vlan_mvrp_uninit();
 	vlan_gvrp_uninit();
 }
+
+#if defined(CONFIG_RTL_VLAN_8021Q)
+extern struct net_device *rtl_fastpath_vlan_find_dev(struct net_device *real_dev,
+					       __be16 vlan_proto, u16 vlan_id)
+{
+	return vlan_find_dev(real_dev, vlan_proto, vlan_id);
+}
+#endif
 
 module_init(vlan_proto_init);
 module_exit(vlan_cleanup_module);

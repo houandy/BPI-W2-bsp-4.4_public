@@ -1,0 +1,5 @@
+config PINCTRL_RTK
+	bool "Realtek pin controller driver"
+	depends on ARCH_RTD119X || ARCH_RTD129X
+	select PINMUX
+	select GENERIC_PINCONF

@@ -115,6 +115,36 @@ static const struct dwc2_core_params params_rk3066 = {
 	.hibernation			= -1,
 };
 
+static const struct dwc2_core_params params_rtl8117 = {
+	.otg_cap			= 2,	/* non-HNP/non-SRP */
+	.otg_ver			= 0,
+	.dma_enable			= 1,
+	.dma_desc_enable		= 0,
+	.speed				= 0,
+	.enable_dynamic_fifo		= 1,
+	.en_multiple_tx_fifo		= 1,
+	.host_rx_fifo_size		= 774,	/* 774 DWORDs */
+	.host_nperio_tx_fifo_size	= 768,	/* 768 DWORDs */
+	.host_perio_tx_fifo_size	= 768,	/* 768 DWORDs */
+	.max_transfer_size		= 65535,
+	.max_packet_count		= 1023,
+	.host_channels			= 14,
+	.phy_type			= 1,
+	.phy_utmi_width			= 16,
+	.phy_ulpi_ddr			= 0,
+	.phy_ulpi_ext_vbus		= 0,
+	.i2c_enable			= 0,
+	.ulpi_fs_ls			= 0,
+	.host_support_fs_ls_low_power	= 0,
+	.host_ls_low_power_phy_clk	= 0,
+	.ts_dline			= 0,
+	.reload_ctl			= 0,
+	.ahbcfg				= 0x10,
+	.uframe_sched			= 0,
+	.external_id_pin_ctl		= -1,
+	.hibernation			= 0,
+};
+
 static int __dwc2_lowlevel_hw_enable(struct dwc2_hsotg *hsotg)
 {
 	struct platform_device *pdev = to_platform_device(hsotg->dev);
@@ -309,6 +339,7 @@ static int dwc2_driver_remove(struct platform_device *dev)
 static const struct of_device_id dwc2_of_match_table[] = {
 	{ .compatible = "brcm,bcm2835-usb", .data = &params_bcm2835 },
 	{ .compatible = "rockchip,rk3066-usb", .data = &params_rk3066 },
+	{ .compatible = "realtek,rtl8117-usb", .data = &params_rtl8117 },
 	{ .compatible = "snps,dwc2", .data = NULL },
 	{ .compatible = "samsung,s3c6400-hsotg", .data = NULL},
 	{},

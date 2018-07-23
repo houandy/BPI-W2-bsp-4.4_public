@@ -1,0 +1,37 @@
+comment "RTD119X Device Drivers"
+
+menu "RTD119X Device Drivers"
+
+config RTK_RBUS_BARRIER
+	bool "R-bus barrier"
+	depends on RTK_MEM_REMAP
+	default y
+	help
+	  Enable helper functions for R-bus barrier. If unsure, say N.
+
+config RTK_MEM_REMAP
+	bool "Memory remap"
+	default y
+	help
+	  Enable helper functions for static ioremap. If unsure, say N.
+
+config RTK_SB2_MEM_TRASH_MONITOR
+	bool "Memory trash monitor"
+	default y
+	help
+		Enable helper functions for memory trash detection. If unsure, say N.
+
+source "drivers/soc/realtek/rtd119x/rpc/Kconfig"
+
+endmenu #RTD119X Device Drivers
+
+menu "Realtek NAS support"
+	depends on ARCH_RTD119X
+
+config SENDFILE_PATCH
+	bool "Reverse sendfile patch"
+	default n
+	help
+	Use patched sendfile syscall to improve write performance on NAS.
+
+endmenu

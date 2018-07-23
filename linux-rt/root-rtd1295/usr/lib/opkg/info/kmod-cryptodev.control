@@ -1,0 +1,10 @@
+Package: kmod-cryptodev
+Version: 4.4.18+1.8-rtd1295-2
+Depends: kernel (=4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3), kmod-crypto-authenc, kmod-crypto-hash
+Source: realtek/packages/utils/cryptodev-linux
+Section: kernel
+Maintainer: Nikos Mavrogiannopoulos <n.mavrogiannopoulos@gmail.com>
+Architecture: rtd1295
+Installed-Size: 17940
+Description:  This is a driver for that allows to use the Linux kernel supported
+ hardware ciphers by user-space applications.

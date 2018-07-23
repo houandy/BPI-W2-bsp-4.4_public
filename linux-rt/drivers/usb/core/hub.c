@@ -33,6 +33,10 @@
 #include "hub.h"
 #include "otg_whitelist.h"
 
+#ifdef CONFIG_ARCH_RTD119X
+extern void rtk_usb2_phy_state(u32);
+#endif
+
 #define USB_VENDOR_GENESYS_LOGIC		0x05e3
 #define HUB_QUIRK_CHECK_PORT_AUTOSUSPEND	0x01
 
@@ -3166,7 +3170,6 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 	/* see 7.1.7.6 */
 	if (hub_is_superspeed(hub->hdev))
 		status = hub_set_port_link_state(hub, port1, USB_SS_PORT_LS_U3);
-
 	/*
 	 * For system suspend, we do not need to enable the suspend feature
 	 * on individual USB-2 ports.  The devices will automatically go
@@ -3238,6 +3241,7 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
  * If @udev->reset_resume is set then the device is reset before the
  * status check is done.
  */
+
 static int finish_port_resume(struct usb_device *udev)
 {
 	int	status = 0;
@@ -3246,6 +3250,10 @@ static int finish_port_resume(struct usb_device *udev)
 	/* caller owns the udev device lock */
 	dev_dbg(&udev->dev, "%s\n",
 		udev->reset_resume ? "finish reset-resume" : "finish resume");
+
+#ifdef CONFIG_ARCH_RTD119X
+	rtk_usb2_phy_state(0);
+#endif
 
 	/* usb ch9 identifies four variants of SUSPENDED, based on what
 	 * state the device resumes to.  Linux currently won't see the
@@ -4560,6 +4568,50 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 	}
 
 	usb_detect_quirks(udev);
+
+
+	do {
+		struct device_node  *dn;
+
+		u32 rtk_hub_patch_apply_port;
+		u8 rtk_hub_patch_data[6] = {0xA9, 0xA8, 0xAA, 0x00, 0x40, 0x28};
+
+		if((udev->descriptor.idVendor != 0x0bda) || (udev->descriptor.idProduct != 0x0411))
+			break;
+
+		dn = of_find_compatible_node(NULL, NULL, "Realtek,nas-rtk-hub-params");
+		if (!dn)
+			break;
+
+		if (of_property_read_u32(dn, "applied_port", &rtk_hub_patch_apply_port) < 0)
+			break;
+
+		retval = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
+			0x2, 0x40,
+			0x1, 0x0bda, NULL, 0,
+			USB_CTRL_GET_TIMEOUT);
+		if(retval < 0)
+			goto fail;
+
+		for(i=0;i<8;i++) {
+			if((rtk_hub_patch_apply_port >> i) & 0x1)  {
+				retval = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
+					0xc7, 0x40,
+					(i+1), 0x0010, &rtk_hub_patch_data, sizeof(rtk_hub_patch_data),
+					USB_CTRL_GET_TIMEOUT);
+				if(retval < 0)
+					goto fail;
+			}
+		}
+
+		retval = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
+			0x2, 0x40,
+			0x0, 0x0bda, NULL, 0,
+			USB_CTRL_GET_TIMEOUT);
+		if(retval < 0)
+			goto fail;
+
+	}while(false);
 
 	if (udev->wusb == 0 && le16_to_cpu(udev->descriptor.bcdUSB) >= 0x0201) {
 		retval = usb_get_bos_descriptor(udev);

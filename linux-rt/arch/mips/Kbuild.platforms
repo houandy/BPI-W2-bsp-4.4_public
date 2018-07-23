@@ -25,6 +25,7 @@ platforms += pistachio
 platforms += pmcs-msp71xx
 platforms += pnx833x
 platforms += ralink
+platforms += realtek
 platforms += rb532
 platforms += sgi-ip22
 platforms += sgi-ip27

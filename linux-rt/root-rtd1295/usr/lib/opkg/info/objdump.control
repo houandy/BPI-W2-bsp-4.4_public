@@ -1,0 +1,10 @@
+Package: objdump
+Version: 2.24-3
+Depends: libc, librt, libpthread, libopcodes
+Source: package/devel/binutils
+License: GPL-3.0+
+Section: devel
+Maintainer: Felix Fietkau <nbd@openwrt.org>
+Architecture: rtd1295
+Installed-Size: 114749
+Description:  objdump

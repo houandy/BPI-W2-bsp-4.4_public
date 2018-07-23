@@ -480,6 +480,16 @@ ppp_async_ioctl(struct ppp_channel *chan, unsigned int cmd, unsigned long arg)
 		err = 0;
 		break;
 
+#ifdef CONFIG_RTL_819X
+	//this cmd only used from kernel, not from user space
+	case RTLPPPIOCGFLAGS:
+		val = ap->flags | ap->rbits;
+		//panic_printk("\n%s:%d val=%08x\n",__FUNCTION__,__LINE__,val);
+		memcpy(p, &val, sizeof(int));
+		err = 0;
+		break;
+#endif
+
 	default:
 		err = -ENOTTY;
 	}

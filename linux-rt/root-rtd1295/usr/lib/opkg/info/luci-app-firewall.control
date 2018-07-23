@@ -1,0 +1,8 @@
+Package: luci-app-firewall
+Version: git-16.253.40466-a8354c0-1
+Depends: libc, librt, libpthread, firewall
+Source: realtek/luci/applications/luci-app-firewall
+Section: luci
+Architecture: all
+Installed-Size: 10508
+Description:  Firewall and Portforwarding application

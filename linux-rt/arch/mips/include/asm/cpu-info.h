@@ -80,6 +80,10 @@ struct cpuinfo_mips {
 	unsigned int		watch_reg_use_cnt; /* Usable by ptrace */
 #define NUM_WATCH_REGS 4
 	u16			watch_reg_masks[NUM_WATCH_REGS];
+#ifdef CONFIG_CPU_RLX
+	unsigned int		watch_mode;   /* WMPCTL:mode_switch */
+	unsigned int		watch_kernel; /* WMPCTL:kernel_enable */
+#endif
 	unsigned int		kscratch_mask; /* Usable KScratch mask. */
 	/*
 	 * Cache Coherency attribute for write-combine memory writes.
@@ -102,7 +106,7 @@ extern void cpu_probe(void);
 extern void cpu_report(void);
 
 extern const char *__cpu_name[];
-#define cpu_name_string()	__cpu_name[smp_processor_id()]
+#define cpu_name_string()	__cpu_name[raw_smp_processor_id()]
 
 struct seq_file;
 struct notifier_block;

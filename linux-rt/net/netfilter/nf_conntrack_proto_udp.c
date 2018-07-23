@@ -31,6 +31,33 @@ static unsigned int udp_timeouts[UDP_CT_MAX] = {
 	[UDP_CT_REPLIED]	= 180*HZ,
 };
 
+#if defined(CONFIG_RTL_IPTABLES_FAST_PATH) || defined(CONFIG_RTL_HARDWARE_NAT)
+#include <linux/version.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0)
+#include <net/ip_vs.h>
+static unsigned int *udp_get_timeouts(struct net *net);
+unsigned int udp_get_timeouts_by_state(enum udp_conntrack state, void *ct_or_cp,int is_ct)
+{
+	struct net *net = NULL;
+	if (is_ct) {
+		struct nf_conn *ct = (struct nf_conn *)ct_or_cp;
+		net = nf_ct_net(ct);
+	}
+	else {
+		struct ip_vs_conn *cp = (struct ip_vs_conn *)ct_or_cp;
+		net = cp->ipvs->net;
+	}
+	unsigned int *udp_timeouts_run = udp_get_timeouts(net);
+	return udp_timeouts_run[state];
+}
+#else
+unsigned int udp_get_timeouts_by_state(enum udp_conntrack state)
+{
+	return udp_timeouts[state];
+}
+#endif
+#endif /* CONFIG_RTL_IPTABLES_FAST_PATH || CONFIG_RTL_HARDWARE_NAT */
+
 static inline struct nf_udp_net *udp_pernet(struct net *net)
 {
 	return &net->ct.nf_ct_proto.udp;

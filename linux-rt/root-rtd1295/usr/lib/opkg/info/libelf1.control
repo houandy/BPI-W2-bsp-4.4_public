@@ -1,0 +1,11 @@
+Package: libelf1
+Version: 0.161-1
+Depends: libc, librt, libpthread
+Source: package/libs/elfutils
+License: GPL-3.0+
+LicenseFiles: COPYING COPYING-GPLV2 COPYING-LGPLV3
+Section: libs
+Maintainer: Luiz Angelo Daros de Luca <luizluca@gmail.com>
+Architecture: rtd1295
+Installed-Size: 29257
+Description:  ELF manipulation libraries (libelf)

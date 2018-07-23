@@ -6501,8 +6501,8 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 	conf = kzalloc(sizeof(struct r5conf), GFP_KERNEL);
 	if (conf == NULL)
 		goto abort;
-	/* Don't enable multi-threading by default*/
-	if (!alloc_thread_groups(conf, 0, &group_cnt, &worker_cnt_per_group,
+	/* Enable 4 threads by default*/
+	if (!alloc_thread_groups(conf, 4, &group_cnt, &worker_cnt_per_group,
 				 &new_group)) {
 		conf->group_cnt = group_cnt;
 		conf->worker_cnt_per_group = worker_cnt_per_group;

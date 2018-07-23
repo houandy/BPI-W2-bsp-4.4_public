@@ -105,7 +105,7 @@ static DEFINE_RWLOCK(cpufreq_driver_lock);
 DEFINE_MUTEX(cpufreq_governor_lock);
 
 /* Flag to suspend/resume CPUFreq governors */
-static bool cpufreq_suspended;
+static bool cpufreq_suspended = false;
 
 static inline bool has_target(void)
 {
@@ -582,7 +582,11 @@ static ssize_t show_scaling_cur_freq(struct cpufreq_policy *policy, char *buf)
 {
 	ssize_t ret;
 
+#ifndef CONFIG_ARCH_RTD129X
 	if (cpufreq_driver && cpufreq_driver->setpolicy && cpufreq_driver->get)
+#else
+	if (cpufreq_driver && cpufreq_driver->get)
+#endif
 		ret = sprintf(buf, "%u\n", cpufreq_driver->get(policy->cpu));
 	else
 		ret = sprintf(buf, "%u\n", policy->cur);
@@ -1852,10 +1856,21 @@ int __cpufreq_driver_target(struct cpufreq_policy *policy,
 		return -ENODEV;
 
 	/* Make sure that target_freq is within supported range */
+#ifndef CONFIG_ARCH_RTD129X
 	if (target_freq > policy->max)
 		target_freq = policy->max;
 	if (target_freq < policy->min)
 		target_freq = policy->min;
+#else
+	do {
+		if (!strcmp(policy->governor->name, "userspace")) break; //hc test
+		if (target_freq > policy->max)
+			target_freq = policy->max;
+		if (target_freq < policy->min)
+			target_freq = policy->min;
+	} while(0);
+#endif
+
 
 	pr_debug("target for CPU %u: %u kHz, relation %u, requested %u kHz\n",
 		 policy->cpu, target_freq, relation, old_target_freq);
@@ -2128,6 +2143,7 @@ static int cpufreq_set_policy(struct cpufreq_policy *policy,
 
 	policy->min = new_policy->min;
 	policy->max = new_policy->max;
+	trace_cpu_frequency_limits(policy->max, policy->min, policy->cpu);
 
 	pr_debug("new min and max freqs are %u - %u kHz\n",
 		 policy->min, policy->max);

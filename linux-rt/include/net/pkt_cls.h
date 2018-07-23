@@ -358,4 +358,8 @@ tcf_match_indev(struct sk_buff *skb, int ifindex)
 }
 #endif /* CONFIG_NET_CLS_IND */
 
+#if defined(CONFIG_RTL_HW_QOS_SUPPORT)
+int tc_getHandleByKey(__u32 key, __u32 *handle, struct net_device *d, struct net_device **m);
+#endif	/* CONFIG_RTL_HW_QOS_SUPPORT */
+
 #endif

@@ -31,6 +31,10 @@
 
 #include <net/ip_vs.h>
 
+#if defined(CONFIG_RTL_819X)
+#include <net/rtl/features/rtl_ps_hooks.h>
+#endif /* CONFIG_RTL_819X */
+
 static int
 tcp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
 		  struct ip_vs_proto_data *pd,
@@ -568,6 +572,9 @@ tcp_state_transition(struct ip_vs_conn *cp, int direction,
 		     struct ip_vs_proto_data *pd)
 {
 	struct tcphdr _tcph, *th;
+#if defined (CONFIG_RTL_819X)
+	struct ip_vs_protocol *pp;
+#endif /* CONFIG_RTL_819X */
 
 #ifdef CONFIG_IP_VS_IPV6
 	int ihl = cp->af == AF_INET ? ip_hdrlen(skb) : sizeof(struct ipv6hdr);
@@ -581,6 +588,13 @@ tcp_state_transition(struct ip_vs_conn *cp, int direction,
 
 	spin_lock_bh(&cp->lock);
 	set_tcp_state(pd, cp, direction, th);
+#if defined(CONFIG_RTL_819X)
+	if (pd && pd->pp) {
+		pp = pd->pp;
+		rtl_tcp_state_transition_hooks(cp, direction, skb, pp);
+	}
+#endif /* CONFIG_RTL_819X */
+
 	spin_unlock_bh(&cp->lock);
 }
 

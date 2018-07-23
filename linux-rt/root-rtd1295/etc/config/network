@@ -1,0 +1,35 @@
+# Copyright (C) 2006 OpenWrt.org
+
+config interface loopback
+	option ifname	lo
+	option proto	static
+	option ipaddr	127.0.0.1
+	option netmask	255.0.0.0
+
+config interface 'lan'
+        option ifname 'eth0'
+#	option type 'bridge'
+        option proto 'static'
+#       option proto 'dhcp'
+#       option hostname 'OpenWRT-Kylin'
+        option ipaddr '192.168.0.9'
+        option netmask '255.255.255.0'
+
+
+config globals globals
+	option ula_prefix auto
+
+config interface 'wlan'
+        option proto 'static'
+        option ipaddr '192.168.3.1'
+        option netmask '255.255.255.0'
+        option type 'bridge'
+        option _orig_ifname 'radio1.network1'
+        option _orig_bridge 'true'
+
+config interface 'guest'
+        option proto 'static'
+        option ipaddr '192.168.2.1'
+        option netmask '255.255.255.0'
+        option _orig_ifname 'wlan1-1'
+        option _orig_bridge 'false'

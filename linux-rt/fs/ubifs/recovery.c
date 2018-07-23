@@ -289,7 +289,15 @@ int ubifs_recover_master_node(struct ubifs_info *c)
 			 * and no corruption.
 			 */
 			if (offs1 != 0 || cor1)
+			{
+#ifdef CONFIG_UBIFS_RCVRY_HACK
+				if (offs1 != 0)
+					pr_err("%s)Skip: unmapped 2nd LEB and more than 1 entry in 1st LEB with no corruption. offs1:%d, sz:%d\n",
+						__func__, offs1, sz);
+				else
+#endif
 				goto out_err;
+			}
 			mst = mst1;
 		}
 	} else {
@@ -301,7 +309,14 @@ int ubifs_recover_master_node(struct ubifs_info *c)
 		 */
 		offs2 = (void *)mst2 - buf2;
 		if (offs2 + sz + sz <= c->leb_size)
+		{
+#ifdef CONFIG_UBIFS_RCVRY_HACK
+			pr_err("%s)Skip: unmapped 1st LEB and 2nd LEB not full. offs2:%d, sz:%d, leb_size:%d\n",
+				__func__, offs2, sz, c->leb_size);
+#else
 			goto out_err;
+#endif
+		}
 		mst = mst2;
 	}
 

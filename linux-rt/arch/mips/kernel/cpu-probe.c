@@ -665,7 +665,9 @@ static void decode_configs(struct cpuinfo_mips *c)
 	if (ok)
 		ok = decode_config5(c);
 
+#ifdef CONFIG_HARDWARE_WATCHPOINTS
 	mips_probe_watch_registers(c);
+#endif
 
 	if (cpu_has_rixi) {
 		/* Enable the RIXI exceptions */
@@ -1431,6 +1433,39 @@ static inline void cpu_probe_netlogic(struct cpuinfo_mips *c, int cpu)
 	c->kscratch_mask = 0xf;
 }
 
+static inline void cpu_probe_taroko(struct cpuinfo_mips *c, unsigned int cpu)
+{
+	c->options = MIPS_CPU_TLB | MIPS_CPU_3K_CACHE;
+	c->tlbsize = cpu_tlb_entry;  /* defined in bspcpu.h */
+	c->processor_id = read_c0_prid();
+
+	c->fpu_id = FPIR_IMP_NONE;
+	c->options |= MIPS_CPU_NOFPUEX;
+
+#ifdef CONFIG_HARDWARE_WATCHPOINTS
+	c->options |= MIPS_CPU_WATCH;
+	mips_probe_watch_registers(c);
+	c->watch_reg_use_cnt = c->watch_reg_count / 2;
+#endif
+
+	__cpu_name[cpu] = "Taroko";
+	set_elf_platform(cpu, "Taroko");
+
+
+	switch (c->processor_id) {
+
+	case PRID_IMP_RLX4281:
+		c->cputype = CPU_RLX4281;
+		break;
+
+	case PRID_IMP_RLX5281:
+		c->cputype = CPU_RLX5281;
+		break;
+
+	}
+}
+
+
 #ifdef CONFIG_64BIT
 /* For use by uaccess.h */
 u64 __ua_limit;
@@ -1456,7 +1491,11 @@ void cpu_probe(void)
 	c->processor_id = read_c0_prid();
 	switch (c->processor_id & PRID_COMP_MASK) {
 	case PRID_COMP_LEGACY:
+#ifdef CONFIG_CPU_RLX
+		cpu_probe_taroko(c, cpu);
+#else
 		cpu_probe_legacy(c, cpu);
+#endif
 		break;
 	case PRID_COMP_MIPS:
 		cpu_probe_mips(c, cpu);

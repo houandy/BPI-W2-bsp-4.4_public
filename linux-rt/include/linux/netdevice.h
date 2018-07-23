@@ -92,6 +92,18 @@ void netdev_set_default_ethtool_ops(struct net_device *dev,
 #define NET_XMIT_POLICED	0x03	/* skb is shot by police	*/
 #define NET_XMIT_MASK		0x0f	/* qdisc flags in net/sch_generic.h */
 
+#if defined(CONFIG_RTL_IPTABLES_FAST_PATH)
+#define NET_RX_CN_LOW		2   /* storm alert, just in case */
+#define NET_RX_CN_MOD		3   /* Storm on its way! */
+#define NET_RX_CN_HIGH		4   /* The storm is here */
+#define NET_RX_BAD		5  /* packet dropped due to kernel error */
+#define NET_RX_PASSBY	6 /* packet pass by for next process */
+#endif
+
+#if defined 	(CONFIG_RTL865X_LANPORT_RESTRICTION)
+#define NET_RX_AUTH_BLOCK	6
+#endif
+
 /* NET_XMIT_CN is special. It does not guarantee that this packet is lost. It
  * indicates that the device will soon be dropping packets, or already drops
  * some packets of the same priority; prompting us to send less aggressively. */
@@ -1777,6 +1789,10 @@ struct net_device {
 
 	const struct rtnl_link_ops *rtnl_link_ops;
 
+	#ifdef CONFIG_RTL_VLAN_8021Q
+	unsigned int vlan_member_map;
+	unsigned short vlan_id;
+	#endif
 	/* for setting kernel sock attribute on TCP connection setup */
 #define GSO_MAX_SIZE		65536
 	unsigned int		gso_max_size;
@@ -1799,6 +1815,9 @@ struct net_device {
 	struct phy_device *phydev;
 	struct lock_class_key *qdisc_tx_busylock;
 	bool proto_down;
+	#if	defined(CONFIG_RTL_HARDWARE_NAT) || defined(CONFIG_RTL_HW_NAPT)
+	int			wanif;
+	#endif
 };
 #define to_net_dev(d) container_of(d, struct net_device, dev)
 

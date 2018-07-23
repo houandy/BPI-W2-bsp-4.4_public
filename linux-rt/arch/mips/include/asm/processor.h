@@ -149,6 +149,11 @@ struct mips3264_watch_reg_state {
 	unsigned long watchlo[NUM_WATCH_REGS];
 	/* Only the mask and IRW bits from watchhi. */
 	u16 watchhi[NUM_WATCH_REGS];
+#if defined(CONFIG_CPU_RLX)
+	unsigned long wmpxmask[NUM_WATCH_REGS];
+	unsigned long wmpvaddr;
+#endif
+
 };
 
 union mips_watch_reg_state {

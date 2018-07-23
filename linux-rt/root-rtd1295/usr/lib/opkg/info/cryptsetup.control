@@ -1,0 +1,12 @@
+Package: cryptsetup
+Version: 1.6.7-1
+Depends: libc, librt, libpthread, libblkid, libuuid, libpopt, lvm2, libdevmapper, libgcrypt
+Source: realtek/packages/utils/cryptsetup
+License: GPL-2.0+ LGPL-2.1+
+LicenseFiles: COPYING COPYING.LGPL
+Section: utils
+Maintainer: Daniel Golle <daniel@makrotopia.org>
+Architecture: rtd1295
+Installed-Size: 76525
+Description:  Cryptsetup-luks
+ linked against libgcrypt

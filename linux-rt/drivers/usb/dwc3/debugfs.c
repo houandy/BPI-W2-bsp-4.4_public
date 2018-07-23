@@ -217,6 +217,7 @@ static const struct debugfs_reg32 dwc3_regs[] = {
 	dump_register(DGCMDPAR),
 	dump_register(DGCMD),
 	dump_register(DALEPENA),
+	dump_register(DEV_IMOD),
 
 	dump_register(DEPCMDPAR2(0)),
 	dump_register(DEPCMDPAR2(1)),

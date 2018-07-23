@@ -29,6 +29,11 @@
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
 #include <net/pkt_cls.h>
+#if defined(CONFIG_RTL_HW_QOS_SUPPORT)
+#include <net/rtl/rtl_types.h>
+#include <net/rtl/rtl865x_netif.h>
+#include <net/rtl/rtl865x_outputQueue.h>
+#endif /* CONFIG_RTL_HW_QOS_SUPPORT */
 
 /* The list of all installed classifier types */
 static LIST_HEAD(tcf_proto_base);
@@ -138,6 +143,9 @@ static int tc_ctl_tfilter(struct sk_buff *skb, struct nlmsghdr *n)
 	unsigned long fh;
 	int err;
 	int tp_created = 0;
+	#if defined(CONFIG_RTL_HW_QOS_SUPPORT)
+	int handle;
+	#endif /* CONFIG_RTL_HW_QOS_SUPPORT */
 
 	if ((n->nlmsg_type != RTM_GETTFILTER) &&
 	    !netlink_ns_capable(skb, net->user_ns, CAP_NET_ADMIN))
@@ -336,6 +344,23 @@ replay:
 			RCU_INIT_POINTER(tp->next, rtnl_dereference(*back));
 			rcu_assign_pointer(*back, tp);
 		}
+		#if defined(CONFIG_RTL_HW_QOS_SUPPORT)
+		if (cops->getHandleByKey) {
+			cops->getHandleByKey(t->tcm_handle, &handle, q);
+			switch (n->nlmsg_type) {
+			case RTM_NEWTFILTER:
+				rtl_qosSetPriorityByMark(dev->name,
+					t->tcm_handle, handle, TRUE);
+				break;
+			case RTM_DELTFILTER:
+				rtl_qosSetPriorityByMark(dev->name,
+					t->tcm_handle, handle, FALSE);
+				break;
+			default:
+				break;
+			};
+		}
+		#endif /* CONFIG_RTL_HW_QOS_SUPPORT */
 		tfilter_notify(net, skb, n, tp, fh, RTM_NEWTFILTER);
 	} else {
 		if (tp_created)
@@ -350,6 +375,58 @@ errout:
 		goto replay;
 	return err;
 }
+
+#if defined(CONFIG_RTL_HW_QOS_SUPPORT)
+int tc_getHandleByKey(__u32 key, __u32 *handle, struct net_device *d, struct net_device **m)
+{
+	struct Qdisc *q;
+	struct Qdisc_class_ops *cops;
+	int i;
+	char *ifName;
+	struct net_device *dev;
+
+	if (d == NULL)
+	{
+		for (i = 0; i < NETIF_NUMBER; i++)
+		{
+			ifName = &netIfNameArray[i][0];
+			if (ifName[0] != 0 &&
+				(dev = __dev_get_by_name(&init_net, ifName)) != NULL)
+			{
+				q = netdev_get_tx_queue(dev, 0)->qdisc_sleeping;
+
+				if ((cops = q->ops->cl_ops) == NULL || cops->getHandleByKey == NULL)
+				{
+					continue;
+				}
+				else if (cops->getHandleByKey(key, handle, q) != 0)
+				{
+					continue;
+				}
+				else
+				{
+					*m = dev;
+					return 0;
+				}
+			}
+		}
+	}
+	else
+	{
+		q = netdev_get_tx_queue(d, 0)->qdisc_sleeping;
+		if ((cops = q->ops->cl_ops) == NULL || cops->getHandleByKey == NULL)
+		{
+			return -1;
+		}
+		else
+		{
+			return cops->getHandleByKey(key, handle, q);
+		}
+	}
+
+	return -1;
+}
+#endif /* CONFIG_RTL_HW_QOS_SUPPORT */
 
 static int tcf_fill_node(struct net *net, struct sk_buff *skb, struct tcf_proto *tp,
 			 unsigned long fh, u32 portid, u32 seq, u16 flags, int event)

@@ -1650,7 +1650,11 @@ static int netlink_getname(struct socket *sock, struct sockaddr *addr,
 	return 0;
 }
 
+#ifdef CONFIG_SERIAL_TCR_RTL8117
+struct sock *netlink_getsockbyportid(struct sock *ssk, u32 portid)
+#else
 static struct sock *netlink_getsockbyportid(struct sock *ssk, u32 portid)
+#endif
 {
 	struct sock *sock;
 	struct netlink_sock *nlk;
@@ -1668,6 +1672,9 @@ static struct sock *netlink_getsockbyportid(struct sock *ssk, u32 portid)
 	}
 	return sock;
 }
+#ifdef CONFIG_SERIAL_TCR_RTL8117
+EXPORT_SYMBOL(netlink_getsockbyportid);
+#endif
 
 struct sock *netlink_getsockbyfilp(struct file *filp)
 {
@@ -3315,6 +3322,7 @@ static const struct rhashtable_params netlink_rhashtable_params = {
 	.automatic_shrinking = true,
 };
 
+
 static int __init netlink_proto_init(void)
 {
 	int i;
@@ -3354,3 +3362,52 @@ panic:
 }
 
 core_initcall(netlink_proto_init);
+
+#if defined(CONFIG_RTL_819X)
+int rtk_nlrecvmsg(struct sk_buff *skb,int _len, void *_recv_data)
+{
+       int pid;
+       struct nlmsghdr *nlh;
+
+       pid = 0;
+
+       if (skb->len >= NLMSG_SPACE(0)) {
+               nlh = nlmsg_hdr(skb);
+               memcpy(_recv_data, NLMSG_DATA(nlh), _len);
+               pid = nlh->nlmsg_pid; /*pid of sending process */
+               return pid;
+       }
+       else
+       {
+               return -1;
+       }
+}
+EXPORT_SYMBOL(rtk_nlrecvmsg);
+
+int rtk_nlsendmsg(int _pid,struct sock *_nl_sk,int _len,void *_send_info)
+{
+       struct nlmsghdr *nlh;
+       struct sk_buff *skb;
+       int rc;
+       int len;
+
+       len = NLMSG_SPACE(_len + sizeof(struct nlmsghdr) + 32);
+
+       skb = alloc_skb(len, GFP_ATOMIC);
+       if (!skb){
+               printk(KERN_ERR "net_link: allocate failed.\n");
+               return -1;
+       }
+       nlh = nlmsg_put(skb, 0, 0, 0, len, 0);
+       NETLINK_CB(skb).portid = 0; /* from kernel */
+
+       memcpy(NLMSG_DATA(nlh), _send_info, _len);
+       rc = netlink_unicast(_nl_sk, skb, _pid, MSG_DONTWAIT);
+       if (rc < 0) {
+               printk(KERN_ERR "net_link: can not unicast skb (%d)\n", rc);
+       }
+       return 0;
+}
+EXPORT_SYMBOL(rtk_nlsendmsg);
+#endif /* CONFIG_RTL_819X */
+

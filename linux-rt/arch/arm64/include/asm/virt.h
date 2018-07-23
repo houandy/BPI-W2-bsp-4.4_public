@@ -18,10 +18,17 @@
 #ifndef __ASM__VIRT_H
 #define __ASM__VIRT_H
 
+/*
+ * HVC_SOFT_RESTART - CPU soft reset, used by the cpu_soft_restart routine.
+ */
+#define HVC_SOFT_RESTART 2
+
 #define BOOT_CPU_MODE_EL1	(0xe11)
 #define BOOT_CPU_MODE_EL2	(0xe12)
 
 #ifndef __ASSEMBLY__
+
+#include <asm/ptrace.h>
 
 /*
  * __boot_cpu_mode records what mode CPUs were booted in.
@@ -48,6 +55,14 @@ static inline bool is_hyp_mode_available(void)
 static inline bool is_hyp_mode_mismatched(void)
 {
 	return __boot_cpu_mode[0] != __boot_cpu_mode[1];
+}
+
+static inline bool is_kernel_in_hyp_mode(void)
+{
+	u64 el;
+
+	asm("mrs %0, CurrentEL" : "=r" (el));
+	return el == CurrentEL_EL2;
 }
 
 /* The section containing the hypervisor text */

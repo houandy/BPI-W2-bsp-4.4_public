@@ -220,8 +220,16 @@ static int do_cached_read (struct mtdblk_dev *mtdblk, unsigned long pos,
 	pr_debug("mtdblock: read on \"%s\" at 0x%lx, size 0x%x\n",
 			mtd->name, pos, len);
 
-	if (!sect_size)
+	if (!sect_size) {
+#if defined(CONFIG_ARCH_RTD119X) || defined(CONFIG_ARCH_RTD129X)
+		ret = mtd_read(mtd, pos, len, &retlen, buf);
+		if (mtd_is_bitflip(ret))
+			ret = 0;
+		return ret;
+#else
 		return mtd_read(mtd, pos, len, &retlen, buf);
+#endif
+	}
 
 	while (len > 0) {
 		unsigned long sect_start = (pos/sect_size)*sect_size;
@@ -241,6 +249,10 @@ static int do_cached_read (struct mtdblk_dev *mtdblk, unsigned long pos,
 			memcpy (buf, mtdblk->cache_data + offset, size);
 		} else {
 			ret = mtd_read(mtd, pos, size, &retlen, buf);
+#if defined(CONFIG_ARCH_RTD119X) || defined(CONFIG_ARCH_RTD129X)
+			if (mtd_is_bitflip(ret))
+				ret = 0;
+#endif
 			if (ret)
 				return ret;
 			if (retlen != size)

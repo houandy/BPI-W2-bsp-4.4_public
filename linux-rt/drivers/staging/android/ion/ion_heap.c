@@ -24,6 +24,10 @@
 #include <linux/vmalloc.h>
 #include "ion.h"
 #include "ion_priv.h"
+#if defined(CONFIG_ION_RTK_PHOENIX)
+#include "../uapi/rtk_phoenix_ion.h"
+#include "ion_rtk_carveout_heap.h"
+#endif
 
 void *ion_heap_map_kernel(struct ion_heap *heap,
 			  struct ion_buffer *buffer)
@@ -92,8 +96,26 @@ int ion_heap_map_user(struct ion_heap *heap, struct ion_buffer *buffer,
 			offset = 0;
 		}
 		len = min(len, remainder);
-		ret = remap_pfn_range(vma, addr, page_to_pfn(page), len,
-				vma->vm_page_prot);
+#if defined(CONFIG_ION_RTK_PHOENIX) //20130208 charleslin: supports noncached mmap for user space
+#if 0
+		if (    heap->type == RTK_PHOENIX_ION_HEAP_TYPE_MEDIA ||
+				heap->type == RTK_PHOENIX_ION_HEAP_TYPE_AUDIO ||
+				heap->type == RTK_PHOENIX_ION_HEAP_TYPE_TILER)
+#else
+		if (buffer->flags & ION_FLAG_NONCACHED)
+#endif
+		{
+			vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+		}
+		else if (!(buffer->flags & ION_FLAG_CACHED))
+		{
+			vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+		}
+#endif
+		// use writecombine for drm buffers, a temporary solution.
+
+		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+		ret = remap_pfn_range(vma, addr, page_to_pfn(page), len, vma->vm_page_prot);
 		if (ret)
 			return ret;
 		addr += len;
@@ -116,7 +138,7 @@ static int ion_heap_clear_pages(struct page **pages, int num, pgprot_t pgprot)
 }
 
 static int ion_heap_sglist_zero(struct scatterlist *sgl, unsigned int nents,
-						pgprot_t pgprot)
+		pgprot_t pgprot)
 {
 	int p = 0;
 	int ret = 0;
@@ -181,7 +203,7 @@ size_t ion_heap_freelist_size(struct ion_heap *heap)
 }
 
 static size_t _ion_heap_freelist_drain(struct ion_heap *heap, size_t size,
-				bool skip_pools)
+		bool skip_pools)
 {
 	struct ion_buffer *buffer;
 	size_t total_drained = 0;
@@ -197,7 +219,7 @@ static size_t _ion_heap_freelist_drain(struct ion_heap *heap, size_t size,
 		if (total_drained >= size)
 			break;
 		buffer = list_first_entry(&heap->free_list, struct ion_buffer,
-					  list);
+				list);
 		list_del(&buffer->list);
 		heap->free_list_size -= buffer->size;
 		if (skip_pools)
@@ -230,7 +252,7 @@ static int ion_heap_deferred_free(void *data)
 		struct ion_buffer *buffer;
 
 		wait_event_freezable(heap->waitqueue,
-				     ion_heap_freelist_size(heap) > 0);
+				ion_heap_freelist_size(heap) > 0);
 
 		spin_lock(&heap->free_lock);
 		if (list_empty(&heap->free_list)) {
@@ -238,7 +260,7 @@ static int ion_heap_deferred_free(void *data)
 			continue;
 		}
 		buffer = list_first_entry(&heap->free_list, struct ion_buffer,
-					  list);
+				list);
 		list_del(&buffer->list);
 		heap->free_list_size -= buffer->size;
 		spin_unlock(&heap->free_lock);
@@ -255,10 +277,10 @@ int ion_heap_init_deferred_free(struct ion_heap *heap)
 	INIT_LIST_HEAD(&heap->free_list);
 	init_waitqueue_head(&heap->waitqueue);
 	heap->task = kthread_run(ion_heap_deferred_free, heap,
-				 "%s", heap->name);
+			"%s", heap->name);
 	if (IS_ERR(heap->task)) {
 		pr_err("%s: creating thread for deferred free failed\n",
-		       __func__);
+				__func__);
 		return PTR_ERR_OR_ZERO(heap->task);
 	}
 	sched_setscheduler(heap->task, SCHED_IDLE, &param);
@@ -266,10 +288,10 @@ int ion_heap_init_deferred_free(struct ion_heap *heap)
 }
 
 static unsigned long ion_heap_shrink_count(struct shrinker *shrinker,
-						struct shrink_control *sc)
+		struct shrink_control *sc)
 {
 	struct ion_heap *heap = container_of(shrinker, struct ion_heap,
-					     shrinker);
+			shrinker);
 	int total = 0;
 
 	total = ion_heap_freelist_size(heap) / PAGE_SIZE;
@@ -279,10 +301,10 @@ static unsigned long ion_heap_shrink_count(struct shrinker *shrinker,
 }
 
 static unsigned long ion_heap_shrink_scan(struct shrinker *shrinker,
-						struct shrink_control *sc)
+		struct shrink_control *sc)
 {
 	struct ion_heap *heap = container_of(shrinker, struct ion_heap,
-					     shrinker);
+			shrinker);
 	int freed = 0;
 	int to_scan = sc->nr_to_scan;
 
@@ -295,7 +317,7 @@ static unsigned long ion_heap_shrink_scan(struct shrinker *shrinker,
 	 */
 	if (heap->flags & ION_HEAP_FLAG_DEFER_FREE)
 		freed = ion_heap_freelist_shrink(heap, to_scan * PAGE_SIZE) /
-				PAGE_SIZE;
+			PAGE_SIZE;
 
 	to_scan -= freed;
 	if (to_scan <= 0)
@@ -319,32 +341,47 @@ struct ion_heap *ion_heap_create(struct ion_platform_heap *heap_data)
 {
 	struct ion_heap *heap = NULL;
 
+#if defined(CONFIG_ION_RTK_PHOENIX)
+	switch ((int)heap_data->type) {
+#else
 	switch (heap_data->type) {
-	case ION_HEAP_TYPE_SYSTEM_CONTIG:
-		heap = ion_system_contig_heap_create(heap_data);
-		break;
-	case ION_HEAP_TYPE_SYSTEM:
-		heap = ion_system_heap_create(heap_data);
-		break;
-	case ION_HEAP_TYPE_CARVEOUT:
-		heap = ion_carveout_heap_create(heap_data);
-		break;
-	case ION_HEAP_TYPE_CHUNK:
-		heap = ion_chunk_heap_create(heap_data);
-		break;
-	case ION_HEAP_TYPE_DMA:
-		heap = ion_cma_heap_create(heap_data);
-		break;
-	default:
-		pr_err("%s: Invalid heap type %d\n", __func__,
-		       heap_data->type);
-		return ERR_PTR(-EINVAL);
+#endif
+		case ION_HEAP_TYPE_SYSTEM_CONTIG:
+			heap = ion_system_contig_heap_create(heap_data);
+			break;
+		case ION_HEAP_TYPE_SYSTEM:
+			heap = ion_system_heap_create(heap_data);
+			break;
+		case ION_HEAP_TYPE_CARVEOUT:
+			heap = ion_carveout_heap_create(heap_data);
+			break;
+		case ION_HEAP_TYPE_CHUNK:
+			heap = ion_chunk_heap_create(heap_data);
+			break;
+		case ION_HEAP_TYPE_DMA:
+			heap = ion_cma_heap_create(heap_data);
+			break;
+
+#if defined(CONFIG_ION_RTK_PHOENIX)
+		case RTK_PHOENIX_ION_HEAP_TYPE_TILER:
+		case RTK_PHOENIX_ION_HEAP_TYPE_MEDIA:
+		case RTK_PHOENIX_ION_HEAP_TYPE_AUDIO:
+		case RTK_PHOENIX_ION_HEAP_TYPE_SECURE:
+			heap = ion_rtk_carveout_heap_create(heap_data);
+			if (!IS_ERR_OR_NULL(heap))
+				heap->type = heap_data->type;
+			break;
+#endif
+		default:
+			pr_err("%s: Invalid heap type %d\n", __func__,
+					heap_data->type);
+			return ERR_PTR(-EINVAL);
 	}
 
 	if (IS_ERR_OR_NULL(heap)) {
 		pr_err("%s: error creating heap %s type %d base %lu size %zu\n",
-		       __func__, heap_data->name, heap_data->type,
-		       heap_data->base, heap_data->size);
+				__func__, heap_data->name, heap_data->type,
+				heap_data->base, heap_data->size);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -359,25 +396,37 @@ void ion_heap_destroy(struct ion_heap *heap)
 	if (!heap)
 		return;
 
+#if defined(CONFIG_ION_RTK_PHOENIX)
+	switch ((int)heap->type) {
+#else
 	switch (heap->type) {
-	case ION_HEAP_TYPE_SYSTEM_CONTIG:
-		ion_system_contig_heap_destroy(heap);
-		break;
-	case ION_HEAP_TYPE_SYSTEM:
-		ion_system_heap_destroy(heap);
-		break;
-	case ION_HEAP_TYPE_CARVEOUT:
-		ion_carveout_heap_destroy(heap);
-		break;
-	case ION_HEAP_TYPE_CHUNK:
-		ion_chunk_heap_destroy(heap);
-		break;
-	case ION_HEAP_TYPE_DMA:
-		ion_cma_heap_destroy(heap);
-		break;
-	default:
-		pr_err("%s: Invalid heap type %d\n", __func__,
-		       heap->type);
+#endif
+		case ION_HEAP_TYPE_SYSTEM_CONTIG:
+			ion_system_contig_heap_destroy(heap);
+			break;
+		case ION_HEAP_TYPE_SYSTEM:
+			ion_system_heap_destroy(heap);
+			break;
+		case ION_HEAP_TYPE_CARVEOUT:
+			ion_carveout_heap_destroy(heap);
+			break;
+		case ION_HEAP_TYPE_CHUNK:
+			ion_chunk_heap_destroy(heap);
+			break;
+		case ION_HEAP_TYPE_DMA:
+			ion_cma_heap_destroy(heap);
+			break;
+#if defined(CONFIG_ION_RTK_PHOENIX)
+		case RTK_PHOENIX_ION_HEAP_TYPE_TILER:
+		case RTK_PHOENIX_ION_HEAP_TYPE_MEDIA:
+		case RTK_PHOENIX_ION_HEAP_TYPE_AUDIO:
+		case RTK_PHOENIX_ION_HEAP_TYPE_SECURE:
+			ion_rtk_carveout_heap_destroy(heap);
+			break;
+#endif
+		default:
+			pr_err("%s: Invalid heap type %d\n", __func__,
+					heap->type);
 	}
 }
 EXPORT_SYMBOL(ion_heap_destroy);

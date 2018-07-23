@@ -52,7 +52,10 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 	dev_dbg(dev, "Request buffer allocation len %ld\n", len);
 
 	if (buffer->flags & ION_FLAG_CACHED)
+	{
+		dev_err(dev, "Can't allocate buffer cause buffer->flags(0x%.8x) & ION_FLAG_CACHED\n", buffer->flags);
 		return -EINVAL;
+	}
 
 	if (align > PAGE_SIZE)
 		return -EINVAL;

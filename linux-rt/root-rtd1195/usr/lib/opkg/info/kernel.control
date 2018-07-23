@@ -1,0 +1,10 @@
+Package: kernel
+Version: 4.4.18-1-21ec7c9a7f43b7d72e3dbeefdf05cb09
+Depends: libc, librt, libpthread
+Source: package/kernel/linux
+License: GPLv2
+Section: sys
+Status: unknown hold not-installed
+Architecture: rtd1195
+Installed-Size: 105
+Description:  Virtual kernel package

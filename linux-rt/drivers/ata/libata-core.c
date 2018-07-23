@@ -76,6 +76,10 @@
 #include "libata.h"
 #include "libata-transport.h"
 
+#ifdef CONFIG_ARCH_RTD129X
+#include "ahci.h"
+#endif
+
 /* debounce timing parameters in msecs { interval, duration, timeout } */
 const unsigned long sata_deb_timing_normal[]		= {   5,  100, 2000 };
 const unsigned long sata_deb_timing_hotplug[]		= {  25,  500, 2000 };
@@ -5534,6 +5538,30 @@ void ata_dev_init(struct ata_device *dev)
 	/* SATA spd limit is bound to the attached device, reset together */
 	link->sata_spd_limit = link->hw_sata_spd_limit;
 	link->sata_spd = 0;
+
+#ifdef CONFIG_ARCH_RTD129X
+	if(sata_scr_valid(link)) {
+		bool set_spd = true;
+		struct ata_host *host = ap->host;
+		struct ahci_host_priv *hpriv = host->private_data;
+		void __iomem *mmio = hpriv->mmio;
+
+#ifdef CONFIG_PCIE1_RTD1295
+		if (is_pcie1_memory((u64)mmio)) {
+			set_spd = false;
+		}
+#endif
+
+#ifdef CONFIG_PCIE2_RTD1295
+		if (is_pcie2_memory((u64)mmio)) {
+			set_spd = false;
+		}
+#endif
+		if (set_spd) {
+			sata_set_spd(link);
+		}
+	}
+#endif
 
 	/* High bits of dev->flags are used to record warm plug
 	 * requests which occur asynchronously.  Synchronize using

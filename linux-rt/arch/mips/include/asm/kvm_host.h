@@ -97,9 +97,6 @@
 #define GUEST_TICKS_PER_JIFFY		(40000000/HZ)
 #define MS_TO_NS(x)			(x * 1E6L)
 
-#define CAUSEB_DC			27
-#define CAUSEF_DC			(_ULCAST_(1) << 27)
-
 extern atomic_t kvm_mips_instance;
 extern pfn_t(*kvm_mips_gfn_to_pfn) (struct kvm *kvm, gfn_t gfn);
 extern void (*kvm_mips_release_pfn_clean) (pfn_t pfn);

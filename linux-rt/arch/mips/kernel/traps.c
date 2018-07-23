@@ -493,6 +493,7 @@ out:
 #define FUNC   0x0000003f
 #define SYNC   0x0000000f
 #define RDHWR  0x0000003b
+#define MFLXC0 0x40634000
 
 /*  microMIPS definitions   */
 #define MM_POOL32A_FUNC 0xfc00ffff
@@ -651,6 +652,18 @@ static int simulate_rdhwr(struct pt_regs *regs, int rd, int rt)
 
 static int simulate_rdhwr_normal(struct pt_regs *regs, unsigned int opcode)
 {
+#ifdef CONFIG_CPU_RLX
+	if (opcode == MFLXC0) {
+		struct thread_info *ti = task_thread_info(current);
+		int rt = (opcode & RT) >> 16;
+
+		perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS,
+				1, regs, 0);
+
+		regs->regs[rt] = ti->tp_value;
+		return 0;
+	}
+#else
 	if ((opcode & OPCODE) == SPEC3 && (opcode & FUNC) == RDHWR) {
 		int rd = (opcode & RD) >> 11;
 		int rt = (opcode & RT) >> 16;
@@ -658,6 +671,7 @@ static int simulate_rdhwr_normal(struct pt_regs *regs, unsigned int opcode)
 		simulate_rdhwr(regs, rd, rt);
 		return 0;
 	}
+#endif
 
 	/* Not ours.  */
 	return -1;
@@ -706,6 +720,7 @@ asmlinkage void do_ov(struct pt_regs *regs)
 int process_fpemu_return(int sig, void __user *fault_addr, unsigned long fcr31)
 {
 	struct siginfo si = { 0 };
+	struct vm_area_struct *vma;
 
 	switch (sig) {
 	case 0:
@@ -746,7 +761,8 @@ int process_fpemu_return(int sig, void __user *fault_addr, unsigned long fcr31)
 		si.si_addr = fault_addr;
 		si.si_signo = sig;
 		down_read(&current->mm->mmap_sem);
-		if (find_vma(current->mm, (unsigned long)fault_addr))
+		vma = find_vma(current->mm, (unsigned long)fault_addr);
+		if (vma && (vma->vm_start <= (unsigned long)fault_addr))
 			si.si_code = SEGV_ACCERR;
 		else
 			si.si_code = SEGV_MAPERR;
@@ -1124,7 +1140,7 @@ no_r2_instr:
 			status = SIGSEGV;
 		opcode = (mmop[0] << 16) | mmop[1];
 
-		if (status < 0)
+		if (!cpu_has_userlocal && status < 0)
 			status = simulate_rdhwr_mm(regs, opcode);
 	} else {
 		if (unlikely(get_user(opcode, epc) < 0))
@@ -1133,10 +1149,10 @@ no_r2_instr:
 		if (!cpu_has_llsc && status < 0)
 			status = simulate_llsc(regs, opcode);
 
-		if (status < 0)
+		if (!cpu_has_userlocal && status < 0)
 			status = simulate_rdhwr_normal(regs, opcode);
 
-		if (status < 0)
+		if (!cpu_has_sync && status < 0)
 			status = simulate_sync(regs, opcode);
 
 		if (status < 0)
@@ -1348,7 +1364,6 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 	unsigned long fcr31;
 	unsigned int cpid;
 	int status, err;
-	unsigned long __maybe_unused flags;
 	int sig;
 
 	prev_state = exception_enter();
@@ -1377,7 +1392,7 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 				status = SIGSEGV;
 			opcode = (mmop[0] << 16) | mmop[1];
 
-			if (status < 0)
+			if (!cpu_has_userlocal && status < 0)
 				status = simulate_rdhwr_mm(regs, opcode);
 		} else {
 			if (unlikely(get_user(opcode, epc) < 0))
@@ -1386,7 +1401,7 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 			if (!cpu_has_llsc && status < 0)
 				status = simulate_llsc(regs, opcode);
 
-			if (status < 0)
+			if (!cpu_has_userlocal && status < 0)
 				status = simulate_rdhwr_normal(regs, opcode);
 		}
 
@@ -1450,6 +1465,7 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 	exception_exit(prev_state);
 }
 
+#ifndef CONFIG_CPU_RLX
 asmlinkage void do_msa_fpe(struct pt_regs *regs, unsigned int msacsr)
 {
 	enum ctx_state prev_state;
@@ -1499,10 +1515,12 @@ asmlinkage void do_mdmx(struct pt_regs *regs)
 	force_sig(SIGILL, current);
 	exception_exit(prev_state);
 }
+#endif
 
 /*
  * Called with interrupts disabled.
  */
+#ifdef CONFIG_HARDWARE_WATCHPOINTS
 asmlinkage void do_watch(struct pt_regs *regs)
 {
 	enum ctx_state prev_state;
@@ -1532,7 +1550,9 @@ asmlinkage void do_watch(struct pt_regs *regs)
 	}
 	exception_exit(prev_state);
 }
+#endif
 
+#ifndef CONFIG_CPU_RLX
 asmlinkage void do_mcheck(struct pt_regs *regs)
 {
 	int multi_match = regs->cp0_status & ST0_TS;
@@ -1563,7 +1583,9 @@ asmlinkage void do_mcheck(struct pt_regs *regs)
 	      "matching entries in the TLB.",
 	      (multi_match) ? "" : "not ");
 }
+#endif
 
+#ifdef CONFIG_MIPS_MT
 asmlinkage void do_mt(struct pt_regs *regs)
 {
 	int subcode;
@@ -1598,8 +1620,10 @@ asmlinkage void do_mt(struct pt_regs *regs)
 
 	force_sig(SIGILL, current);
 }
+#endif
 
 
+#ifdef CONFIG_CPU_HAS_DSP
 asmlinkage void do_dsp(struct pt_regs *regs)
 {
 	if (cpu_has_dsp)
@@ -1607,6 +1631,7 @@ asmlinkage void do_dsp(struct pt_regs *regs)
 
 	force_sig(SIGILL, current);
 }
+#endif
 
 asmlinkage void do_reserved(struct pt_regs *regs)
 {
@@ -1775,6 +1800,7 @@ asmlinkage void cache_parity_error(void)
 	panic("Can't handle the cache error!");
 }
 
+#ifndef CONFIG_CPU_RLX
 asmlinkage void do_ftlb(void)
 {
 	const int field = 2 * sizeof(unsigned long);
@@ -1865,6 +1891,7 @@ void __noreturn nmi_exception_handler(struct pt_regs *regs)
 	die(str, regs);
 	nmi_exit();
 }
+#endif
 
 #define VECTORSPACING 0x100	/* for EI/VI mode */
 
@@ -2040,17 +2067,6 @@ EXPORT_SYMBOL_GPL(cp0_perfcount_irq);
 int cp0_fdc_irq;
 EXPORT_SYMBOL_GPL(cp0_fdc_irq);
 
-static int noulri;
-
-static int __init ulri_disable(char *s)
-{
-	pr_info("Disabling ulri\n");
-	noulri = 1;
-
-	return 1;
-}
-__setup("noulri", ulri_disable);
-
 /* configure STATUS register */
 static void configure_status(void)
 {
@@ -2081,7 +2097,7 @@ static void configure_hwrena(void)
 	if (cpu_has_mips_r2_r6)
 		hwrena |= 0x0000000f;
 
-	if (!noulri && cpu_has_userlocal)
+	if (cpu_has_mips_r && cpu_has_userlocal)
 		hwrena |= (1 << 29);
 
 	if (hwrena)
@@ -2183,15 +2199,6 @@ void set_uncached_handler(unsigned long offset, void *addr,
 	memcpy((void *)(uncached_ebase + offset), addr, size);
 }
 
-static int __initdata rdhwr_noopt;
-static int __init set_rdhwr_noopt(char *str)
-{
-	rdhwr_noopt = 1;
-	return 1;
-}
-
-__setup("rdhwr_noopt", set_rdhwr_noopt);
-
 void __init trap_init(void)
 {
 	extern char except_vec3_generic;
@@ -2248,8 +2255,10 @@ void __init trap_init(void)
 	/*
 	 * Only some CPUs have the watch exceptions.
 	 */
+#ifdef CONFIG_HARDWARE_WATCHPOINTS
 	if (cpu_has_watch)
 		set_except_vector(23, handle_watch);
+#endif
 
 	/*
 	 * Initialise interrupt handlers
@@ -2290,13 +2299,20 @@ void __init trap_init(void)
 
 	set_except_vector(8, handle_sys);
 	set_except_vector(9, handle_bp);
-	set_except_vector(10, rdhwr_noopt ? handle_ri :
-			  (cpu_has_vtag_icache ?
-			   handle_ri_rdhwr_vivt : handle_ri_rdhwr));
+#ifdef CONFIG_CPU_RLX
+	set_except_vector(10, handle_ri);
+#else
+	set_except_vector(10, cpu_has_userlocal ? handle_ri : handle_ri_rdhwr);
+#endif
+
 	set_except_vector(11, handle_cpu);
 	set_except_vector(12, handle_ov);
-	set_except_vector(13, handle_tr);
-	set_except_vector(14, handle_msa_fpe);
+
+	if (cpu_has_tr)
+		set_except_vector(13, handle_tr);
+
+	if (cpu_has_msa)
+		set_except_vector(14, handle_msa_fpe);
 
 	if (current_cpu_type() == CPU_R6000 ||
 	    current_cpu_type() == CPU_R6000A) {
@@ -2319,15 +2335,19 @@ void __init trap_init(void)
 	if (cpu_has_fpu && !cpu_has_nofpuex)
 		set_except_vector(15, handle_fpe);
 
-	set_except_vector(16, handle_ftlb);
+	if (cpu_has_ftlb)
+		set_except_vector(16, handle_ftlb);
 
 	if (cpu_has_rixiex) {
 		set_except_vector(19, tlb_do_page_fault_0);
 		set_except_vector(20, tlb_do_page_fault_0);
 	}
 
-	set_except_vector(21, handle_msa);
-	set_except_vector(22, handle_mdmx);
+	if (cpu_has_msa)
+		set_except_vector(21, handle_msa);
+
+	if (cpu_has_mdmx)
+		set_except_vector(22, handle_mdmx);
 
 	if (cpu_has_mcheck)
 		set_except_vector(24, handle_mcheck);
@@ -2335,7 +2355,8 @@ void __init trap_init(void)
 	if (cpu_has_mipsmt)
 		set_except_vector(25, handle_mt);
 
-	set_except_vector(26, handle_dsp);
+	if (cpu_has_dsp)
+		set_except_vector(26, handle_dsp);
 
 	if (board_cache_error_setup)
 		board_cache_error_setup();

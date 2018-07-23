@@ -1,0 +1,9 @@
+Package: usbutils
+Version: 007-1
+Depends: libc, librt, libpthread, libusb-1.0, zlib, librt, libpthread
+Source: package/utils/usbutils
+Section: utils
+Maintainer: Felix Fietkau <nbd@openwrt.org>
+Architecture: rtd1195
+Installed-Size: 207653
+Description:  USB devices listing utilities

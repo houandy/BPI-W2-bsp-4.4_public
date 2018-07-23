@@ -1,0 +1,39 @@
+xt_REDIRECT.ko: nf_nat_redirect.ko nf_nat.ko
+slhc.ko:
+pppoe.ko: pppox.ko ppp_generic.ko slhc.ko
+nf_defrag_ipv4.ko:
+iptable_mangle.ko: ip_tables.ko
+ip6table_mangle.ko: ip6_tables.ko
+xt_nat.ko: nf_nat.ko
+ppp_generic.ko: slhc.ko
+ip_tables.ko:
+nf_defrag_ipv6.ko:
+nf_log_ipv6.ko: nf_log_common.ko
+ip6t_REJECT.ko: nf_reject_ipv6.ko
+nf_nat_ftp.ko: nf_nat.ko
+xt_id.ko:
+nf_nat.ko:
+nf_conntrack_ipv4.ko: nf_defrag_ipv4.ko
+nf_reject_ipv4.ko:
+nf_log_common.ko:
+nf_nat_redirect.ko: nf_nat.ko
+xt_multiport.ko:
+iptable_nat.ko: nf_nat_ipv4.ko ip_tables.ko nf_nat.ko
+ip6table_filter.ko: ip6_tables.ko
+nf_nat_ipv4.ko: nf_nat.ko
+nf_reject_ipv6.ko:
+xt_LOG.ko:
+ipt_MASQUERADE.ko: nf_nat_masquerade_ipv4.ko nf_nat.ko
+iptable_filter.ko: ip_tables.ko
+ppp_async.ko: crc-ccitt.ko ppp_generic.ko slhc.ko
+iptable_raw.ko: ip_tables.ko
+ip6table_raw.ko: ip6_tables.ko
+xt_CT.ko:
+ip6_tables.ko:
+nf_conntrack_rtcache.ko:
+crc-ccitt.ko:
+nf_conntrack_ipv6.ko: nf_defrag_ipv6.ko
+nf_nat_masquerade_ipv4.ko: nf_nat.ko
+nf_log_ipv4.ko: nf_log_common.ko
+ipt_REJECT.ko: nf_reject_ipv4.ko
+pppox.ko: ppp_generic.ko slhc.ko

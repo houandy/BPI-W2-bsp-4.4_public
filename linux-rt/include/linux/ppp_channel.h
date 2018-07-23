@@ -84,5 +84,9 @@ extern char *ppp_dev_name(struct ppp_channel *);
  * that ppp_unregister_channel returns.
  */
 
+#if defined(CONFIG_RTL_PPPOE_HWACC) || defined (CONFIG_RTL_FAST_PPPOE)
+extern void ppp_channel_pppoe(struct ppp_channel *chan);
+#endif
+
 #endif /* __KERNEL__ */
 #endif

@@ -227,9 +227,9 @@ static int incremental_errors_test(void)
 
 	while (1) {
 
-		err = rewrite_page(1);
-		if (err)
-			goto exit;
+		//err = rewrite_page(1);
+		//if (err)
+		//	goto exit;
 
 		err = read_page(1);
 		if (err > 0)
@@ -256,6 +256,15 @@ static int incremental_errors_test(void)
 				goto exit;
 		}
 		errs_per_subpage++;
+
+		err = mtdtest_erase_eraseblock(mtd, eraseblock);
+		if (err)
+			goto exit;
+
+		err = rewrite_page(1);
+		if (err)
+			goto exit;
+
 	}
 
 exit:

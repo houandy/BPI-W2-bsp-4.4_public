@@ -1,0 +1,2748 @@
+Package: procps-w
+Version: 3.2.8-1
+Depends: libc, librt, libpthread, procps
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680011
+
+Package: terminfo
+Version: 5.9-2
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680005
+Auto-Installed: yes
+
+Package: ldconfig
+Version: 2.19-1
+Status: install hold installed
+Essential: yes
+Architecture: rtd1295
+Installed-Time: 1473680005
+
+Package: libuci-lua
+Version: 2015-08-27.1-1
+Depends: libc, librt, libpthread, libuci, liblua
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680005
+
+Package: samba-hotplug
+Version: 1-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680006
+
+Package: libpam
+Version: 1.1.8-4
+Depends: libc, librt, libpthread, libtirpc
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+Auto-Installed: yes
+
+Package: libc
+Version: 2.19-1
+Depends: libgcc
+Status: install hold installed
+Essential: yes
+Architecture: rtd1295
+Installed-Time: 1473680003
+Auto-Installed: yes
+
+Package: sysstat
+Version: 11.0.4-2
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Conffiles:
+ /etc/sysstat/sysstat.ioconf cf38d9eabcbbc9949b5a3e0b0d68cc6cbb
+Installed-Time: 1473680011
+
+Package: kmod-rtl8168
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3), kmod-mii
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+
+Package: avahi-dbus-daemon
+Version: 0.6.31-12
+Depends: libc, librt, libpthread, libavahi-dbus-support, libexpat, librt, libdaemon
+Provides: avahi-daemon
+Status: install user installed
+Architecture: rtd1295
+Conffiles:
+ /etc/avahi/avahi-daemon.conf 65650c663773acb2c2e25e5a4158a5970c
+Installed-Time: 1473680008
+Auto-Installed: yes
+
+Package: shflags
+Version: 2012-06-11-c12b30cebb92b49c5edb6df255c0952c65b4ddc6
+Depends: libc, librt, libpthread, getopt
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: coreutils-fold
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: coreutils-seq
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: coreutils-sha512sum
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: opkg
+Version: 9c97d5ecd795709c8584e972bfdf3aee3a5b846d-9
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Conffiles:
+ /etc/opkg.conf b73c0a02cb7bc300b2e6c7c29e8e6d38bd
+ /etc/opkg/customfeeds.conf 61d1f3aa62fe977614ed0c2f0ad3b2ee2f
+Installed-Time: 1473680006
+
+Package: coreutils-chmod
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: iperf
+Version: 2.0.5-1
+Depends: libc, librt, libpthread, libstdcpp
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+
+Package: libunistring
+Version: 0.9.6-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680007
+Auto-Installed: yes
+
+Package: coreutils-shred
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: coreutils-uname
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: libjpeg
+Version: 9a-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680008
+Auto-Installed: yes
+
+Package: libpthread
+Version: 2.19-1
+Depends: libgcc
+Status: install hold installed
+Essential: yes
+Architecture: rtd1295
+Installed-Time: 1473680003
+Auto-Installed: yes
+
+Package: ubus
+Version: 2015-05-25-f361bfa5fcb2daadf3b160583ce665024f8d108e
+Depends: libc, librt, libpthread, libubus, libblobmsg-json, ubusd
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680003
+Auto-Installed: yes
+
+Package: kmod-crypto-manager
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3), kmod-crypto-aead, kmod-crypto-hash, kmod-crypto-pcompress
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+Auto-Installed: yes
+
+Package: kmod-crypto-pcompress
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3)
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+Auto-Installed: yes
+
+Package: coreutils-basename
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: procps-vmstat
+Version: 3.2.8-1
+Depends: libc, librt, libpthread, procps
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680011
+
+Package: iperf-mt
+Version: 2.0.5-1
+Depends: libc, librt, libpthread, libstdcpp, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+
+Package: sfdisk
+Version: 2.28-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680006
+
+Package: alsa-lib
+Version: 1.0.28-1
+Depends: libc, librt, libpthread, libpthread, librt
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680007
+Auto-Installed: yes
+
+Package: zoneinfo-europe
+Version: 2016d-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680011
+
+Package: coreutils-echo
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: rpcd
+Version: 2016-06-30-23417e94d25570e6d62542bac46edd51e8e0243a
+Depends: libc, librt, libpthread, libubus, libubox, libuci, libblobmsg-json
+Status: install user installed
+Architecture: rtd1295
+Conffiles:
+ /etc/config/rpcd 9f58e09bb250fe6cee61c873ff2c1a19cb
+Installed-Time: 1473680006
+Auto-Installed: yes
+
+Package: busybox
+Version: 1.23.2-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Essential: yes
+Architecture: rtd1295
+Installed-Time: 1473680003
+
+Package: odhcpd
+Version: 2015-11-19-01d3f9d64486ac1daa144848944e877e7f0cb762
+Depends: libc, librt, libpthread, libubox, libuci, libubus
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680006
+
+Package: lsof
+Version: 4.86-2
+Depends: libc, librt, libpthread, librpc
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680011
+
+Package: luci-lib-ip
+Version: git-16.253.40466-a8354c0-1
+Depends: libc, librt, libpthread, liblua, libnl-tiny
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+Auto-Installed: yes
+
+Package: zoneinfo-southamerica
+Version: 2016d-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680012
+
+Package: libubus-lua
+Version: 2015-05-25-f361bfa5fcb2daadf3b160583ce665024f8d108e
+Depends: libc, librt, libpthread, libubus, liblua
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680005
+
+Package: coreutils-tee
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: kmod-crypto-hash
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3)
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+Auto-Installed: yes
+
+Package: binutils
+Version: 2.24-3
+Depends: libc, librt, libpthread, objdump, ar
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680003
+
+Package: coreutils-unexpand
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: kmod-crypto-aead
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3), kmod-crypto-null
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+
+Package: libiwinfo-lua
+Version: 2015-06-01-ade8b1b299cbd5748db1acf80dd3e9f567938371
+Depends: libc, librt, libpthread, libiwinfo, liblua
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680005
+
+Package: procps-tload
+Version: 3.2.8-1
+Depends: libc, librt, libpthread, procps
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680011
+
+Package: coreutils-shuf
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: strace
+Version: 4.8-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680006
+
+Package: libiwinfo
+Version: 2015-06-01-ade8b1b299cbd5748db1acf80dd3e9f567938371
+Depends: libc, librt, libpthread, libuci
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680005
+Auto-Installed: yes
+
+Package: libdbus
+Version: 1.9.14-1
+Depends: libc, librt, libpthread, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680008
+Auto-Installed: yes
+
+Package: coreutils-nice
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: fsck
+Version: 2.28-1
+Depends: libc, librt, libpthread, libblkid, libmount
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+
+Package: libacl
+Version: 20140812-1
+Depends: libc, librt, libpthread, libattr
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680006
+Auto-Installed: yes
+
+Package: kmod-ufsd
+Version: 4.4.18-rtd1295-2
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3)
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680005
+
+Package: luci-app-samba
+Version: git-16.253.40466-a8354c0-1
+Depends: libc, librt, libpthread, samba4-server
+Status: install user installed
+Architecture: all
+Installed-Time: 1473680009
+
+Package: libcurl
+Version: 7.40.0-3
+Depends: libc, librt, libpthread, libpolarssl
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680003
+Auto-Installed: yes
+
+Package: kmod-md-multipath
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3), kmod-md-mod
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+
+Package: openssl-util
+Version: 1.0.2d-1
+Depends: libc, librt, libpthread, libopenssl
+Status: install user installed
+Architecture: rtd1295
+Conffiles:
+ /etc/ssl/openssl.cnf 06baa8f15992bacd3e5b113cd571d828c0
+Installed-Time: 1473680006
+
+Package: libdw
+Version: 0.161-1
+Depends: libc, librt, libpthread, libelf1, zlib, libbz2
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680005
+
+Package: coreutils-kill
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: libogg
+Version: 1.3.2-2
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680008
+Auto-Installed: yes
+
+Package: coreutils-mktemp
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: kmod-lib-crc-ccitt
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3)
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+
+Package: lvm2
+Version: 2.02.119-2
+Depends: libc, librt, libpthread, libdevmapper, libblkid, libreadline, libncurses
+Status: install user installed
+Architecture: rtd1295
+Conffiles:
+ /etc/lvm/lvm.conf 1aded89c5c8a21f90838167aede6547ad5
+Installed-Time: 1473680010
+Auto-Installed: yes
+
+Package: zoneinfo-atlantic
+Version: 2016d-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680011
+
+Package: blockdev
+Version: 2.28-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680003
+
+Package: libgcrypt
+Version: 1.6.1-1
+Depends: libc, librt, libpthread, libgpg-error
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680007
+Auto-Installed: yes
+
+Package: kmod-md-mod
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3)
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+Auto-Installed: yes
+
+Package: kmod-md-raid10
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3), kmod-md-mod
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+
+Package: luci-theme-bootstrap
+Version: git-16.253.40466-a8354c0-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: all
+Installed-Time: 1473680009
+
+Package: kmod-nf-nathelper
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3), kmod-nf-nat
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+
+Package: kmod-pppoe
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3), kmod-ppp, kmod-pppox
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+
+Package: coreutils-install
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils, libacl
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: coreutils-factor
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils, libgmp
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: libcap
+Version: 2.24-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680006
+Auto-Installed: yes
+
+Package: libavahi-client
+Version: 0.6.31-12
+Depends: libc, librt, libpthread, avahi-dbus-daemon
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680008
+Auto-Installed: yes
+
+Package: kmod-pppox
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3), kmod-ppp
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+Auto-Installed: yes
+
+Package: confuse
+Version: 2.7-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680007
+Auto-Installed: yes
+
+Package: kmod-ipt-conntrack
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3), kmod-ipt-core, kmod-nf-conntrack
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+Auto-Installed: yes
+
+Package: base-files
+Version: 157-r49395
+Depends: libc, librt, libpthread, procd, jsonfilter, usign
+Status: install user installed
+Architecture: rtd1295
+Conffiles:
+ /etc/config/network 5f68bd82cad174afaf18c5a3a91c2d0538
+ /etc/config/system ec9c69560784b3f9bcdcb3685b93ee39ef
+ /etc/hosts 081ef9d5367595d16e30b4b4549d9f4353
+ /etc/inittab ee9896726758e7f6d1a9ae2a08e895143e
+ /etc/group dfef1c9e0ad86143ffb04190a0125d702d
+ /etc/passwd 279e0736326503ec63bb61abe58a6e0d0f
+ /etc/shadow 65c2db0501eade698bd7461a9e165e2623
+ /etc/profile cd4d535f9a79ab37fbf3e86ae423939e3c
+ /etc/protocols edede1354b2d18b1403125b305049d4b5c
+ /etc/services 47f3393d265c8cefc2d1ec72f8b0b02cde
+ /etc/shells 8b35ce73c18161a7d7ed16fa244410993b
+ /etc/sysctl.conf 7bebf45c34b1120c01a4fa591686d4141e
+ /etc/rc.local 515018aa94eb4937dade12dc0d69890b35
+ /etc/sysupgrade.conf 9e87b05fe2f12c84d1c465b39632274847
+ /etc/config/system ec9c69560784b3f9bcdcb3685b93ee39ef
+ /etc/config/network 5f68bd82cad174afaf18c5a3a91c2d0538
+ /etc/config/wireless b8ba506fea67bf7bc5e07c13558b525c7f
+Installed-Time: 1473680003
+
+Package: kmod-nf-nat
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3), kmod-nf-conntrack, kmod-nf-ipt
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+Auto-Installed: yes
+
+Package: zoneinfo-simple
+Version: 2016d-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680012
+
+Package: libexif
+Version: 0.6.21-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680008
+Auto-Installed: yes
+
+Package: kmod-crypto-crc32c
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3), kmod-crypto-hash
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+
+Package: coreutils-dir
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils, libacl
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: procps-pwdx
+Version: 3.2.8-1
+Depends: libc, librt, libpthread, procps
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680011
+
+Package: libfdisk
+Version: 2.28-1
+Depends: libc, librt, libpthread, libuuid, libblkid
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+Auto-Installed: yes
+
+Package: coreutils-base64
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: zoneinfo-asia
+Version: 2016d-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680011
+
+Package: coreutils-head
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: coreutils
+Version: 8.23-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+Auto-Installed: yes
+
+Package: netifd
+Version: 2015-09-27-509ffb22475ebdd5291d510a098f996473951344
+Depends: libc, librt, libpthread, libuci, libnl-tiny, libubus, ubus, ubusd, jshn, libubox
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680006
+
+Package: coreutils-printf
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: coreutils-stat
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: libplist
+Version: 1.13-1
+Depends: libc, librt, libpthread, libxml2
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680008
+Auto-Installed: yes
+
+Package: bzip2
+Version: 1.0.6-2
+Depends: libc, librt, libpthread, libbz2
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680003
+
+Package: python-light
+Version: 2.7.9-7
+Depends: libc, librt, libpthread, python-base, libffi, libbz2
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680011
+
+Package: pciutils
+Version: 3.3.1-1
+Depends: libc, librt, libpthread, libkmod, zlib
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680011
+
+Package: kmod-lib-xor
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3)
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+
+Package: kmod-mii
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3)
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+
+Package: dnsmasq
+Version: 2.73-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Conffiles:
+ /etc/config/dhcp f81fe9bd228dede2165be71e5c9dcf76cc
+ /etc/dnsmasq.conf 1e6ab19c1ae5e70d609ac7b6246541d520
+Installed-Time: 1473680004
+
+Package: procd
+Version: 2015-10-26-d5fddd91b966424bb63e943e789704d52382cc18
+Depends: libc, librt, libpthread, ubusd, ubus, libjson-script, ubox, libubox, libubus
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680003
+Auto-Installed: yes
+
+Package: usbutils
+Version: 007-1
+Depends: libc, librt, libpthread, libusb-1.0, zlib, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680007
+
+Package: coreutils-uptime
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: libblkid
+Version: 2.28-1
+Depends: libc, librt, libpthread, libuuid
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680003
+Auto-Installed: yes
+
+Package: libkmod
+Version: 20-1
+Depends: libc, librt, libpthread, zlib
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680011
+
+Package: ubusd
+Version: 2015-05-25-f361bfa5fcb2daadf3b160583ce665024f8d108e
+Depends: libc, librt, libpthread, libubox
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680003
+Auto-Installed: yes
+
+Package: libbfd
+Version: 2.24-3
+Depends: libc, librt, libpthread, zlib
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680003
+Auto-Installed: yes
+
+Package: kmod-dm
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3), kmod-crypto-manager
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+
+Package: libflac
+Version: 1.3.1-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680008
+Auto-Installed: yes
+
+Package: coreutils-link
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: coreutils-unlink
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: coreutils-cp
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils, libacl
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: kmod-lib-crc32c
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3), kmod-crypto-crc32c
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+
+Package: jansson
+Version: 2.7-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: libelf1
+Version: 0.161-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680005
+Auto-Installed: yes
+
+Package: coreutils-uniq
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: tar
+Version: 1.28-2
+Depends: libc, librt, libpthread, bzip2, libacl, libattr
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680011
+
+Package: python-base
+Version: 2.7.9-7
+Depends: libc, librt, libpthread, libpthread, zlib
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680011
+
+Package: libgpg-error
+Version: 1.12-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680007
+Auto-Installed: yes
+
+Package: coreutils-dd
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: libaio
+Version: 0.3.110-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: coreutils-df
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: coreutils-join
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: lsblk
+Version: 2.28-1
+Depends: libc, librt, libpthread, libblkid, libmount, libsmartcols
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680005
+
+Package: coreutils-du
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: gettext-tools
+Version: 0.19.4-1
+Depends: libc, librt, libpthread, libxml2, libintl-full
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+
+Package: coreutils-ptx
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: block-mount
+Version: 2015-12-19-d90165cdbdac40e6e2699d831e13473479d8cb79
+Depends: libc, librt, libpthread, ubox, libubox, libuci
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680003
+
+Package: libvorbis
+Version: 1.3.5-1
+Depends: libc, librt, libpthread, libogg
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680008
+Auto-Installed: yes
+
+Package: firewall
+Version: 2015-07-27
+Depends: libc, librt, libpthread, libubox, libubus, libuci, libip4tc, libip6tc, libxtables, kmod-ipt-core, kmod-ipt-conntrack, kmod-ipt-nat
+Status: install user installed
+Architecture: rtd1295
+Conffiles:
+ /etc/config/firewall d9e821d8752b704555e39e55baa5a35bf2
+ /etc/firewall.user bd68324966481011f5e36570258ad97dd4
+Installed-Time: 1473680004
+
+Package: libxml2
+Version: 2.9.2-3
+Depends: libc, librt, libpthread, libpthread, zlib
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+Auto-Installed: yes
+
+Package: luci-app-firewall
+Version: git-16.253.40466-a8354c0-1
+Depends: libc, librt, libpthread, firewall
+Status: install user installed
+Architecture: all
+Installed-Time: 1473680007
+
+Package: kmod-nf-ipt
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3)
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+Auto-Installed: yes
+
+Package: sqlite3-cli
+Version: 3081101-1
+Depends: libc, librt, libpthread, libsqlite3, libncurses, libreadline
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680008
+Auto-Installed: yes
+
+Package: libevent2
+Version: 2.0.22-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680005
+
+Package: kmod-md-linear
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3), kmod-md-mod
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+
+Package: coreutils-tail
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: coreutils-who
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: libuci
+Version: 2015-08-27.1-1
+Depends: libc, librt, libpthread, libubox
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680003
+Auto-Installed: yes
+
+Package: liblua
+Version: 5.1.5-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680005
+Auto-Installed: yes
+
+Package: libip4tc
+Version: 1.4.21-1
+Depends: libc, librt, libpthread, libxtables
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+Auto-Installed: yes
+
+Package: kmod-ip6tables
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3), kmod-nf-ipt6, kmod-ipt-core, kmod-ipt-conntrack
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+Auto-Installed: yes
+
+Package: libopcodes
+Version: 2.24-3
+Depends: libc, librt, libpthread, libbfd
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680003
+Auto-Installed: yes
+
+Package: odhcp6c
+Version: 2015-07-13-024525798c5f6aba3af9b2ef7b3af2f3c14f1db8
+Depends: libc, librt, libpthread, kmod-ipv6
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680006
+
+Package: fstools
+Version: 2015-12-19-d90165cdbdac40e6e2699d831e13473479d8cb79
+Depends: libc, librt, libpthread, ubox
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+
+Package: libdaemon
+Version: 0.14-5
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680007
+Auto-Installed: yes
+
+Package: coreutils-chcon
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: coreutils-pwd
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: coreutils-yes
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: mxml
+Version: 2.8-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680008
+Auto-Installed: yes
+
+Package: uci
+Version: 2015-08-27.1-1
+Depends: libc, librt, libpthread, libuci
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680007
+
+Package: lua
+Version: 5.1.5-1
+Depends: libc, librt, libpthread, liblua
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680005
+
+Package: coreutils-md5sum
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: zoneinfo-pacific
+Version: 2016d-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680012
+
+Package: coreutils-chown
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: libecryptfs
+Version: 106-2
+Depends: libc, librt, libpthread, libgcrypt, libkeyutils, libopenssl
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680012
+Auto-Installed: yes
+
+Package: coreutils-pathchk
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: dbus
+Version: 1.9.14-1
+Depends: libc, librt, libpthread, libexpat, libdbus
+Status: install user installed
+Architecture: rtd1295
+Conffiles:
+ /etc/dbus-1/session.conf f75d1c63a1bd0f6b3e8685587b63e341f6
+ /etc/dbus-1/system.conf 32ede30a80a7980b8745b9ff41c8654f60
+Installed-Time: 1473680008
+Auto-Installed: yes
+
+Package: dropbear
+Version: 2015.67-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Conffiles:
+ /etc/dropbear/dropbear_rsa_host_key e3b0c44298fc1c149afbf4c8996fb92427
+ /etc/dropbear/dropbear_dss_host_key e3b0c44298fc1c149afbf4c8996fb92427
+ /etc/config/dropbear 0198dbc97b5a9aac76a5c6233684571ccd
+Installed-Time: 1473680004
+
+Package: coreutils-env
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: kmod-md-raid456
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3), kmod-md-mod, kmod-lib-raid6, kmod-lib-xor, kmod-lib-crc32c
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+
+Package: coreutils-sha256sum
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: curl
+Version: 7.40.0-3
+Depends: libc, librt, libpthread, libcurl
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680003
+
+Package: kmod-cryptodev
+Version: 4.4.18+1.8-rtd1295-2
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3), kmod-crypto-authenc, kmod-crypto-hash
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: zoneinfo-core
+Version: 2016d-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680011
+
+Package: luci-app-vsftpd
+Version: git-16.253.40466-a8354c0-1
+Depends: libc, librt, libpthread, vsftpd, vsftpd-tls
+Status: install user installed
+Architecture: all
+Installed-Time: 1473680009
+
+Package: libmicroxml
+Version: 2015-03-18-caa8d3e6887f5c70e54df555dd78e4e45cfa74cc
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: procps-pgrep
+Version: 3.2.8-1
+Depends: libc, librt, libpthread, procps
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680011
+
+Package: rpcd-mod-file
+Version: 2016-06-30-23417e94d25570e6d62542bac46edd51e8e0243a
+Depends: libc, librt, libpthread, libubus, libubox, rpcd
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680006
+
+Package: coreutils-tsort
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: libstdcpp
+Version: 4.9-linaro-1
+Status: install hold installed
+Essential: yes
+Architecture: rtd1295
+Installed-Time: 1473680004
+Auto-Installed: yes
+
+Package: coreutils-fmt
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: coreutils-timeout
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils, librt
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: coreutils-sort
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: procps-pmap
+Version: 3.2.8-1
+Depends: libc, librt, libpthread, procps
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680011
+
+Package: coreutils-id
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: procps-top
+Version: 3.2.8-1
+Depends: libc, librt, libpthread, procps
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680011
+
+Package: samba4-server
+Version: 4.4.3-1
+Depends: libc, librt, libpthread, zlib, libpthread, libpopt, libbsd, libattr, libiconv, libacl, libtirpc, libcap
+Status: install user installed
+Architecture: rtd1295
+Conffiles:
+ /etc/samba/smb.conf.template 75ac10a7a84de41f30831fda56ee1cd726
+Installed-Time: 1473680006
+
+Package: procps-pkill
+Version: 3.2.8-1
+Depends: libc, librt, libpthread, procps
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680011
+
+Package: libjson-c
+Version: 0.12-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680003
+Auto-Installed: yes
+
+Package: libgcc
+Version: 4.9-linaro-1
+Status: install hold installed
+Essential: yes
+Architecture: rtd1295
+Installed-Time: 1473680003
+Auto-Installed: yes
+
+Package: coreutils-nproc
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: kmod-crypto-authenc
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3), kmod-crypto-manager, kmod-crypto-null
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+
+Package: usb-modeswitch
+Version: 2014-08-26-993a9a542791953c4804f7ddbb3a07756738e37a
+Depends: libc, librt, libpthread, libubox, libblobmsg-json, libusb-1.0
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680007
+
+Package: kmod-lib-raid6
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3)
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+
+Package: zoneinfo-northamerica
+Version: 2016d-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680011
+
+Package: coreutils-csplit
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: mkdosfs
+Version: 3.0.28-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680011
+
+Package: libreadline
+Version: 6.3-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680005
+
+Package: libip6tc
+Version: 1.4.21-1
+Depends: libc, librt, libpthread, libxtables
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+Auto-Installed: yes
+
+Package: parted
+Version: 3.2-1
+Depends: libc, librt, libpthread, libreadline, libncurses, libblkid, libuuid
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680012
+
+Package: luci-proto-ppp
+Version: git-16.253.40466-a8354c0-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: all
+Installed-Time: 1473680009
+
+Package: libffi
+Version: 3.0.13-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: libuuid
+Version: 2.28-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680003
+Auto-Installed: yes
+
+Package: ppp
+Version: 2.4.7-6
+Depends: libc, librt, libpthread, kmod-ppp
+Status: install user installed
+Architecture: rtd1295
+Conffiles:
+ /etc/ppp/chap-secrets 6981fa176a79f8c12be5826c421b16253a
+ /etc/ppp/filter 579583b318e0cff706ffc134620b42d3fb
+ /etc/ppp/options a0509db666fc831a3f9332ca6e911ba9a3
+Installed-Time: 1473680006
+
+Package: luci-mod-admin-full
+Version: git-16.253.40466-a8354c0-1
+Depends: libc, librt, libpthread, luci-base
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: objdump
+Version: 2.24-3
+Depends: libc, librt, libpthread, libopcodes
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680003
+Auto-Installed: yes
+
+Package: coreutils-cut
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: libubox
+Version: 2015-11-08-10429bccd0dc5d204635e110a7a8fae7b80d16cb
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680003
+Auto-Installed: yes
+
+Package: luci-base
+Version: git-16.253.40466-a8354c0-1
+Depends: libc, librt, libpthread, lua, libuci-lua, luci-lib-nixio, luci-lib-ip, rpcd, libubus-lua
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: zoneinfo-india
+Version: 2016d-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680011
+
+Package: coreutils-runcon
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: coreutils-sum
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: libusb-1.0
+Version: 1.0.19-1
+Depends: libc, librt, libpthread, libpthread, librt
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680005
+
+Package: coreutils-paste
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: logd
+Version: 2016-03-07-fd4bb41ee7ab136d25609c2a917beea5d52b723b
+Depends: libc, librt, libpthread, libubox, libubus, libblobmsg-json
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680005
+
+Package: liblzo
+Version: 2.08-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680005
+
+Package: libantlr3c
+Version: 3.2-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680007
+Auto-Installed: yes
+
+Package: libsmartcols
+Version: 2.28-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+Auto-Installed: yes
+
+Package: kmod-ata-ahci
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3), kmod-ata-core
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+
+Package: coreutils-hostid
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: coreutils-split
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: btrfs-progs
+Version: 3.19.1-3
+Depends: libc, librt, libpthread, libattr, libuuid, zlib, libblkid, liblzo, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: librt
+Version: 2.19-1
+Depends: libpthread
+Status: install hold installed
+Essential: yes
+Architecture: rtd1295
+Installed-Time: 1473680003
+Auto-Installed: yes
+
+Package: coreutils-ln
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: cryptsetup
+Version: 1.6.7-1
+Depends: libc, librt, libpthread, libblkid, libuuid, libpopt, lvm2, libdevmapper, libgcrypt
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: coreutils-ls
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils, libacl
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: coreutils-tty
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: coreutils-whoami
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: libkeyutils
+Version: 1.5.9-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680005
+
+Package: libjson-script
+Version: 2015-11-08-10429bccd0dc5d204635e110a7a8fae7b80d16cb
+Depends: libc, librt, libpthread, libubox
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680003
+Auto-Installed: yes
+
+Package: swap-utils
+Version: 2.28-1
+Depends: libc, librt, libpthread, libblkid, libmount, libsmartcols
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680007
+
+Package: librpc
+Version: 2015-04-10-308e9964bfb623773dc0dcc99ef9d18d1551d6ae
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680005
+
+Package: luci-proto-ipv6
+Version: git-16.253.40466-a8354c0-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: all
+Installed-Time: 1473680009
+
+Package: coreutils-sleep
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: libblobmsg-json
+Version: 2015-11-08-10429bccd0dc5d204635e110a7a8fae7b80d16cb
+Depends: libc, librt, libpthread, libjson-c, libubox
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680003
+Auto-Installed: yes
+
+Package: procps-sysctl
+Version: 3.2.8-1
+Depends: libc, librt, libpthread, procps
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680011
+
+Package: coreutils-mv
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils, libacl
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: libintl-full
+Version: 0.19.4-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+Auto-Installed: yes
+
+Package: libgssglue
+Version: 0.4-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680006
+Auto-Installed: yes
+
+Package: iptables
+Version: 1.4.21-1
+Depends: libc, librt, libpthread, kmod-ipt-core, libip4tc, libip6tc, libxtables
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+Auto-Installed: yes
+
+Package: coreutils-mknod
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: coreutils-nl
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: coreutils-rmdir
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: coreutils-expr
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils, libgmp
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: kmod-rtl8169soc
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3)
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+
+Package: jshn
+Version: 2015-11-08-10429bccd0dc5d204635e110a7a8fae7b80d16cb
+Depends: libc, librt, libpthread, libjson-c, libubox, libblobmsg-json
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+
+Package: procps
+Version: 3.2.8-1
+Depends: libc, librt, libpthread, libncurses
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680011
+Auto-Installed: yes
+
+Package: vsftpd-tls
+Version: 3.0.3-1
+Depends: libc, librt, libpthread, libopenssl
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+Auto-Installed: yes
+
+Package: libncurses
+Version: 5.9-2
+Depends: libc, librt, libpthread, terminfo
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680005
+
+Package: coreutils-od
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: kmod-ipt-core
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3), kmod-nf-ipt
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+Auto-Installed: yes
+
+Package: e2fsprogs
+Version: 1.42.12-1
+Depends: libc, librt, libpthread, libuuid, libext2fs
+Status: install user installed
+Architecture: rtd1295
+Conffiles:
+ /etc/e2fsck.conf dece11e2b15f487d7d2bf9f96abe2eaaf9
+Installed-Time: 1473680004
+
+Package: hdparm
+Version: 9.45-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: kmod-ata-core
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3), kmod-scsi-core
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+Auto-Installed: yes
+
+Package: libpolarssl
+Version: 1.3.14-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680003
+Auto-Installed: yes
+
+Package: kmod-ppp
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3), kmod-lib-crc-ccitt, kmod-slhc
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+
+Package: hwclock
+Version: 2.28-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+
+Package: libbsd
+Version: 0.3.0-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680005
+
+Package: zoneinfo-australia-nz
+Version: 2016d-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680011
+
+Package: uhttpd-mod-lua
+Version: 2015-11-08-fe01ef3f52adae9da38ef47926cd50974af5d6b7
+Depends: libc, librt, libpthread, uhttpd, liblua
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680007
+
+Package: coreutils-chroot
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: kmod-crypto-null
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3), kmod-crypto-hash
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+Auto-Installed: yes
+
+Package: mdadm
+Version: 3.2.5-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680005
+
+Package: coreutils-groups
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: coreutils-pr
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: minidlna
+Version: 1.1.5-2
+Depends: libc, librt, libpthread, libpthread, libexif, libjpeg, libsqlite3, libffmpeg, libid3tag, libflac, libvorbis, libuuid
+Status: install user installed
+Architecture: rtd1295
+Conffiles:
+ /etc/config/minidlna 3ac882ba1eb42739e0e4f6f9b4befd1657
+Installed-Time: 1473680008
+Auto-Installed: yes
+
+Package: coreutils-readlink
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: coreutils-pinky
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: luci-app-minidlna
+Version: git-16.253.40466-a8354c0-1
+Depends: libc, librt, libpthread, minidlna
+Status: install user installed
+Architecture: all
+Installed-Time: 1473680008
+
+Package: libubus
+Version: 2015-05-25-f361bfa5fcb2daadf3b160583ce665024f8d108e
+Depends: libc, librt, libpthread, libubox
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680003
+Auto-Installed: yes
+
+Package: libiconv
+Version: 7
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680005
+
+Package: uhttpd
+Version: 2015-11-08-fe01ef3f52adae9da38ef47926cd50974af5d6b7
+Depends: libc, librt, libpthread, libubox, libblobmsg-json, libjson-script
+Status: install user installed
+Architecture: rtd1295
+Conffiles:
+ /etc/config/uhttpd 7a47facca217fe311ffb3b74fd3e0e6ef9
+Installed-Time: 1473680007
+Auto-Installed: yes
+
+Package: zoneinfo-africa
+Version: 2016d-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680011
+
+Package: kmod-nf-conntrack
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3)
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+Auto-Installed: yes
+
+Package: taskset
+Version: 2.28-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680007
+
+Package: usign
+Version: 2015-05-08-cf8dcdb8a4e874c77f3e9a8e9b643e8c17b19131
+Depends: libc, librt, libpthread, libubox
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680003
+Auto-Installed: yes
+
+Package: kmod-md-raid0
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3), kmod-md-mod
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+
+Package: kmod-md-raid1
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3), kmod-md-mod
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+
+Package: libmount
+Version: 2.28-1
+Depends: libc, librt, libpthread, libblkid
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+Auto-Installed: yes
+
+Package: libxtables
+Version: 1.4.21-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+Auto-Installed: yes
+
+Package: ip6tables
+Version: 1.4.21-1
+Depends: libc, librt, libpthread, kmod-ip6tables, iptables
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+
+Package: transmission-daemon
+Version: 2.84-3
+Depends: libc, librt, libpthread, libcurl, libopenssl, libpthread, libevent2, librt
+Status: install user installed
+Architecture: rtd1295
+Conffiles:
+ /etc/config/transmission 7e3005f20fa26836994ccfbb964ca1d993
+Installed-Time: 1473680009
+Auto-Installed: yes
+
+Package: coreutils-stdbuf
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: zlib
+Version: 1.2.8-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680003
+Auto-Installed: yes
+
+Package: wsdd
+Version: 1.0-1
+Depends: libc, librt, libpthread, libuuid
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680007
+
+Package: findutils
+Version: 4.4.2-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680012
+
+Package: procps-slabtop
+Version: 3.2.8-1
+Depends: libc, librt, libpthread, procps
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680011
+
+Package: coreutils-chgrp
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: kmod-nf-ipt6
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3), kmod-nf-ipt, kmod-nf-conntrack6
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+Auto-Installed: yes
+
+Package: coreutils-vdir
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils, libacl
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: coreutils-printenv
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: luci-lib-nixio
+Version: git-16.253.40466-a8354c0-1
+Depends: libc, librt, libpthread, liblua
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+Auto-Installed: yes
+
+Package: coreutils-rm
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: rpcd-mod-rpcsys
+Version: 2016-06-30-23417e94d25570e6d62542bac46edd51e8e0243a
+Depends: libc, librt, libpthread, libubus, libubox, rpcd
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680006
+
+Package: coreutils-dirname
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: ar
+Version: 2.24-3
+Depends: libc, librt, libpthread, zlib, libbfd
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680003
+
+Package: coreutils-comm
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: coreutils-sha384sum
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: coreutils-realpath
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: luci
+Version: git-16.253.40466-a8354c0-1
+Depends: libc, librt, libpthread, luci-mod-admin-full, luci-theme-bootstrap, luci-proto-ppp, libiwinfo-lua, luci-proto-ipv6
+Status: install user installed
+Architecture: all
+Installed-Time: 1473680009
+
+Package: fdisk
+Version: 2.28-1
+Depends: libc, librt, libpthread, libblkid, libsmartcols, libfdisk
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+
+Package: kmod-nf-conntrack6
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3), kmod-nf-conntrack
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+Auto-Installed: yes
+
+Package: coreutils-false
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: libid3tag
+Version: 0.15.1b-4
+Depends: libc, librt, libpthread, zlib
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680008
+Auto-Installed: yes
+
+Package: libgmp
+Version: 6.0.0-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680005
+
+Package: procps-watch
+Version: 3.2.8-1
+Depends: libc, librt, libpthread, procps
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680011
+
+Package: libsqlite3
+Version: 3081101-1
+Depends: libc, librt, libpthread, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680008
+Auto-Installed: yes
+
+Package: coreutils-mkdir
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: coreutils-mkfifo
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: coreutils-true
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: coreutils-logname
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: coreutils-tr
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: coreutils-truncate
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: kmod-lib-lzo
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3)
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+
+Package: getopt
+Version: 2.28-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+
+Package: libext2fs
+Version: 1.42.12-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+Auto-Installed: yes
+
+Package: procps-snice
+Version: 3.2.8-1
+Depends: libc, librt, libpthread, procps
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680011
+
+Package: libexpat
+Version: 2.1.0-3
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680007
+Auto-Installed: yes
+
+Package: coreutils-stty
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: ubox
+Version: 2016-03-07-fd4bb41ee7ab136d25609c2a917beea5d52b723b
+Depends: libc, librt, libpthread, libubox, ubusd, ubus, libubus, libuci
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680003
+Auto-Installed: yes
+
+Package: libc-bin
+Version: 2.19-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680012
+Auto-Installed: yes
+
+Package: kernel
+Version: 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3
+Depends: libc, librt, libpthread
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+Auto-Installed: yes
+
+Package: libnl-tiny
+Version: 0.1-4
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680005
+
+Package: forked-daapd
+Version: 23.4-20160101
+Depends: libc, librt, libpthread, libgpg-error, libgcrypt, libgdbm, zlib, libexpat, libunistring, libevent2.1, libdaemon, libantlr3c, confuse, alsa-lib, libffmpeg-full, mxml, libavahi-client, sqlite3-cli, libplist, libcurl
+Status: install user installed
+Architecture: rtd1295
+Conffiles:
+ /etc/forked-daapd.conf 740a9eee20a8cb4b9830dedd36c212f2c1
+Installed-Time: 1473680007
+Auto-Installed: yes
+
+Package: procps-skill
+Version: 3.2.8-1
+Depends: libc, librt, libpthread, procps
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680011
+
+Package: libbz2
+Version: 1.0.6-2
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680003
+Auto-Installed: yes
+
+Package: blkid
+Version: 2.28-1
+Depends: libc, librt, libpthread, libblkid, libuuid
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680003
+
+Package: procps-ps
+Version: 3.2.8-1
+Depends: libc, librt, libpthread, procps
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680011
+
+Package: luci-app-forked-daapd
+Version: git-16.253.40466-a8354c0-1
+Depends: libc, librt, libpthread, forked-daapd
+Status: install user installed
+Architecture: all
+Installed-Time: 1473680008
+
+Package: kmod-lib-zlib
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3)
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+
+Package: usbreset
+Version: 4
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680007
+
+Package: ecryptfs-utils
+Version: 106-2
+Depends: libc, librt, libpthread, keyutils, openssl, libecryptfs, libc-bin, gettext-tools
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680012
+
+Package: rpcd-mod-iwinfo
+Version: 2016-06-30-23417e94d25570e6d62542bac46edd51e8e0243a
+Depends: libc, librt, libpthread, libubus, libubox, rpcd, libiwinfo
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680006
+
+Package: coreutils-sha224sum
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: luci-app-transmission
+Version: git-16.253.40466-a8354c0-1
+Depends: libc, librt, libpthread, transmission-daemon
+Status: install user installed
+Architecture: all
+Installed-Time: 1473680009
+
+Package: ldd
+Version: 2.19-1
+Status: install hold installed
+Essential: yes
+Architecture: rtd1295
+Installed-Time: 1473680005
+
+Package: netatalk
+Version: 3.1.7-1
+Depends: libc, librt, libpthread, libattr, libdb47, libgcrypt, libopenssl, librpc, libpam, libevent2
+Status: install user installed
+Architecture: rtd1295
+Conffiles:
+ /etc/afp.conf fe925d3ac5250866b3a22381c6402216d0
+Installed-Time: 1473680008
+Auto-Installed: yes
+
+Package: coreutils-dircolors
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: libdevmapper
+Version: 2.02.119-2
+Depends: libc, librt, libpthread, kmod-dm, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+Auto-Installed: yes
+
+Package: luci-app-netatalk
+Version: git-16.253.40466-a8354c0-1
+Depends: libc, librt, libpthread, netatalk
+Status: install user installed
+Architecture: all
+Installed-Time: 1473680009
+
+Package: coreutils-cat
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: coreutils-expand
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: libevent2.1
+Version: 2.1.5-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680007
+Auto-Installed: yes
+
+Package: coreutils-cksum
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+
+Package: libgdbm
+Version: 1.11-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680007
+Auto-Installed: yes
+
+Package: mount-utils
+Version: 2.28-1
+Depends: libc, librt, libpthread, libmount, libsmartcols
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680005
+
+Package: uhttpd-mod-ubus
+Version: 2015-11-08-fe01ef3f52adae9da38ef47926cd50974af5d6b7
+Depends: libc, librt, libpthread, uhttpd, libubus, libblobmsg-json
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680007
+
+Package: iozone
+Version: 3.434-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680012
+
+Package: transmission-web
+Version: 2.84-3
+Depends: libc, librt, libpthread, transmission-daemon
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680011
+
+Package: zoneinfo-poles
+Version: 2016d-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680012
+
+Package: libtirpc
+Version: 0.2.3-1
+Depends: libc, librt, libpthread, libpthread, libgssglue
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680006
+Auto-Installed: yes
+
+Package: libpopt
+Version: 1.16-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680005
+
+Package: libsasl2
+Version: 2.1.26-3
+Depends: libc, librt, libpthread, libopenssl
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680011
+
+Package: jsonfilter
+Version: 2014-06-19-cdc760c58077f44fc40adbbe41e1556a67c1b9a9
+Depends: libc, librt, libpthread, libubox, libjson-c
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680003
+Auto-Installed: yes
+
+Package: coreutils-wc
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: libffmpeg-mini
+Version: 2.7.4-1
+Depends: libc, librt, libpthread, libpthread, zlib, libbz2
+Provides: libffmpeg
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680011
+
+Package: coreutils-sha1sum
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: sysvinit
+Version: 2.88-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680012
+
+Package: libattr
+Version: 20150220-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680006
+Auto-Installed: yes
+
+Package: vsftpd
+Version: 3.0.3-1
+Depends: libc, librt, libpthread
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+Auto-Installed: yes
+
+Package: coreutils-users
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: libopenssl
+Version: 1.0.2d-1
+Depends: libc, librt, libpthread, zlib, cryptodev-linux
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680005
+
+Package: coreutils-tac
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: kmod-scsi-core
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3)
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+Auto-Installed: yes
+
+Package: kmod-slhc
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3), kmod-lib-crc-ccitt
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+Auto-Installed: yes
+
+Package: coreutils-sync
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: libavahi-dbus-support
+Version: 0.6.31-12
+Depends: libc, librt, libpthread, dbus
+Provides: libavahi
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680008
+Auto-Installed: yes
+
+Package: procps-free
+Version: 3.2.8-1
+Depends: libc, librt, libpthread, procps
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680011
+
+Package: coreutils-test
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: libdb47
+Version: 4.7.25.4.NC-4.1
+Depends: libc, librt, libpthread, libxml2
+Provides: libdb47-full
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680009
+Auto-Installed: yes
+
+Package: coreutils-touch
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: libffmpeg-full
+Version: 2.7.4-1
+Depends: libc, librt, libpthread, libpthread, zlib, libbz2, alsa-lib
+Provides: libffmpeg
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680008
+Auto-Installed: yes
+
+Package: ppp-mod-pppoe
+Version: 2.4.7-6
+Depends: libc, librt, libpthread, kmod-pppoe
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680006
+
+Package: coreutils-nohup
+Version: 8.23-1
+Depends: libc, librt, libpthread, coreutils
+Status: install user installed
+Architecture: rtd1295
+Installed-Time: 1473680010
+
+Package: kmod-ipt-nat
+Version: 4.4.18-1
+Depends: kernel (= 4.4.18-1-6ec36ddd8596cb5a6a506f0c5eaf25e3), kmod-ipt-core, kmod-nf-nat
+Status: install hold installed
+Architecture: rtd1295
+Installed-Time: 1473680004
+Auto-Installed: yes
+

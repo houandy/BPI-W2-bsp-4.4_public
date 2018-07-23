@@ -22,6 +22,45 @@
 #include <linux/if_vlan.h>
 #include <linux/rhashtable.h>
 
+#if defined(CONFIG_RTL_IGMP_SNOOPING) || defined(CONFIG_BRIDGE_IGMP_SNOOPING)
+//#define DEBUG_PRINT(fmt, args...) printk(fmt, ## args)
+#define DEBUG_PRINT(fmt, args...)
+
+#define IGMP_EXPIRE_TIME (260 * HZ)
+#define M2U_DELAY_DELETE_TIME (2 * HZ)
+#endif /* CONFIG_RTL_IGMP_SNOOPING || CONFIG_BRIDGE_IGMP_SNOOPING */
+
+#if defined(CONFIG_RTL_IGMP_SNOOPING)
+#define MULTICAST_MAC(mac)	((mac[0] == 0x01) && (mac[1] == 0x00) && (mac[2] == 0x5e))
+#define IPV6_MULTICAST_MAC(mac)	((mac[0] == 0x33) && (mac[1] == 0x33) && mac[2] != 0xff)
+//#define CONFIG_BRIDGE_IGMPV3_SNOOPING
+
+#define MCAST_TO_UNICAST
+
+#if defined(MCAST_TO_UNICAST)
+#define IPV6_MCAST_TO_UNICAST
+#endif /* MCAST_TO_UNICAST */
+#ifndef M2U_DELETE_CHECK
+#define M2U_DELETE_CHECK
+#endif
+#define MLCST_FLTR_ENTRY	16
+#define MLCST_MAC_ENTRY		64
+
+extern int rtk_vlan_support_enable;
+// interface to set multicast bandwidth control
+//#define MULTICAST_BWCTRL
+
+// interface to enable MAC clone function
+//#define RTL_BRIDGE_MAC_CLONE
+//#define RTL_BRIDGE_DEBUG
+
+#define MCAST_QUERY_INTERVAL 30
+#endif /* CONFIG_RTL_IGMP_SNOOPING */
+
+#ifdef CONFIG_RTL_LAYERED_DRIVER_L2
+#define CONFIG_RTL865X_ETH
+#endif
+
 #define BR_HASH_BITS 8
 #define BR_HASH_SIZE (1 << BR_HASH_BITS)
 
@@ -45,6 +84,41 @@
 typedef struct bridge_id bridge_id;
 typedef struct mac_addr mac_addr;
 typedef __u16 port_id;
+#if defined(CONFIG_BRIDGE_IGMP_SNOOPING)
+#if defined(CONFIG_RTL_HARDWARE_MULTICAST)
+
+#define DEBUG_PRINT(fmt, args...)
+#define MULTICAST_MAC(mac)	((mac[0] == 0x01) && (mac[1] == 0x00) && (mac[2] == 0x5e))
+#define IPV6_MULTICAST_MAC(mac)	((mac[0] == 0x33) && (mac[1] == 0x33) && mac[2] != 0xff)
+#define MCAST_TO_UNICAST
+#if defined(MCAST_TO_UNICAST)
+#define IPV6_MCAST_TO_UNICAST
+#endif /* MCAST_TO_UNICAST */
+struct multicastFwdInfo
+{
+	unsigned int fwdPortMask;
+	char toCpu;
+};
+#endif /* CONFIG_RTL_HARDWARE_MULTICAST */
+#endif /* CONFIG_BRIDGE_IGMP_SNOOPING */
+
+#if defined(CONFIG_RTL_IGMP_SNOOPING) || defined(CONFIG_BRIDGE_IGMP_SNOOPING)
+#define FDB_IGMP_EXT_NUM 8
+struct fdb_igmp_ext_entry
+{
+	int valid;
+	unsigned long ageing_time;
+	unsigned char SrcMac[6];
+	unsigned char port;
+
+};
+
+struct fdb_igmp_ext_array
+{
+	struct fdb_igmp_ext_entry igmp_fdb_arr[FDB_IGMP_EXT_NUM];
+};
+
+#endif /* CONFIG_RTL_IGMP_SNOOPING || CONFIG_BRIDGE_IGMP_SNOOPING */
 
 struct bridge_id
 {
@@ -140,6 +214,13 @@ struct net_bridge_fdb_entry
 	struct net_bridge_port		*dst;
 
 	unsigned long			updated;
+#if defined(CONFIG_RTL_IGMP_SNOOPING) || defined(CONFIG_BRIDGE_IGMP_SNOOPING)
+	unsigned short			group_src;
+	unsigned char			igmpFlag;
+	unsigned char			portlist;
+	int				portUsedNum[8];	// be used with portlist, for record each port has how many client
+	struct fdb_igmp_ext_entry igmp_fdb_arr[FDB_IGMP_EXT_NUM];
+#endif /* CONFIG_RTL_IGMP_SNOOPING || CONFIG_BRIDGE_IGMP_SNOOPING */
 	unsigned long			used;
 	mac_addr			addr;
 	__u16				vlan_id;
@@ -343,7 +424,27 @@ struct net_bridge
 	__be16				vlan_proto;
 	u16				default_pvid;
 #endif
+
+#if defined (CONFIG_RTL_IGMP_SNOOPING)
+	int				igmpProxy_pid;
+	struct timer_list		mCastQuerytimer;
+#endif /* CONFIG_RTL_IGMP_SNOOPING */
+
 };
+#if defined(CONFIG_RT_MULTIPLE_BR_SUPPORT)
+#if defined(CONFIG_RTL_IGMP_SNOOPING)
+
+struct igmg_register_info
+{
+	unsigned int			valid;
+	unsigned int			moduleIndex;
+	unsigned int			swFwdPortMask;
+	struct net_bridge		*br;
+	unsigned int			mCastQueryTimerCnt;
+};
+
+#endif /* CONFIG_RTL_IGMP_SNOOPING */
+#endif /* CONFIG_RT_MULTIPLE_BR_SUPPORT */
 
 struct br_input_skb_cb {
 	struct net_device *brdev;
@@ -484,12 +585,21 @@ int br_fdb_external_learn_del(struct net_bridge *br, struct net_bridge_port *p,
 /* br_forward.c */
 void br_deliver(const struct net_bridge_port *to, struct sk_buff *skb);
 int br_dev_queue_push_xmit(struct net *net, struct sock *sk, struct sk_buff *skb);
+#if defined(CONFIG_RTL_IGMP_SNOOPING)
+extern void br_forward(const struct net_bridge_port *to,
+		struct sk_buff *skb);
+#else
 void br_forward(const struct net_bridge_port *to,
 		struct sk_buff *skb, struct sk_buff *skb0);
+#endif /* CONFIG_RTL_IGMP_SNOOPING */
 int br_forward_finish(struct net *net, struct sock *sk, struct sk_buff *skb);
 void br_flood_deliver(struct net_bridge *br, struct sk_buff *skb, bool unicast);
+#if defined(CONFIG_RTL_IGMP_SNOOPING)
+extern void br_flood_forward(struct net_bridge *br, struct sk_buff *skb);
+#else
 void br_flood_forward(struct net_bridge *br, struct sk_buff *skb,
 		      struct sk_buff *skb2, bool unicast);
+#endif /* CONFIG_RTL_IGMP_SNOOPING */
 
 /* br_if.c */
 void br_port_carrier_check(struct net_bridge_port *p);
@@ -656,6 +766,17 @@ static inline void br_multicast_dev_del(struct net_bridge *br)
 {
 }
 
+#if defined (CONFIG_RTL_IGMP_SNOOPING)
+void br_multicast_deliver(struct net_bridge *br,
+			  unsigned int fwdPortMask,
+			  struct sk_buff *skb,
+			  int clone);
+
+void br_multicast_forward(struct net_bridge *br,
+			  unsigned int fwdPortMask,
+			  struct sk_buff *skb,
+			  int clone);
+#else
 static inline void br_multicast_deliver(struct net_bridge_mdb_entry *mdst,
 					struct sk_buff *skb)
 {
@@ -666,6 +787,7 @@ static inline void br_multicast_forward(struct net_bridge_mdb_entry *mdst,
 					struct sk_buff *skb2)
 {
 }
+#endif /* CONFIG_RTL_IGMP_SNOOPING */
 static inline bool br_multicast_is_router(struct net_bridge *br)
 {
 	return 0;
