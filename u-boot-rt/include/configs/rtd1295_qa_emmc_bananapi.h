@@ -170,6 +170,10 @@
 	#define CONFIG_SHA256
 #endif
 
+/* booting flow */
+#define CONFIG_SYS_NO_BL31
+#define CONFIG_RTK_EMMC_TRADITIONAL_MODE
+
 /* Boot Revision */
 #define CONFIG_COMPANY_ID 		"0000"
 #define CONFIG_BOARD_ID         "0705"

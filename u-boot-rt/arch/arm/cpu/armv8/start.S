@@ -101,7 +101,7 @@ slave_cpu:
 #ifdef CONFIG_TARGET_RTD1295
 	//A01 Jump to BL31 at EL3
 	
-#if defined(CONFIG_SYS_RTK_SPI_FLASH) || defined(CONFIG_SYS_RTK_SD_FLASH)
+#if defined(CONFIG_SYS_RTK_SPI_FLASH) || defined(CONFIG_SYS_RTK_SD_FLASH) || defined(CONFIG_SYS_NO_BL31)
 	mov w2, #RTD129x_CHIP_REVISION_A00
 #else
  	ldr x1, =SB2_CHIP_INFO
@@ -239,7 +239,7 @@ WEAK(lowlevel_init)
 
 	//A01 Jump to BL31 at EL3
 	
-#if defined(CONFIG_SYS_RTK_SPI_FLASH) || defined(CONFIG_SYS_RTK_SD_FLASH)
+#if defined(CONFIG_SYS_RTK_SPI_FLASH) || defined(CONFIG_SYS_RTK_SD_FLASH) || defined(CONFIG_SYS_NO_BL31)
 	mov w0, #RTD129x_CHIP_REVISION_A00
 #else
  	ldr x1, =SB2_CHIP_INFO

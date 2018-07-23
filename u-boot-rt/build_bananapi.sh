@@ -77,7 +77,7 @@ if [ "$1" = "1296" ]; then
 			exit 1
 		fi
 		if [ "$3" = "emmc" ]; then
-			make clean;make rtd1296_emmc_bananapi_defconfig;make CONFIG_CHIP_TYPE=0001
+			make clean;make rtd1296_emmc_bananapi_defconfig;make Board_HWSETTING=RTD1296_hwsetting_BOOT_4DDR4_4Gb_s1600 CONFIG_CHIP_TYPE=0001
 			ls -l ~/workingdir/tftp_dir/bootcode
 			exit 1
 		fi
@@ -94,7 +94,7 @@ if [ "$1" = "1296" ]; then
 			exit 1
 		fi
 		if [ "$3" = "emmc" ]; then
-			make clean;make rtd1296_emmc_bananapi_defconfig;make CONFIG_CHIP_TYPE=0002
+			make clean;make rtd1296_emmc_bananapi_defconfig;make Board_HWSETTING=RTD1296_hwsetting_BOOT_4DDR4_4Gb_s1866 CONFIG_CHIP_TYPE=0002
 			ls -l ~/workingdir/tftp_dir/bootcode
 			exit 1
 		fi

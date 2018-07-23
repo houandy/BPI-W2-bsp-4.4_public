@@ -686,10 +686,12 @@ ifeq ($(Config_BL31), TRUE)
 	BIN_ARGS += "bl31_signature="$(BL31_SIGNATURE_TARGET)
     endif
 endif
+ifeq ($(Config_Secure_Improve), TRUE)
 	BIN_ARGS += "Kpublic_fw="$(RSA_BIN_FW_HASH_TARGET_AES)
 	BIN_ARGS += "Kpublic_tee="$(RSA_BIN_TEE_HASH_TARGET_AES)
 	BIN_ARGS += "Kpublic_fw_signature="$(RSA_BIN_FW_SIGNATURE_TARGET)
 	BIN_ARGS += "Kpublic_tee_signature="$(RSA_BIN_TEE_SIGNATURE_TARGET)
+endif
 ifeq ($(Config_RSA_Key_Pub_Embed), TRUE)
 	BIN_ARGS           += "rsa_pub="$(RSA_KEY_PUB_FILE)
 endif
@@ -848,8 +850,10 @@ endif
 ifeq ($(Config_BL31), TRUE)
 		cat $(BL31_FINAL) > install_a/bl31_enc.bin
 endif
+ifeq ($(Config_Secure_Improve), TRUE)
 		cat $(RSA_BIN_FW_FINAL) > install_a/rsa_bin_fw.bin
 		cat $(RSA_BIN_TEE_FINAL) > install_a/rsa_bin_tee.bin
+endif
 ifeq ($(Config_SPI_BOOTCODE2), TRUE)
 		cat $(UBOOT2_FINAL) > install_a/uboot2.bin
 		./create_hd.pl $(UBOOT2_FINAL) > install_a/bootcode2.hdr
@@ -1068,23 +1072,22 @@ endif
 target_encrypt: $(SHA_EXE)
 	$(SHA_EXE) $(BOOTCODE_BOOT_TARGET) $(BOOTCODE_BOOT_PADDING_FINAL) $(BOOTCODE_BOOT_DIGEST_TARGET)
 	cat $(BOOTCODE_BOOT_TARGET) $(BOOTCODE_BOOT_PADDING_FINAL) > $(BOOTCODE_BOOT_TARGET_PADDING)
-ifeq ($(Config_Secure_Key), TRUE)
+ifeq ($(Config_Secure_Improve), TRUE)
 	# for uboot enc
-ifeq ($(CHIP_ID), rtd1395)
 ifeq ($(Config_VM_Enc), TRUE)
-	$(OBFUSE_H) $(RTSSL_EXE) 92 $(AES_MODULE_ID_PATH) $(AES_MODULE_ID_PATH) $(AES_SCK_VM_PATH) $(AES_VENDOR_ID_PATH) $(BOOTCODE_BOOT_TARGET_PADDING) $(BOOTCODE_BOOT_HASH_TARGET).aes
+	$(OBFUSE_H) $(RTSSL_EXE) 97 $(AES_MODULE_ID_PATH) $(AES_MODULE_ID_PATH) $(AES_SCK_VM_PATH) $(AES_VENDOR_ID_PATH) $(BOOTCODE_BOOT_TARGET_PADDING) $(BOOTCODE_BOOT_HASH_TARGET).aes
 else
-	$(OBFUSE_H) $(RTSSL_EXE) 92 $(AES_MODULE_ID_PATH) $(AES_MODULE_ID_PATH) $(AES_SCK_PATH) $(AES_VENDOR_ID_PATH) $(BOOTCODE_BOOT_TARGET_PADDING) $(BOOTCODE_BOOT_HASH_TARGET).aes   
+	$(RTSSL_EXE) enc -e -aes_128_ecb -k `hexdump -e '8/1 "%02x"' $(AES_KEY_PATH)` -i $(BOOTCODE_BOOT_TARGET_PADDING) -o $(BOOTCODE_BOOT_HASH_TARGET).aes
 endif
-endif		
-# to b2a
+	# for b2a
 	cat $(BOOTCODE_BOOT_HASH_TARGET).aes > $(BOOTCODE_BOOT_HASH_TARGET2)
-# to install_a
-	cat $(BOOTCODE_BOOT_HASH_TARGET).aes > $(BOOTCODE_BOOT_HASH_TARGET2).aes
-ifeq ($(CHIP_ID), rtd1395)
 	$(call hwrsa-sign-npinv64, $(RSA_KEY_FW_PATH), $(BOOTCODE_BOOT_DIGEST_TARGET), $(SIGNATURE_TARGET))
-endif
 	cat $(BOOTCODE_BOOT_HASH_TARGET2) $(SIGNATURE_TARGET) > $(UBOOT_FINAL)
+else
+	# for b2a
+	cp $(BOOTCODE_BOOT_TARGET_PADDING) $(BOOTCODE_BOOT_HASH_TARGET2)
+	cp $(BOOTCODE_BOOT_DIGEST_TARGET) $(SIGNATURE_TARGET)
+	cat $(BOOTCODE_BOOT_TARGET_PADDING) $(BOOTCODE_BOOT_DIGEST_TARGET) > $(UBOOT_FINAL)
 endif
 	
 fsbl:
@@ -1170,6 +1173,7 @@ endif
 endif
 
 secure_improve:
+ifeq ($(Config_Secure_Improve), TRUE)
 	# rsa key fw
 	$(SHA_EXE) $(RSA_BIN_FW_TARGET) $(RSA_BIN_FW_PADDING_FINAL) $(RSA_BIN_FW_DIGEST_TARGET)
 	cat $(RSA_BIN_FW_TARGET) $(RSA_BIN_FW_PADDING_FINAL)  > $(RSA_BIN_FW_TARGET_PADDING)
@@ -1200,6 +1204,7 @@ else
 	$(OBFUSE_H) $(RTSSL_EXE) 97 $(AES_MODULE_ID_PATH) $(AES_MODULE_ID_PATH) $(AES_SCK_PATH) $(AES_VENDOR_ID_PATH) $(RSA_BIN_TEE_HASH_TARGET) $(RSA_BIN_TEE_HASH_TARGET_AES) 
 endif
 	cat $(RSA_BIN_TEE_HASH_TARGET_AES) $(RSA_BIN_TEE_SIGNATURE_TARGET) > $(RSA_BIN_TEE_FINAL)
+endif
 	
 get_config:
 	$(SED) -i 's/Config_FLASH_TYPE.*/$(FLASH_TYPE)/g' $(INCLUDE_DIR)/project_config_f.h;	

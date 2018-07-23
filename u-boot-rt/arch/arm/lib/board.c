@@ -79,7 +79,12 @@ extern void dataflash_print_info(void);
 #include <i2c.h>
 #endif
 
+#ifdef CONFIG_RTK_EMMC_TRADITIONAL_MODE
+#define RTK_eMMC_TRADITIONAL_MODE
+#else
 #define RTK_eMMC_FAST_MODE	//if users want to use mmc command, just undef RTK_eMMC_FAST_MODE
+#endif
+
 /************************************************************************
  *  External variables
  ************************************************************************/
@@ -743,7 +748,7 @@ void board_init_r(gd_t *id, ulong dest_addr)
 	if(rtk_eMMC_init() < 0) {
 		printf("[ERR] bringup mmc failed.\n");
 	}
-#else
+#else /* RTK_eMMC_TRADITIONAL_MODE */
 	printf("Initialize eMMC in traditional mmc flow.\n");
 	mmc_initialize(gd->bd);
 	EXECUTE_CUSTOMIZE_FUNC(0); // insert execute customer callback at here
