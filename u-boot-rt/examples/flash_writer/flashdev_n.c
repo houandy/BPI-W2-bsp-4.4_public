@@ -2255,6 +2255,7 @@ int do_identify_n(void **dev)
 	UINT32 idx, i;
 	UINT64 die_size;
 	UINT8 id5, id6;
+	UINT32 BlockSize;
 
 	int retry = 0;
 
@@ -2430,19 +2431,31 @@ rtprintf("%s %s %d, total_chip_num=%d\n", __FILE__, __FUNCTION__, __LINE__, tota
 	// chip select
 	REG32(REG_Chip_En) = NF_CHIP_SEL(0);
 	
+	BlockSize = ((n_device_type *)(*dev))->BlockSize;
 rtprintf("\n%s %s %d\n", __FILE__, __FUNCTION__, __LINE__);
 	// set bootcode area size according to different block size
-	if (((n_device_type *)(*dev))->BlockSize <= 0x40000)		// < 256KB
-		nand_bootcode_area_size = NAND_BOOTCODE_AREA_12MB;
-	else if (((n_device_type *)(*dev))->BlockSize <= 0x100000)	// 512KB/1MB
+	if (BlockSize <= 0x40000)		// < 256KB
+	{
+		//nand_bootcode_area_size = NAND_BOOTCODE_AREA_12MB;
+		nand_bootcode_area_size = 14*BlockSize; // BBT+HWset+FSBL
+		nand_bootcode_area_size += NAND_BOOTCODE_768KB;
+#ifdef Config_FSBL_OS_TRUE
+		nand_bootcode_area_size += NAND_BOOTCODE_768KB;
+#endif
+#ifdef Config_BL31_TRUE
+		nand_bootcode_area_size += 4*BlockSize;
+		nand_bootcode_area_size += 8*BlockSize; // RSA FW+RSA TEE
+#endif
+	}
+	else if (BlockSize <= 0x100000)	// 512KB/1MB
 		nand_bootcode_area_size = NAND_BOOTCODE_AREA_30MB;
-	else if (((n_device_type *)(*dev))->BlockSize == 0x200000)	// 2MB
+	else if (BlockSize == 0x200000)	// 2MB
 		nand_bootcode_area_size = NAND_BOOTCODE_AREA_50MB;
-    	else if (((n_device_type *)(*dev))->BlockSize == 0x400000)	// 2MB
+	else if (BlockSize == 0x400000)	// 2MB
 		nand_bootcode_area_size = NAND_BOOTCODE_AREA_100MB;
 	else{	// undefined block size??
 	        prints("undefined block size ");
-                print_hex(((n_device_type *)(*dev))->BlockSize);
+                print_hex(BlockSize);
                 prints("\n ");
 		return -1;
         }
@@ -2505,8 +2518,7 @@ int do_init_n(void *dev)
 
 	// init block state table
 
-	//#ifdef ERASE_WHOLE_NAND_BEFORE_WRITIE
-	#if 1
+	#ifdef ERASE_WHOLE_NAND_BEFORE_WRITIE
 		// erase all.
 		for (i=0 ; i<blocks_per_flash ; i++)
 			nf_erase_block(device, i);

@@ -71,11 +71,11 @@ Config_Uboot_Sim_Mode =  FALSE
 # ********************************************************************
 ##Config_FSBL = [TRUE | FALSE]
 Config_FSBL = TRUE
-Config_FSBL_File_Name = fsbl-loader-00.00.bin
+Config_FSBL_File_Name = fsbl-loader-00.00.bin.enc
 Config_FSBL_OS = TRUE
-Config_FSBL_OS_File_Name = fsbl-os-00.00.bin
+Config_FSBL_OS_File_Name = fsbl-os-00.00.bin.enc
 Config_BL31 = TRUE
-Config_BL31_File_Name = bl31.bin
+Config_BL31_File_Name = bl31.bin.enc
 Config_Boot1_Rescue = FALSE
 # ********************************************************************
 # Boot parameters

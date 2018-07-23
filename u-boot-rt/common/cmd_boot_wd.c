@@ -1887,6 +1887,14 @@ int rtk_plat_read_fw_image_from_eMMC(
 						continue;
 				}
 			}
+#ifdef CONFIG_RTD1395
+                       // at 1395, audio fw belong to trusted fw and need to be loaded by FSBL
+                       if (entry_type == FW_TYPE_AUDIO || entry_type == FW_TYPE_GOLD_AUDIO) {
+                               printf("\t FW Image preload on 0x%08x, size=0x%08x (0x%08x)\n",
+                                       entry_target_addr, entry_length, entry_target_addr + entry_length);
+                               continue;
+                       }
+#endif
 #ifdef EMMC_BLOCK_LOG
 			printf("\t FW Image to 0x%08x ~ 0x%08x, size=0x%08x, 0x%x blocks\n",
 					entry_target_addr,

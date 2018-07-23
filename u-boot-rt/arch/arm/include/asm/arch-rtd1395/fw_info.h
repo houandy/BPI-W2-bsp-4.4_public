@@ -52,7 +52,7 @@
 #define EMMC_BLOCK_SIZE				0x200
 
 #define BOOT_AV_INFO_MAGICNO BOOT_AV_INFO_MAGICNO_RTK
-#define BOOT_AV_INFO_MAGICNO_RTK	0x2452544B	// $RTK
+#define BOOT_AV_INFO_MAGICNO_RTK	0x2452544D	// $RTK
 #define BOOT_AV_INFO_MAGICNO_STD3	0x53544433	// STD3 <= support dynamic decode buffer
 
 //-----------------------------------------------------------------------------------------------
@@ -349,6 +349,7 @@ typedef struct {
     u_int   dst_width;              //logo_dst_width
     u_int   dst_height;             //logo_dst_height
 	
+	uint	vo_secure_addr;			//Address for secure vo
 } boot_av_info_t;
 
 /* Boot flash type (saved extern param, logo, rescue) */

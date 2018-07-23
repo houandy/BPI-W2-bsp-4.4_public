@@ -90,12 +90,15 @@
 #define SYS_muxpad4				(0x9801a910)	//mux for ej-tag
 #define SYS_muxpad5				(0x9801a914)	//sf_en = 1, force gpio0-3 mux to spi pins
 
-
+#define PULL_DISABLE	0
+#define PULL_DOWN		1
+#define PULL_UP			2
 
 int getGPIO(int GPIO_NUM);
 int setGPIO(int GPIO_NUM, int value);
 int getISOGPIO(int ISOGPIO_NUM);
 int setISOGPIO(int ISOGPIO_NUM, int value);
-
+int setGPIO_pullsel(unsigned int GPIO_NUM, unsigned char pull_sel);
+int setISOGPIO_pullsel(int ISOGPIO_NUM, unsigned char pull_sel);
 
 #endif

@@ -446,6 +446,7 @@ int I2C_StartXfer(
 				tx_len++;
 			}
 			i2c_pprint("w");
+			udelay(50);
 			/* RX Thread*/
 			while (!RxComplete() && NOT_RXEMPTY(i)) {
 				pData[rx_len++] = (unsigned char)(GET_IC_DATA_CMD(i) & 0xFF);

@@ -45,7 +45,7 @@ extern BOOT_MODE boot_mode;
 extern unsigned int Auto_AFW_MEM_START;
 
 #ifndef CONFIG_RTD1395
-#if defined(CONFIG_SYS_RTK_SPI_FLASH) || defined(CONFIG_SYS_RTK_SD_FLASH)
+#if defined(CONFIG_SYS_RTK_SPI_FLASH) || defined(CONFIG_SYS_RTK_SD_FLASH) || defined(CONFIG_SYS_NO_BL31)
 	static int spi_boot_flow = 1;
 #else
 	static int spi_boot_flow = 0;
@@ -238,6 +238,40 @@ static void do_nonsec_virt_switch(void)
 #ifdef CONFIG_ARMV8_SWITCH_TO_EL1
 	armv8_switch_to_el1();
 #endif
+}
+#endif
+
+#ifdef CONFIG_SYS_RTK_NAND_FLASH
+/**********************************************************
+ * Append the information of partition to bootargs.
+ **********************************************************/
+extern char rtknand_info[128];
+int rtk_plat_boot_prep_partition(void)
+{
+	if(boot_mode == BOOT_RESCUE_MODE)
+		return 0;
+
+#if defined(CONFIG_RTD1295) && defined(NAS_ENABLE)
+	char *nasargs= NULL;
+	char *tmp_cmdline = NULL;
+	char *mtd_part = NULL;
+
+	nasargs= getenv("nasargs")?:"";
+	mtd_part = getenv("mtd_part")?:"";
+
+	tmp_cmdline = (char *)malloc(strlen(nasargs)+strlen(mtd_part)+strlen(rtknand_info)+3);
+	if (!tmp_cmdline) {
+		printf("%s: Malloc failed\n", __func__);
+	}
+	else {
+		sprintf(tmp_cmdline, "%s %s %s", nasargs, mtd_part, rtknand_info);
+		setenv("nasargs", tmp_cmdline);
+		free(tmp_cmdline);
+	}
+	debug("%s\n",getenv("nasargs"));
+#endif
+
+	return 0;
 }
 #endif
 

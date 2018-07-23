@@ -96,7 +96,7 @@
    "rescue_rootfs_loadaddr=0x02200000\0"                   \
    "audio_loadaddr=0x0f900000\0"                 \
    "mtd_part=mtdparts=rtk_nand:\0"                  \
-   "eth_drv_para=fephy,nobypass,noacp\0"                  \
+   "eth_drv_para=fephy,bypass,noacp\0"                  \
 
 /* Pass open firmware flat tree */
 #define CONFIG_CMD_BOOTI

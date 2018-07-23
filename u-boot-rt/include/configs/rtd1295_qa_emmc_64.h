@@ -38,7 +38,13 @@
 	#else
 		#define CONFIG_CHIP_TYPE            		   "0001"
 	#endif
-	
+
+	#if defined(CONFIG_TARGET_RTD1296) && defined(CONFIG_NAS_ENABLE)
+		#define CONFIG_DPTX_MODE               1
+		#define CONFIG_DPTX_HPD_IGPIO_NUM      7
+		#define CONFIG_DPTX_DEFAULT_RESOLUTION 2
+	#endif
+
 	/* Factory start address and size in eMMC */
 	#define CONFIG_FACTORY_START	0x220000	/* For eMMC */
 	#define CONFIG_FACTORY_SIZE	0x400000	/* For eMMC */

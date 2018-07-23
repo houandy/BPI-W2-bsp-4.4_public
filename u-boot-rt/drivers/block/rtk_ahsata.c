@@ -1201,9 +1201,9 @@ static void config_phy(unsigned int port, unsigned int rx_sens)
 	wr_reg(0x72100911, SATA_MDIO_CTR);
 	wr_reg(0x72104911, SATA_MDIO_CTR);
 	wr_reg(0x72108911, SATA_MDIO_CTR);
-	wr_reg(0x27710311, SATA_MDIO_CTR);
-	wr_reg(0x27684311, SATA_MDIO_CTR);
-	wr_reg(0x27648311, SATA_MDIO_CTR);
+	wr_reg(0x27750311, SATA_MDIO_CTR);
+	wr_reg(0x276e4311, SATA_MDIO_CTR);
+	wr_reg(0x276c8311, SATA_MDIO_CTR);
 
 	wr_reg(0x29001011, SATA_MDIO_CTR);
 	wr_reg(0x29005011, SATA_MDIO_CTR);
@@ -1275,7 +1275,7 @@ static void config_mac(unsigned int port)
 	wr_reg(0x700, base + 0xA4);
 
 //Set to Auto mode
-	wr_reg(0x5, SATA_SPD);
+	wr_reg(0xA, SATA_SPD);
 }
 
 static int send_oob(unsigned int port)

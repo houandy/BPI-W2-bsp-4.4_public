@@ -17,6 +17,7 @@
 #define BOOT_PART_FILE_NAME		FACTORY_HEADER_FILE_NAME"layout.txt"
 #define BOOT_TVSYSTEM_FILE_NAME		FACTORY_HEADER_FILE_NAME"video_rpc.bin"
 #define BOOT_CHECKSUM_FILE_NAME		FACTORY_HEADER_FILE_NAME"edid_checksum.bin"
+#define BOOT_TXFORMAT_FILE_NAME		FACTORY_HEADER_FILE_NAME"hdmitx_format.bin"
 
 extern uchar boot_logo_enable;
 extern uint custom_logo_src_width;
@@ -104,44 +105,77 @@ void get_bootparam(void)
 **
 *************************************************************************/
 #ifdef CONFIG_SYS_AUTO_DETECT
+#define ONE_STEP_NONE	0
+#define ONE_STEP_RPC	1
+#define ONE_SETP_FORMAT	2
+extern struct hdmi_format_setting hdmi_format;
+
 int get_one_step_info(void)
 {
-	char *dst_addr,*dst_addr_chk;
-	int dst_length,dst_length_chk;
+	int ret_val;
+	int one_setp_version;
+	int dst_length;
+	int dst_length_chk;
+	char *dst_addr;
+	char *dst_addr_chk;
 
-	//printf("%s:\n", __FUNCTION__);
+	one_setp_version = ONE_STEP_NONE;
 
-	if (factory_read(BOOT_TVSYSTEM_FILE_NAME, &dst_addr, &dst_length)) {
-		printf("------------can't find %s\n", BOOT_TVSYSTEM_FILE_NAME);
-		//printf("dst_addr=%x\n, dst_length=%d\n",dst_addr,dst_length);
-		return 0;
+	/* printf("%s:\n", __FUNCTION__); */
+
+	ret_val = factory_read(BOOT_TXFORMAT_FILE_NAME, &dst_addr, &dst_length);
+	if (ret_val == 0) {
+		printf("------------%s found\n", BOOT_TXFORMAT_FILE_NAME);
+		one_setp_version = ONE_SETP_FORMAT;
+		goto read_checksum;
+	} else {
+		printf("------------can't find %s\n", BOOT_TXFORMAT_FILE_NAME);
 	}
-	else {
+
+	ret_val = factory_read(BOOT_TVSYSTEM_FILE_NAME, &dst_addr, &dst_length);
+	if (ret_val == 0) {
 		printf("------------%s found\n", BOOT_TVSYSTEM_FILE_NAME);
-				
-    	rtd_outl( VO_RESOLUTION, 0xee0bdec0); /* set magic pattern in first word */
-		memcpy((void *)(uintptr_t)VO_RESOLUTION+4, dst_addr ,dst_length);		
-		flush_cache(VO_RESOLUTION, 4+ dst_length);
-		
-		
-		if (factory_read(BOOT_CHECKSUM_FILE_NAME, &dst_addr_chk, &dst_length_chk)) 
-		{
-			printf("------------can't find %s\n", BOOT_CHECKSUM_FILE_NAME);
-			//printf("dst_addr=%x\n, dst_length=%d\n",dst_addr,dst_length);
-			return 0;
-		}
-		else
-		{				
-			memcpy(&checksum_128, dst_addr_chk ,sizeof(unsigned char));
-			memcpy(&checksum_256, dst_addr_chk+sizeof(unsigned char),sizeof(unsigned char));	
-			if(checksum_128==0 && checksum_256==0)
-				return 0;			
-		}
-		
-		return 1;
+		one_setp_version = ONE_STEP_RPC;
+		goto read_checksum;
+	} else {
+		printf("------------can't find %s\n", BOOT_TVSYSTEM_FILE_NAME);
+		goto exit;
 	}
 
+read_checksum:
+	/* set magic pattern in first word */
+	rtd_outl(VO_RESOLUTION, 0xee0bdec0);
 
+	switch (one_setp_version) {
+	case ONE_SETP_FORMAT:
+		memcpy(&hdmi_format, dst_addr ,dst_length);
+		break;
+	case ONE_STEP_RPC:
+		memcpy((void *)(uintptr_t)VO_RESOLUTION+4, dst_addr ,dst_length);
+		flush_cache(VO_RESOLUTION, 4+ dst_length);
+		break;
+	default:
+		printf("------------Unknow one_setp_version\n");
+		one_setp_version = ONE_STEP_NONE;
+		goto exit;
+	}
+
+	ret_val = factory_read(BOOT_CHECKSUM_FILE_NAME, &dst_addr_chk, &dst_length_chk);
+	if (ret_val != 0) {
+		printf("------------can't find %s\n", BOOT_CHECKSUM_FILE_NAME);
+		one_setp_version = ONE_STEP_NONE;
+		goto exit;
+	}
+
+	memcpy(&checksum_128, dst_addr_chk, sizeof(unsigned char));
+	memcpy(&checksum_256, dst_addr_chk+sizeof(unsigned char), sizeof(unsigned char));
+	if ((checksum_128 == 0) && (checksum_256 == 0)) {
+		printf("------------invalid checksum\n");
+		one_setp_version = ONE_STEP_NONE;
+	}
+
+exit:
+	return one_setp_version;
 }
 #endif
 

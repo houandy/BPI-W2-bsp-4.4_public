@@ -25,6 +25,7 @@
 	#define CONFIG_CHIP_ID            			   "rtd1395"
 	#define CONFIG_CUSTOMER_ID            		   "demo" 
 	#define CONFIG_CHIP_TYPE            		   "0000"
+	#define CONFIG_TEE_OS_DRM					   "FALSE"
 
 	
 	/* Factory start address and size in eMMC */

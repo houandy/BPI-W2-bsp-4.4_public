@@ -861,6 +861,9 @@ void main_loop (void)
 		/*Accelerate boot blue logo with bootr f*/
 		run_command_list("bootr f", -1, 0);
 		run_command_list("go a", -1, 0);
+#ifdef NAS_ENABLE
+		mdelay(100); /* wait audio fw log print out */
+#endif
 #endif
 #endif
 		run_command_list(s, -1, 0);

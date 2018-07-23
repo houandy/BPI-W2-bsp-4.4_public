@@ -505,6 +505,7 @@ int Verify_SHA256_hash( unsigned char * src_addr, unsigned int length, unsigned 
 	hash1 = (unsigned char *)SECURE_IMAGE2HASH_BUF; // temp use this address (use malloc is better?)
 	hash2 = (unsigned char *)(uintptr_t)signature_key_address;
 
+	flush_cache((unsigned int) (uintptr_t)src_addr, length);
 	ret = SHA256_hash((unsigned char *)src_addr, length, hash1, NULL);
 	if( ret ) {
 		printf("[ERR] %s: caculate hash1 fail(%d)\n", __FUNCTION__, ret );

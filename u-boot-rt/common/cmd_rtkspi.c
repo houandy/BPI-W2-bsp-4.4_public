@@ -37,12 +37,46 @@
 #include <rtkspi.h>
 #include "../examples/flash_writer/include/flash/flash_spi_list.h"
 
-
 unsigned int spi_flash_id_idx;
 s_device_type * pspi_flash_type;
 unsigned int spi_flash_min_erase_size;
 unsigned int spi_flash_max_erase_size;
 
+static void  rtkspi_enable_4B_addr_mode(void)
+{
+    printf("EN4B\n");
+    sync();
+    rtd_outl(SB2_SFC_OPCODE, 0x000000b7);
+    rtd_outl(SB2_SFC_CTL, 0x00000000);
+    sync();
+    rtd_inb(SPI_RBUS_BASE_ADDR);
+}
+
+static void  rtkspi_disable_4B_addr_mode(void)
+{
+    printf("EX4B\n");
+    sync();
+    rtd_outl(SB2_SFC_OPCODE, 0x000000e9);
+    rtd_outl(SB2_SFC_CTL, 0x00000000);
+    sync();
+    rtd_inb(SPI_RBUS_BASE_ADDR);
+}
+
+static void  rtkspi_enable_host_4B_addr(void)
+{
+    printf("enable host 4B addr\n");
+    sync();
+    rtd_outl(0x9801a828, 0x00000001);
+    sync();
+}
+
+static void  rtkspi_disable_host_4B_addr(void)
+{
+    printf("disable host 4B addr\n");
+    sync();
+    rtd_outl(0x9801a828, 0x00000000);
+    sync();
+}
 static void spi_switch_read_mode(void)
 {
     sync();
@@ -302,22 +336,62 @@ void rtkspi_init( void )
 
 void rtkspi_read32( unsigned int target_address, unsigned int source_address, unsigned int byte_length )
 {
-    volatile unsigned int * piTarge;
-    unsigned int word_length;
+    #define NOR_16MB_BOUNDARY    (16 * 1024 * 1024)
 
-	//printf("*** %s %d, tar 0x%08x, src 0x%08x, len 0x%08x\n", __FUNCTION__, __LINE__, target_address, source_address, byte_length);
+    unsigned int curr_nor_addr;
+    volatile unsigned char *pTarget;
+    unsigned int byte_len_before_16MB, byte_len_after_16MB;
 
-    spi_switch_read_mode();
+    printf("*** %s %d, tar 0x%08x, src 0x%08x, len 0x%08x\n", __FUNCTION__, __LINE__, target_address, source_address, byte_length);
 
-    piTarge = (volatile unsigned int *)(uintptr_t)target_address;
-    word_length = (byte_length)>>2;
+    curr_nor_addr = source_address;
+    pTarget = (volatile unsigned char *)(uintptr_t)target_address;
+    flush_cache(target_address, byte_length);
 
-    // flush data
-    flush_cache(target_address, byte_length );
+    if (curr_nor_addr < (SPI_RBUS_BASE_ADDR + NOR_16MB_BOUNDARY)) {
+        if ((curr_nor_addr + byte_length) > (SPI_RBUS_BASE_ADDR + NOR_16MB_BOUNDARY)) {
+            byte_len_before_16MB = (SPI_RBUS_BASE_ADDR + NOR_16MB_BOUNDARY) - curr_nor_addr;
+            byte_len_after_16MB = byte_length - byte_len_before_16MB;
+        }
+        else {
+            byte_len_before_16MB = byte_length;
+            byte_len_after_16MB = 0;
+        }
+    }
+    else {
+        byte_len_before_16MB = 0;
+        byte_len_after_16MB = byte_length;
+    }
 
-    while( word_length-- ) {
-        *piTarge++ = rtd_inl((uintptr_t)source_address);
-        source_address += 4;
+    /* read berfore 16MB */
+    if (byte_len_before_16MB) {
+        spi_switch_read_mode();
+
+        while (byte_len_before_16MB) {
+            *(volatile unsigned int *)pTarget = rtd_inl((uintptr_t)curr_nor_addr);
+
+            pTarget += 4;
+            curr_nor_addr += 4;
+            byte_len_before_16MB -= 4;
+        }
+    }
+
+    /* read after 16MB */
+    if (byte_len_after_16MB) {
+        rtkspi_enable_4B_addr_mode();
+        rtkspi_enable_host_4B_addr();
+        spi_switch_read_mode();
+
+        while (byte_len_after_16MB) {
+            *(volatile unsigned int *)pTarget = rtd_inl((uintptr_t)curr_nor_addr);
+
+            pTarget += 4;
+            curr_nor_addr += 4;
+            byte_len_after_16MB -= 4;
+        }
+
+        rtkspi_disable_4B_addr_mode();
+        rtkspi_disable_host_4B_addr();
     }
 }
 
@@ -325,105 +399,177 @@ void rtkspi_read32( unsigned int target_address, unsigned int source_address, un
 
 void rtkspi_read32_progress( unsigned int target_address, unsigned int source_address, unsigned int byte_length )
 {
-#if !defined(SPI_USE_MD)
-    volatile unsigned int * piTarge;
-#endif
-    unsigned int word_length;
-
-	//printf("*** %s %d, tar 0x%08x, src 0x%08x, len 0x%08x\n", __FUNCTION__, __LINE__, target_address, source_address, byte_length);
-
-    spi_switch_read_mode();
-
-
-    word_length = (byte_length+3)>>2;
+	printf("*** %s %d, tar 0x%08x, src 0x%08x, len 0x%08x\n", __FUNCTION__, __LINE__, target_address, source_address, byte_length);
 
     // flush data
-    flush_cache(target_address, byte_length );
+    flush_cache(target_address, byte_length);
 
 #if !defined(SPI_USE_MD)
-    piTarge = (volatile unsigned int *)(ulong)target_address;
-    while( word_length-- ) {
-        *piTarge++ = rtd_inl(source_address);
-        if( !(word_length & 0x0001FFFF) ) {
-        	printf(".");
-        }
-        source_address += 4;
-    }
+	rtkspi_read32(target_address, source_address, byte_length);
 #else
-	// MD mode
-	rtd_outl(MD_FDMA_CTRL1, 0xA);								// clear go bit
-	rtd_outl(MD_FDMA_DDR_SADDR, target_address);
-	rtd_outl(MD_FDMA_FL_SADDR, source_address);
-	rtd_outl(MD_FDMA_CTRL2, (0x2C000000 | (word_length<<2)));	
-	rtd_outl(MD_FDMA_CTRL1, 0x3);								// enable go bit
-	while( ( rtd_inl(MD_FDMA_CTRL1) & 1 ) ) {
-		mdelay(100);
-		printf(".");
-	}
+	rtkspi_read32_md(target_address, source_address, byte_length);
 #endif
-    if(byte_length) {
-    	printf("\n");
-    }
 }
 
 void rtkspi_read32_md( unsigned int target_address, unsigned int source_address, unsigned int byte_length )
 {
-    unsigned int word_length;
+    #define NOR_16MB_BOUNDARY    (16 * 1024 * 1024)
 
-	printf("*** %s %d, tar 0x%08x, src 0x%08x, len 0x%08x\n", __FUNCTION__, __LINE__, target_address, source_address, byte_length);
+    unsigned int curr_nor_addr;
+    unsigned int target_addr;
+    unsigned int byte_len_before_16MB, byte_len_after_16MB;
 
-    spi_switch_read_mode();
+    printf("*** %s %d, tar 0x%08x, src 0x%08x, len 0x%08x\n", __FUNCTION__, __LINE__, target_address, source_address, byte_length);
 
-    word_length = (byte_length+3)>>2;
+    curr_nor_addr = source_address;
+    target_addr = target_address;
+    flush_cache(target_address, byte_length);
 
-    // flush data
-    flush_cache(target_address, byte_length );
+    // align 4B size
+    byte_length = ((byte_length + 3) >> 2) << 2;
 
-    // MD mode
-	rtd_outl(MD_FDMA_CTRL1, 0xA);								// clear go bit
-	rtd_outl(MD_FDMA_DDR_SADDR, target_address);
-	rtd_outl(MD_FDMA_FL_SADDR, source_address);
-	rtd_outl(MD_FDMA_CTRL2, (0x2C000000 | (word_length<<2)));	
-	rtd_outl(MD_FDMA_CTRL1, 0x3);								// enable go bit
-	while( ( rtd_inl(MD_FDMA_CTRL1) & 1 ) ) {
-		;
-	}
+    if (curr_nor_addr < (SPI_RBUS_BASE_ADDR + NOR_16MB_BOUNDARY)) {
+        if ((curr_nor_addr + byte_length) > (SPI_RBUS_BASE_ADDR + NOR_16MB_BOUNDARY)) {
+            byte_len_before_16MB = (SPI_RBUS_BASE_ADDR + NOR_16MB_BOUNDARY) - curr_nor_addr;
+            byte_len_after_16MB = byte_length - byte_len_before_16MB;
+        }
+        else {
+            byte_len_before_16MB = byte_length;
+            byte_len_after_16MB = 0;
+        }
+    }
+    else {
+        byte_len_before_16MB = 0;
+        byte_len_after_16MB = byte_length;
+    }
+
+    /* read berfore 16MB */
+    if (byte_len_before_16MB) {
+        spi_switch_read_mode();
+
+        // MD mode
+        rtd_outl(MD_FDMA_CTRL1, 0xA);								// clear go bit
+        rtd_outl(MD_FDMA_DDR_SADDR, target_addr);
+        rtd_outl(MD_FDMA_FL_SADDR, curr_nor_addr);
+        rtd_outl(MD_FDMA_CTRL2, (0x2C000000 | byte_len_before_16MB));
+        rtd_outl(MD_FDMA_CTRL1, 0x3);								// enable go bit
+        while( ( rtd_inl(MD_FDMA_CTRL1) & 1 ) ) {
+            ;
+        }
+
+        curr_nor_addr = source_address + byte_len_before_16MB;
+        target_addr = target_address + byte_len_before_16MB;
+    }
+
+    /* read after 16MB */
+    if (byte_len_after_16MB) {
+        rtkspi_enable_4B_addr_mode();
+        rtkspi_enable_host_4B_addr();
+        spi_switch_read_mode();
+
+        // MD mode
+        rtd_outl(MD_FDMA_CTRL1, 0xA);								// clear go bit
+        rtd_outl(MD_FDMA_DDR_SADDR, target_addr);
+        rtd_outl(MD_FDMA_FL_SADDR, curr_nor_addr);
+        rtd_outl(MD_FDMA_CTRL2, (0x2C000000 | byte_len_after_16MB));
+        rtd_outl(MD_FDMA_CTRL1, 0x3);								// enable go bit
+        while( ( rtd_inl(MD_FDMA_CTRL1) & 1 ) ) {
+            ;
+        }
+
+        curr_nor_addr = source_address + byte_len_after_16MB;
+        target_addr = target_address + byte_len_after_16MB;
+
+        rtkspi_disable_4B_addr_mode();
+        rtkspi_disable_host_4B_addr();
+    }
 }
 
 void rtkspi_write8( unsigned int target_address, unsigned int source_address, unsigned int byte_length )
 {
-    volatile unsigned char * pcSourece;
-    unsigned int dot_print;
+    #define NOR_16MB_BOUNDARY    (16 * 1024 * 1024)
 
-    pcSourece = (volatile unsigned char *)(uintptr_t)source_address;
-    dot_print = 0;
+    unsigned int dot_print = 0;
+    unsigned int curr_nor_addr;
+    volatile unsigned char *pSource;
+    unsigned int byte_len_before_16MB, byte_len_after_16MB;
 
-    // flush data
-    flush_cache(target_address, byte_length );
+    printf("*** %s %d, tar 0x%08x, src 0x%08x, len 0x%08x\n", __FUNCTION__, __LINE__, target_address, source_address, byte_length);
+
+    curr_nor_addr = target_address;
+    pSource = (volatile unsigned char *)(uintptr_t)source_address;
+    flush_cache(source_address, byte_length);
+
+    if (curr_nor_addr < (SPI_RBUS_BASE_ADDR + NOR_16MB_BOUNDARY)) {
+        if ((curr_nor_addr + byte_length) > (SPI_RBUS_BASE_ADDR + NOR_16MB_BOUNDARY)) {
+            byte_len_before_16MB = (SPI_RBUS_BASE_ADDR + NOR_16MB_BOUNDARY) - curr_nor_addr;
+            byte_len_after_16MB = byte_length - byte_len_before_16MB;
+        }
+        else {
+            byte_len_before_16MB = byte_length;
+            byte_len_after_16MB = 0;
+        }
+    }
+    else {
+        byte_len_before_16MB = 0;
+        byte_len_after_16MB = byte_length;
+    }
 
     //add by angus
     rtd_outl(SB2_SFC_EN_WR,     0x00000106);
     rtd_outl(SB2_SFC_WAIT_WR,   0x00000105);
     rtd_outl(SB2_SFC_CE,        0x001A1307);
 
-    //issue write command
-    rtd_outl(SB2_SFC_OPCODE,    0x00000002);
-    rtd_outl(SB2_SFC_CTL,       0x00000018);
-    sync();
+    /* write berfore 16MB */
+    if (byte_len_before_16MB) {
+        //issue write command
+        rtd_outl(SB2_SFC_OPCODE,    0x00000002);
+        rtd_outl(SB2_SFC_CTL,       0x00000018);
+        sync();
 
-    mdelay(2); // must do this or rbus will be hanged
+        mdelay(2); // must do this or rbus will be hanged
 
-    while(byte_length--)
-    {
-        if( !(byte_length & (1024UL-1)) ) {
-            printf(".");
-            dot_print = 1;
+        while (byte_len_before_16MB--) {
+            rtd_outb((uintptr_t)curr_nor_addr++ , *pSource++);
+
+            if(!(byte_len_before_16MB & (1024UL-1))) {
+                printf(".");
+                dot_print = 1;
+            }
         }
-        rtd_outb((uintptr_t)target_address++ , *pcSourece++);
+
+        if (dot_print) {
+            printf("\n");
+        }
     }
 
-    if( dot_print ) {
-        printf("\n");
+    /* write after 16MB */
+    if (byte_len_after_16MB) {
+        rtkspi_enable_4B_addr_mode();
+        rtkspi_enable_host_4B_addr();
+
+        //issue write command
+        rtd_outl(SB2_SFC_OPCODE,    0x00000002);
+        rtd_outl(SB2_SFC_CTL,       0x00000018);
+        sync();
+
+        mdelay(2); // must do this or rbus will be hanged
+
+        while (byte_len_after_16MB--) {
+            rtd_outb((uintptr_t)curr_nor_addr++ , *pSource++);
+
+            if(!(byte_len_after_16MB & (1024UL-1))) {
+                printf(".");
+                dot_print = 1;
+            }
+        }
+
+        if (dot_print) {
+            printf("\n");
+        }
+
+        rtkspi_disable_4B_addr_mode();
+        rtkspi_disable_host_4B_addr();
     }
 
     spi_switch_read_mode();
@@ -439,6 +585,7 @@ int rtkspi_erase( unsigned int spi_offset_address, unsigned int byte_length )
     unsigned int curr_address;
     unsigned int tmp_cnt;
     unsigned int erase_size;
+    unsigned char en4B_flag = 0;
 
     if( !spi_flash_min_erase_size ) {
     	printf("*** unknown SPI flash erase size, DO NOTHING ***\n");
@@ -462,14 +609,21 @@ int rtkspi_erase( unsigned int spi_offset_address, unsigned int byte_length )
     printf("*** adjust end addr : 0x%08x\n", end_address);
 
     //disable auto-prog
-	rtd_outl(SB2_SFC_EN_WR,    0x00000006);
-	rtd_outl(SB2_SFC_WAIT_WR,    0x00000005);
+    rtd_outl(SB2_SFC_EN_WR,    0x00000006);
+    rtd_outl(SB2_SFC_WAIT_WR,    0x00000005);
     sync();
 
 	curr_address = start_address;
 
 	while( curr_address < end_address )
     {
+        if (en4B_flag == 0) {
+            if ((curr_address - SPI_RBUS_BASE_ADDR) >= (16 * 1024 *1024)) {
+                rtkspi_enable_host_4B_addr();
+                en4B_flag = 1;
+            }
+        }
+
         // addr align max erase size
         if (((curr_address & (spi_flash_max_erase_size - 1)) == 0)  &&  
             ((curr_address + spi_flash_max_erase_size) <= end_address)) {
@@ -500,27 +654,46 @@ int rtkspi_erase( unsigned int spi_offset_address, unsigned int byte_length )
             }
 			else if( erase_size == (64UL<<10) )
             {
-                rtd_outl(SB2_SFC_OPCODE,0x000000d8);
-            	rtd_outl(SB2_SFC_CTL,0x00000008);
-                sync();
+                if ((curr_address - SPI_RBUS_BASE_ADDR) >= (16 * 1024 *1024)) {
+                    rtd_outl(SB2_SFC_OPCODE,0x000000dc);
+                    rtd_outl(SB2_SFC_CTL,0x00000008);
+                    sync();
+                }
+                else {
+                    rtd_outl(SB2_SFC_OPCODE,0x000000d8);
+                    rtd_outl(SB2_SFC_CTL,0x00000008);
+                    sync();
+                }
             	tmp_sts = rtd_inb((uintptr_t)curr_address);
                 break;
             }
 			else if( erase_size == (32UL<<10) )
             {
-            	rtd_outl(SB2_SFC_OPCODE,0x00000052);
-                rtd_outl(SB2_SFC_CTL,0x00000008);
-                sync();
+                if ((curr_address - SPI_RBUS_BASE_ADDR) >= (16 * 1024 *1024)) {
+                    rtd_outl(SB2_SFC_OPCODE,0x0000005c);
+                    rtd_outl(SB2_SFC_CTL,0x00000008);
+                    sync();
+                }
+                else {
+                    rtd_outl(SB2_SFC_OPCODE,0x00000052);
+                    rtd_outl(SB2_SFC_CTL,0x00000008);
+                    sync();
+                }
                 tmp_sts = rtd_inb((uintptr_t)curr_address);
                 break;
             }
 			else if( erase_size == (4UL<<10) )
             {
-            	if (pspi_flash_type->id==PMC_4Mbit) {
-                    rtd_outl(SB2_SFC_OPCODE,0x000000d7);
+                if ((curr_address - SPI_RBUS_BASE_ADDR) >= (16 * 1024 *1024)) {
+                    rtd_outl(SB2_SFC_OPCODE,0x00000021);
                 }
                 else {
-                    rtd_outl(SB2_SFC_OPCODE,0x00000020);
+                    if (pspi_flash_type->id==PMC_4Mbit) {
+                        rtd_outl(SB2_SFC_OPCODE,0x000000d7);
+                    }
+                    else {
+                        rtd_outl(SB2_SFC_OPCODE,0x00000020);
+                    }
                 }
                 rtd_outl(SB2_SFC_CTL,0x00000008);
                 sync();
@@ -529,7 +702,12 @@ int rtkspi_erase( unsigned int spi_offset_address, unsigned int byte_length )
             }
 
 		    printf("*** erase size(0x%08x) not support\n", erase_size);
-			//enable auto-prog
+
+            if (en4B_flag == 1) {
+                rtkspi_disable_host_4B_addr();
+            }
+
+            //enable auto-prog
 			rtd_outl(SB2_SFC_EN_WR,    0x00000106);
         	rtd_outl(SB2_SFC_WAIT_WR,    0x00000105);
             sync();
@@ -557,6 +735,10 @@ int rtkspi_erase( unsigned int spi_offset_address, unsigned int byte_length )
     }
 
     printf("\n");
+
+    if (en4B_flag == 1) {
+        rtkspi_disable_host_4B_addr();
+    }
 
 	//enable auto-prog
 	rtd_outl(SB2_SFC_EN_WR,    0x00000106);

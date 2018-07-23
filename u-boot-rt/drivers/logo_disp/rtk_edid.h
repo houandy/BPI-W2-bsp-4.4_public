@@ -7,13 +7,29 @@
 #define EDID_LENGTH 128
 #define DDC_ADDR 0x50
 
-//Tag Code
+/* Tag Code */
 #define AUDIO_BLOCK	0x01
 #define VIDEO_BLOCK     0x02
 #define VENDOR_BLOCK    0x03
 #define SPEAKER_BLOCK	0x04
 #define VESA_DISPLAY_TRANSFER_BLOCK	0x05
 #define USE_EXTENDED_TAG	0x07
+
+/* Extended Tag Codes */
+#define VIDEO_CAPABILITY_DATA_BLOCK			0x00
+#define VENDOR_SPECIFIC_VIDEO_DATA_BLOCK	0x01
+#define VESA_DISPLAY_DEVICE_DATA_BLOCK		0x02
+#define VESA_VIDEO_TIMING_BLOCK_EXTENSION	0x03
+#define COLORIMETRY_DATA_BLOCK				0x05
+#define HDR_STATIC_METADATA_DATA_BLOCK		0x06
+#define HDR_DYNAMIC_METADATA_DATA_BLOCK		0x07
+#define VIDEO_FORMAT_PERFERENCE_DATA_BLOCK	0x0D
+#define YCBCR420_VIDEO_DATA_BLOCK			0x0E
+#define YCBCR420_CAPABILITY_MAP_DATA_BLOCK	0x0F
+#define VENDOR_SPECIFIC_AUDIO_DATA_BLOCK	0x11
+#define ROOM_CONFIGURATION_DATA_BLOCK		0x13
+#define SPEAKER_LOCATION_DATA_BLOCK			0x14
+#define INFOFRAME_DATA_BLOCK				0x20
 
 #define HDMI_2P0_IDENTIFIER 0xC45DD8
 
@@ -183,6 +199,7 @@ struct edid {
 struct edid_hdmi2p0_info {
 	u32 hdmi_id;
 	u32 max_tmds_char_rate;
+	u8 colorimetry;
 	u8 scdc_capable;
 	u8 dc_420;//Deep Color420, [Bit2]DC_48bit_420;[Bit1]DC_36bit_420;[Bit0]:DC_30bit_420
 } __attribute__((packed));

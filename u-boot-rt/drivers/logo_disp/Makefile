@@ -22,6 +22,7 @@
 #
 
 obj-y += logo_disp_read_edid.o
+obj-y += hdmitx.o
 ifdef CONFIG_DPTX_MODE
 obj-y += logo_disp_dptx.o
 endif

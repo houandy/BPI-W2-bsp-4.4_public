@@ -120,6 +120,7 @@ static inline u32 get_asic_chip_id(void) {
 #elif defined(CONFIG_RTD1395)
 #define EFUSE_OTP_REG       0x980172d0
 #define R_K_DEFAULT         0x8
+#define IDAC_FINE_DEFAULT   0x33
 #endif /* CONFIG_RTD1295 | CONFIG_RTD1395 */
 
 #define ETH_FRAME_LEN   MAX_ETH_FRAME_SIZE
@@ -5694,8 +5695,9 @@ static void r8168_pll_clock_init(struct rtl8168_private *tp)
     mdelay(10); /* wait 10ms for GMAC uC to be stable */
 }
 
-/* Hercules only use 5bits in OTP 0x9801_72D0[13:9]
+/* Hercules only uses 13 bits in OTP 0x9801_72D0[13:9] and 0x9801_72D8[7:0]
    if 0x9801_72D0[13] is 1, then 0x9801_72D0[12:9] (R-calibration) is used to set FEPHY
+   0x9801_72D8[7:0] is used to set idac_fine for FEPHY
  */
 static void r8168_load_otp_content(struct rtl8168_private *tp)
 {
@@ -5709,6 +5711,11 @@ static void r8168_load_otp_content(struct rtl8168_private *tp)
         mdio_write(tp, 31, 0xbc0);
         mdio_write(tp, 20, (tmp | (mdio_read(tp, 20) & ~(0x1f << 0))));
     }
+
+    otp = (rtd_inl(EFUSE_OTP_REG + 8) & (0xff << 0));
+    tmp = otp ^ IDAC_FINE_DEFAULT;      /* IDAC_FINE_DEFAULT = 0x33 */
+    mdio_write(tp, 31, 0xbc0);
+    mdio_write(tp, 23, (tmp | (mdio_read(tp, 23) & ~(0xff << 0))));
 }
 
 static u32 r8168_serdes_init(struct rtl8168_private *tp)
@@ -5859,7 +5866,6 @@ static u32 r8168_serdes_init(struct rtl8168_private *tp)
 
 static void r8168_fephy_iol_tuning(struct rtl8168_private *tp)
 {
-    MDIO_LOCK;
     /* idacfine */
     mdio_write(tp, 31, 0xbc0);
     mdio_write(tp, 23, 0x0088);
@@ -5879,7 +5885,6 @@ static void r8168_fephy_iol_tuning(struct rtl8168_private *tp)
     /* vcm_ref, cf_l */
     /* mdio_write(tp, 31, 0xbd0); */
     mdio_write(tp, 17, 0xf8ca);
-    MDIO_UNLOCK;
 }
 
 #endif /* CONFIG_RTD1395 */
@@ -6010,15 +6015,25 @@ int rtl8168_initialize(bd_t *bis)
                     break;
                 }
             }
+
+            /* adjust FE PHY electrical characteristics */
+            r8168_fephy_iol_tuning(tp);
+
             /* 1. read OTP 0x9801_72D0[13:9]
                2. xor 0x08
                3. set value to FEPHY registers to correct R-calibration
+               4. read OTP 0x9801_72D8[7:0]
+               5. xor 0x33
+               6. set value to FEPHY registers to correct AMP
              */
             r8168_load_otp_content(tp);
 
             /* fill fuse_rdy & rg_ext_ini_done */
             mdio_write(tp, 31, 0x0a46);
             mdio_write(tp, 20, (mdio_read(tp, 20) | (BIT_0 | BIT_1)));
+        } else {
+            /* adjust FE PHY electrical characteristics */
+            r8168_fephy_iol_tuning(tp);
         }
 
         /* wait LAN-ON */
@@ -6055,9 +6070,6 @@ int rtl8168_initialize(bd_t *bis)
             tmp &= ~(BIT_1 | BIT_0);
             tmp |= BIT_1;
             mac_ocp_write(tp, 0xEA34, tmp);
-
-            /* adjust FE PHY electrical characteristics */
-            r8168_fephy_iol_tuning(tp);
         } else {
             /* SGMII */
             /* # ETN spec, adjust MDC freq=2.5MHz */

@@ -44,6 +44,15 @@ void get_bootparam(void)
 
 	if (factory_read(BOOT_PARAM_FILE_NAME, &dst_addr, &dst_length)) {
 		printf("------------can't find %s\n", BOOT_PARAM_FILE_NAME);	
+#ifdef CONFIG_NAS_ENABLE
+		// Set up default values
+		printf("Set up default values\n");
+		boot_logo_enable = 1;
+		custom_logo_src_width = 1920;
+		custom_logo_src_height = 1080;
+		custom_logo_dst_width = 3840;
+		custom_logo_dst_height = 2160;
+#endif
 	}
 	else {
 		printf("------------%s found\n", BOOT_PARAM_FILE_NAME);

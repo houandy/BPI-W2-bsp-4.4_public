@@ -911,6 +911,25 @@ int update_fw_table(struct fw_info *fw)
 		    fw_desc_table_ddr_base);
 	}
 
+	/* For Golden fw table */
+	LTRACEF("[DEBUG] update golden fw table fw_desc_table_start 0x%llx "
+		    "fw_desc_table_size 0x%x fw_desc_table_ddr_base %p\n",
+		    fw_desc_table_start + FW_TABLE_SIZE,
+		    (int)fw_desc_table_v1->paddings,
+		    fw_desc_table_ddr_base);
+
+	ret = storage_write(fw_desc_table_start + FW_TABLE_SIZE,
+		    fw_desc_table_v1->paddings,
+		    fw_desc_table_ddr_base);
+	if (ret < 0) {
+		TRACEF("[ERROR] update golden fw table "
+		    "fw_desc_table_start %llx "
+		    "fw_desc_table_size 0x%x fw_desc_table_ddr_base %p\n",
+		    fw_desc_table_start + FW_TABLE_SIZE,
+		    (int) fw_desc_table_v1->paddings,
+		    fw_desc_table_ddr_base);
+	}
+
 	dump_fw_table();
 
 	return 0;

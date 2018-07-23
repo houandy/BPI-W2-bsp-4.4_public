@@ -357,6 +357,7 @@ typedef struct {
     u_int   dst_width;              //logo_dst_width
     u_int   dst_height;             //logo_dst_height
 	
+	uint	vo_secure_addr;			//Address for secure vo
 } boot_av_info_t;
 
 /* Boot flash type (saved extern param, logo, rescue) */

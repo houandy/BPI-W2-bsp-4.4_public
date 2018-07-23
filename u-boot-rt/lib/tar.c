@@ -180,7 +180,7 @@ void tar_build_header(char *cheader, char* filename, int length, char filetype )
 	TAR_DEBUG("%s %d\n", __FUNCTION__, __LINE__);
 	TAR_DEBUG("filename = %s\n", filename);
 	strcpy(header->name, filename);
-	strcpy(header->mode, "0000075");
+	strcpy(header->mode, "0000777");
 	strcpy(header->uid, "0001760");
 	strcpy(header->gid, "0001761");
 	strcpy(header->mtime, "11720412623");

@@ -461,6 +461,8 @@ endif
 ifeq ($(CHIP_TYPE), 0002)
 	ifeq ($(FLASH_TYPE), RTK_FLASH_SPI)
         BOOT_IMAGE_FOLDER = B00_spi_bootimage
+	else ifneq ($(Config_BL31), TRUE)
+        BOOT_IMAGE_FOLDER = B00_woTEE_bootimage
 	else
         BOOT_IMAGE_FOLDER = B00_bootimage
 	endif

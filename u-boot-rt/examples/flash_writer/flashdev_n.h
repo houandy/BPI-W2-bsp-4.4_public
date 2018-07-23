@@ -42,6 +42,7 @@ typedef struct  __attribute__ ((__packed__)){
 #define DATA_ALL_ONE		1		// read one page and all bit is '1'
 #define NULL		          ((void *)0)
 
+#define NAND_BOOTCODE_768KB			0x0c0000
 #define NAND_BOOTCODE_AREA_12MB			0xc00000	// bootcode blocks in NAND flash (first 16MB)
 #define NAND_BOOTCODE_AREA_30MB			0x1e00000
 #define NAND_BOOTCODE_AREA_50MB			0x3200000

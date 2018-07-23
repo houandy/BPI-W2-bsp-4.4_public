@@ -54,8 +54,21 @@
 #define GD25Q16B_16Mbit             0xc84015
 #define GD25Q64B_64Mbit             0xc84017
 #define GD25Q128B_128Mbit           0xc84018
+#define GD25Q256D_256Mbit           0xc84019
 
 #define A25L040_32Mbit              0x373013
+
+#define IS25LQ080B_8Mbit            0x9d4014
+#define IS25LQ016B_16Mbit           0x9d4015
+#define IS25LQ032B_32Mbit           0x9d4016
+#define IS25LP128_128Mbit           0x9d6018
+
+#define BY25D20_2Mbit               0x684012
+#define BY25D40_4Mbit               0x684013
+#define BY25D16_16Mbit              0x684015
+#define BY25Q32BS_32Mbit            0x684016
+#define BY25Q64AS_64Mbit            0x684017
+#define BY25Q128AS_128Mbit          0x684018
 
 typedef struct 
 {
@@ -84,7 +97,7 @@ static const s_device_type s_device[] =
     {MX_25L3206E_32Mbit,           0, 1, 0, 1, 1, 0x00400000, (unsigned char *)"MX 32Mbit"},
     {MX_25L6405D_64Mbit,           0, 1, 0, 0, 1, 0x00800000, (unsigned char *)"MX 64Mbit"},
     {MX_25L12805D_128Mbit,         0, 1, 0, 0, 1, 0x01000000, (unsigned char *)"MX 128Mbit"},
-    {MX_25L25635E_256Mbit,         0, 1, 0, 0, 1, 0x01000000, (unsigned char *)"MX 256Mbit"},
+    {MX_25L25635E_256Mbit,         0, 1, 1, 1, 1, 0x02000000, (unsigned char *)"MX 256Mbit"},
     {MX_25L6455E_64Mbit,           0, 1, 1, 1, 1, 0x00800000, (unsigned char *)"MX 64Mbit"},
     {MX_25L12855E_128Mbit,         0, 1, 1, 1, 1, 0x01000000, (unsigned char *)"MX 128Mbit"},
     {MX_25L25655F_256Mbit,         0, 1, 1, 1, 1, 0x02000000, (unsigned char *)"MX 256Mbit"},
@@ -123,8 +136,21 @@ static const s_device_type s_device[] =
     {GD25Q16B_16Mbit,              0, 1, 1, 1, 1, 0x00200000, (unsigned char *)"GD25Q16B_16Mbit"} ,
     {GD25Q64B_64Mbit,              0, 1, 1, 1, 1, 0x00800000, (unsigned char *)"GD25Q64B_64Mbit"} ,
     {GD25Q128B_128Mbit,            0, 1, 1, 1, 1, 0x01000000, (unsigned char *)"GD25Q128B_128Mbit"} ,
+    {GD25Q256D_256Mbit,            0, 1, 1, 1, 1, 0x02000000, (unsigned char *)"GD25Q256D_256Mbit"} ,
 
     {A25L040_32Mbit,               0, 1, 0, 1, 1, 0x00400000, (unsigned char *)"AMIC 32Mbit"} ,
+
+    {IS25LQ080B_8Mbit,             0, 1, 1, 1, 1, 0x00100000, (unsigned char *)"IS25LQ080B_8Mbit"} ,
+    {IS25LQ016B_16Mbit,            0, 1, 1, 1, 1, 0x00200000, (unsigned char *)"IS25LQ016B_16Mbit"} ,
+    {IS25LQ032B_32Mbit,            0, 1, 1, 1, 1, 0x00400000, (unsigned char *)"IS25LQ032B_32Mbit"} ,
+    {IS25LP128_128Mbit,            0, 1, 1, 1, 1, 0x01000000, (unsigned char *)"IS25LP128_128Mbit"} ,
+
+    {BY25D20_2Mbit,                0, 1, 1, 1, 1, 0x00040000, (unsigned char *)"BY25D20_2Mbit"} ,
+    {BY25D40_4Mbit,                0, 1, 1, 1, 1, 0x00080000, (unsigned char *)"BY25D40_4Mbit"} ,
+    {BY25D16_16Mbit,               0, 1, 1, 1, 1, 0x00200000, (unsigned char *)"BY25D20_16Mbit"} ,
+    {BY25Q32BS_32Mbit,             0, 1, 1, 1, 1, 0x00400000, (unsigned char *)"BY25Q32BS_32Mbit"} ,
+    {BY25Q64AS_64Mbit,             0, 1, 1, 1, 1, 0x00800000, (unsigned char *)"BY25Q64AS_64Mbit"} ,
+    {BY25Q128AS_128Mbit,           0, 1, 1, 1, 1, 0x01000000, (unsigned char *)"BY25Q128AS_128Mbit"} ,
 } ; 
 
 #define DEV_SIZE_S  (sizeof(s_device)/sizeof(s_device_type))

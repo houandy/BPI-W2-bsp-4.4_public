@@ -40,6 +40,12 @@
 		#define CONFIG_CHIP_TYPE            		   "0001"
 	#endif
 
+	#if defined(CONFIG_TARGET_RTD1296) && defined(CONFIG_NAS_ENABLE)
+		#define CONFIG_DPTX_MODE               1
+		#define CONFIG_DPTX_HPD_IGPIO_NUM      7
+		#define CONFIG_DPTX_DEFAULT_RESOLUTION 2
+	#endif
+
 #ifdef CONFIG_NAS_ENABLE
 	#define CONFIG_SPI_MTD_STATIC
 	//#define CONFIG_BOOT_FROM_SPI
@@ -94,7 +100,9 @@
 	#define CONFIG_KERNEL_ADDR                     CONFIG_DTS_BASE+CONFIG_DTS_SIZE
 	#define CONFIG_KERNEL_SIZE                     0x00340000
 	#define CONFIG_ROOTFS_ADDR                     CONFIG_KERNEL_ADDR+CONFIG_KERNEL_SIZE
+#ifndef CONFIG_ROOTFS_SIZE
 	#define CONFIG_ROOTFS_SIZE                     0x00200000
+#endif
 	#define CONFIG_INITRD_SIZE                     0x00400000
 	#else
 	#define CONFIG_DTS_BASE                        0x000F0000

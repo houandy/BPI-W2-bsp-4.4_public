@@ -482,26 +482,19 @@ int dvrmain	( int argc, char * const argv[] )
     // fsbl
 	programmed_fsbl_size          = (unsigned int )(&fsbl_end - fsbl);
     programmed_fsbl_base          = fsbl;
-	programmed_fsbl_sig_size      = (unsigned int )(&fsbl_signature_end - fsbl_signature);
-    programmed_fsbl_sig_base      = fsbl_signature;
 
 	// fsbl_vm
 #if defined(Config_FSBL_VM_TRUE)	
 	programmed_fsbl_vm_size          = (unsigned int )(&fsbl_vm_end - fsbl_vm);
     programmed_fsbl_vm_base          = fsbl_vm;
-	programmed_fsbl_vm_sig_size      = (unsigned int )(&fsbl_vm_signature_end - fsbl_vm_signature);
-    programmed_fsbl_vm_sig_base      = fsbl_vm_signature;
 #endif	
     // tee os
 	programmed_fsbl_os_size       = (unsigned int )(&fsbl_os_end - fsbl_os);
     programmed_fsbl_os_base       = fsbl_os;
-	programmed_fsbl_os_sig_size   = (unsigned int )(&fsbl_os_signature_end - fsbl_os_signature);
-    programmed_fsbl_os_sig_base   = fsbl_os_signature;
+
     // bl31
     programmed_bl31_size       = (unsigned int )(&bl31_end - bl31);
     programmed_bl31_base       = bl31;
-	programmed_bl31_sig_size   = (unsigned int )(&bl31_signature_end - bl31_signature);
-    programmed_bl31_sig_base   = bl31_signature;
     
 	programmed_rsa_pub_size   = (unsigned int )(&rsa_pub_end - rsa_pub);
     programmed_rsa_pub_base       = rsa_pub;
@@ -537,20 +530,17 @@ int dvrmain	( int argc, char * const argv[] )
 #if defined(Config_FSBL_TRUE)
     // spi fsbl
     spi_fsbl_addr                = spi_next_fw_start_addr;
-	spi_fsbl_sig_addr            = spi_fsbl_addr + programmed_fsbl_size;
-    spi_next_fw_start_addr       = spi_fsbl_sig_addr + programmed_fsbl_sig_size;
+    spi_next_fw_start_addr       = spi_fsbl_addr + programmed_fsbl_size;
 #endif
 #if defined(Config_FSBL_OS_TRUE)
     // spi tee os
     spi_fsbl_os_addr             = spi_next_fw_start_addr;
-	spi_fsbl_os_sig_addr         = spi_fsbl_os_addr + programmed_fsbl_os_size;
-    spi_next_fw_start_addr       = spi_fsbl_os_sig_addr + programmed_fsbl_os_sig_size;
+    spi_next_fw_start_addr       = spi_fsbl_os_addr + programmed_fsbl_os_size;
 #endif
 #if defined(Config_FSBL_OS_TRUE)
     // spi bl31
-    spi_bl31_addr                = spi_fsbl_os_sig_addr + programmed_fsbl_os_sig_size;
-	spi_bl31_sig_addr            = spi_bl31_addr + programmed_bl31_size;
-    spi_next_fw_start_addr       = spi_bl31_sig_addr + programmed_bl31_sig_size;
+    spi_bl31_addr                = spi_next_fw_start_addr;
+    spi_next_fw_start_addr       = spi_bl31_addr + programmed_bl31_size;
 #endif
 #if defined(Config_Secure_Improve_TRUE)
 	spi_Kpublic_fw_addr          = spi_next_fw_start_addr;
@@ -1390,16 +1380,15 @@ program_backup_copy_of_hwsetting:
 		param.data_start_blk = current_block;
 
 		/******************************
-		 * start to program FSBL / FSBL SIG data
+		 * start to program FSBL
 		 ******************************/
-		if(( programmed_fsbl_size > 0 )&&( programmed_fsbl_sig_size > 0 )) {
+		if(programmed_fsbl_size > 0) {
 		
             unsigned int program_len=0,rescue_blk=0;
             
-            //1. copy fsbl+fsbl_sig to buffer
-            program_len = programmed_fsbl_size+programmed_fsbl_sig_size;
+            //1. copy fsbl to buffer
+            program_len = programmed_fsbl_size;
             copy_memory(DATA_TMP_ADDR, programmed_fsbl_base, programmed_fsbl_size);
-            copy_memory(DATA_TMP_ADDR+programmed_fsbl_size, programmed_fsbl_sig_base, programmed_fsbl_sig_size);
 	
 			// align to page size boundary
 			temp = program_len % pagesize;
@@ -1475,14 +1464,13 @@ program_backup_copy_of_hwsetting:
 		/******************************
 	       * start to program FSBL OS
 	       ******************************/
-	    if(( programmed_fsbl_os_size > 0 )&&( programmed_fsbl_os_sig_size > 0 )) {
+	    if (programmed_fsbl_os_size > 0) {
             unsigned int fsbl_blk=0,program_len=0;
             
-            //1. copy fsbl_os+fsbl_os_sig to buffer
-            program_len = programmed_fsbl_os_size+programmed_fsbl_os_sig_size;
+            //1. copy fsbl_os to buffer
+            program_len = programmed_fsbl_os_size;
             copy_memory(DATA_TMP_ADDR, programmed_fsbl_os_base, programmed_fsbl_os_size);
-            copy_memory(DATA_TMP_ADDR+programmed_fsbl_os_size, programmed_fsbl_os_sig_base, programmed_fsbl_os_sig_size);
-
+          
 			// align to page size boundary
 	    	temp = program_len % pagesize;
 	    	if (temp) {
@@ -1562,13 +1550,12 @@ program_backup_copy_of_hwsetting:
         /******************************
 	       * start to program BL31
 	       ******************************/
-	    if(( programmed_bl31_size > 0 )&&( programmed_bl31_sig_size > 0 )) {
+	    if (programmed_bl31_size > 0) {
             unsigned int bl31_blk=0,program_len=0;
             
-            //1. copy bl31+bl31_sig to buffer
-            program_len = programmed_bl31_size+programmed_bl31_sig_size;
+            //1. copy bl31 to buffer
+            program_len = programmed_bl31_size;
             copy_memory(DATA_TMP_ADDR, programmed_bl31_base, programmed_bl31_size);
-            copy_memory(DATA_TMP_ADDR+programmed_bl31_size, programmed_bl31_sig_base, programmed_bl31_sig_size);
 
 			// align to page size boundary
 	    	temp = program_len % pagesize;
@@ -2145,23 +2132,7 @@ program_backup_copy_of_hwsetting:
 	    	if ((*do_write)(device, programmed_fsbl_base, (unsigned int *)spi_fsbl_addr, programmed_fsbl_size, 0, 0)!= 0 ) {
 	        	return -6;
 	    	}
-	    }
-        
-        //fsbl sig
-	    if (programmed_fsbl_sig_size > 0)
-	    {
-            #ifdef FOR_ICE_LOAD
-            prints("\nspi : write fsbl sig, start=0x");
-            print_hex(spi_fsbl_sig_addr);
-            prints(", len=0x");
-            print_hex(programmed_fsbl_sig_size);
-            prints("\n");
-            #endif
-	    	rtprintf("\nspi : write fsbl sig, start=0x%08x, len=0x%08x\n", spi_fsbl_sig_addr, programmed_fsbl_sig_size);
-	    	if ((*do_write)(device, programmed_fsbl_sig_base, (unsigned int *)spi_fsbl_sig_addr, programmed_fsbl_sig_size, 0, 0)!= 0 ) {
-	        	return -6;
-	    	}
-	    }
+	    } 
 #endif
 #if defined(Config_FSBL_OS_TRUE)
         //fsbl os
@@ -2179,22 +2150,6 @@ program_backup_copy_of_hwsetting:
 	        	return -6;
 	    	}
 	    }
-        
-        //fsbl os sig
-	    if (programmed_fsbl_os_sig_size > 0)
-	    {
-            #ifdef FOR_ICE_LOAD
-            prints("\nspi : write fsbl_os sig, start=0x");
-            print_hex(spi_fsbl_os_sig_addr);
-            prints(", len=0x");
-            print_hex(programmed_fsbl_os_sig_size);
-            prints("\n");
-            #endif
-	    	rtprintf("\nspi : write fsbl_os sig, start=0x%08x, len=0x%08x\n", spi_fsbl_os_sig_addr, programmed_fsbl_os_sig_size);
-	    	if ((*do_write)(device, programmed_fsbl_os_sig_base, (unsigned int *)spi_fsbl_os_sig_addr, programmed_fsbl_os_sig_size, 0, 0)!= 0 ) {
-	        	return -6;
-	    	}
-	    }
 #endif
 #if defined(Config_BL31_TRUE)
         //bl31
@@ -2209,22 +2164,6 @@ program_backup_copy_of_hwsetting:
             #endif
 	    	rtprintf("\nspi : write bl31, start=0x%08x, len=0x%08x\n", spi_bl31_addr, programmed_bl31_size);
 	    	if ((*do_write)(device, programmed_bl31_base, (unsigned int *)spi_bl31_addr, programmed_bl31_size, 0, 0)!= 0 ) {
-	        	return -6;
-	    	}
-	    }
-        
-        //bl31 sig
-	    if (programmed_bl31_sig_size > 0)
-	    {
-            #ifdef FOR_ICE_LOAD
-            prints("\nspi : write bl31 sig, start=0x");
-            print_hex(spi_bl31_sig_addr);
-            prints(", len=0x");
-            print_hex(programmed_bl31_sig_size);
-            prints("\n");
-            #endif
-	    	rtprintf("\nspi : write bl31 sig, start=0x%08x, len=0x%08x\n", spi_bl31_sig_addr, programmed_bl31_sig_size);
-	    	if ((*do_write)(device, programmed_bl31_sig_base, (unsigned int *)spi_bl31_sig_addr, programmed_bl31_sig_size, 0, 0)!= 0 ) {
 	        	return -6;
 	    	}
 	    }
@@ -2686,13 +2625,12 @@ program_backup_copy_of_hwsetting:
 /* ========================================= */
 
 		/***********************************************************************
-		 * start to fsbl / fsbl_sig data
+		 * start to fsbl
 		 ***********************************************************************/
-		if(( programmed_fsbl_size != 0 )&&( programmed_fsbl_sig_size != 0 )) {            
-            //1. copy fsbl+fsbl_sig to buffer
-            unsigned int program_len = programmed_fsbl_size+programmed_fsbl_sig_size;
+		if (programmed_fsbl_size != 0) {            
+            //1. copy fsbl to buffer
+            unsigned int program_len = programmed_fsbl_size;
             copy_memory(DATA_TMP_ADDR, programmed_fsbl_base, programmed_fsbl_size);
-            copy_memory(DATA_TMP_ADDR+programmed_fsbl_size, programmed_fsbl_sig_base, programmed_fsbl_sig_size);
             
     		// align to page size boundary
     		temp = program_len % EMMC_BLOCK_SIZE;
@@ -2708,12 +2646,10 @@ program_backup_copy_of_hwsetting:
 			block_no += align_to_boundary(programmed_img_size, EMMC_BLOCK_SIZE);	
 #ifndef BOOT1_RESCUE			
             #ifdef FOR_ICE_LOAD
-        	prints("write fsbl,fsbl_sig: block 0x");
+        	prints("write fsbl: block 0x");
             print_hex(block_no);
         	prints(", fsbl size 0x");
             print_hex(programmed_fsbl_size);
-            prints(", fsbl_sig_size 0x");
-            print_hex(programmed_fsbl_sig_size);
             prints("\n");
             #endif
 			if ((*do_write)( device, (unsigned char *)DATA_TMP_ADDR, &block_no, program_len, 0, 0)) {
@@ -2726,15 +2662,13 @@ program_backup_copy_of_hwsetting:
 
 			if (verify_after_write) {
                 #ifdef FOR_ICE_LOAD
-            	prints("read back data(fsbl/fsbl_sig): block 0x");
+            	prints("read back data(fsbl): block 0x");
                 print_hex(block_no);
             	prints(", fsbl size 0x");
                 print_hex(programmed_fsbl_size);
-                prints(", fsbl_sig_size 0x");
-                print_hex(programmed_fsbl_sig_size);
                 prints("\n");
                 #endif
-				rtprintf("read back data(fsbl/fsbl_sig): block 0x%x, size 0x%x\n", block_no, program_len);
+				rtprintf("read back data(fsbl): block 0x%x, size 0x%x\n", block_no, program_len);
 				if ((*do_read)(device, &block_no, read_buf, program_len, 0)) {
                     #ifdef FOR_ICE_LOAD
                 	prints("do_read check falied\n");
@@ -2744,9 +2678,9 @@ program_backup_copy_of_hwsetting:
 				}
 				if (compare_memory((unsigned char *)DATA_TMP_ADDR, read_buf, program_len)) {
                     #ifdef FOR_ICE_LOAD
-                	prints("verify fsbl/fsbl_sig data falied\n");
+                	prints("verify fsbl data falied\n");
                     #endif
-					rtprintf("verify fsbl/fsbl_sig data falied\n");
+					rtprintf("verify fsbl data falied\n");
 					return -6;
 				}
                 #ifdef CR_MEMORY_DUMP
@@ -2761,25 +2695,23 @@ program_backup_copy_of_hwsetting:
  */
 #else
 			#ifdef FOR_ICE_LOAD
-        	prints("write fsbl,fsbl_sig: block 0x");
+        	prints("write fsbl: block 0x");
             print_hex(boot_part_dest_block);
         	prints(", fsbl size 0x");
             print_hex(programmed_fsbl_size);
-            prints(", fsbl_sig_size 0x");
-            print_hex(programmed_fsbl_sig_size);
             prints("\n");
             #endif
 			
 			if(EXIT_FAILURE == BootPartOps.write(device,(unsigned char *)DATA_TMP_ADDR,boot_part_dest_block,program_len)){
-				prints("do_write BOOT1 fsbl/fsbl_sig failed\n");
+				prints("do_write BOOT1 fsbl failed\n");
 				return -4;
 			}
 			if(verify_after_write){
 				if( EXIT_FAILURE == BootPartOps.verify_data(device,(unsigned char *)DATA_TMP_ADDR,boot_part_dest_block,program_len)){
-					prints("verify BOOT1 fsbl/fsbl_sig  fail\n");
+					prints("verify BOOT1 fsbl fail\n");
 					return -6;
 				}else{
-					prints("verify BOOT1 fsbl/fsbl_sig  OK\n");
+					prints("verify BOOT1 fsbl OK\n");
 				}
 			}
 #ifdef FOR_ICE_LOAD
@@ -2790,16 +2722,15 @@ program_backup_copy_of_hwsetting:
 		} 
 		
 		/***********************************************************************
-		 * start to fsbl_os / fsbl_os_sig data
+		 * start to fsbl_os
 		 ***********************************************************************/
-		if(( programmed_fsbl_os_size != 0 )&&( programmed_fsbl_os_sig_size != 0 )) {
+		if(programmed_fsbl_os_size != 0) {
             unsigned int fsbl_blk=0, fsbl_len=0, program_len=0;
             
-            //1. copy fsbl_os+fsbl_os_sig to buffer
-            fsbl_len = programmed_fsbl_size+programmed_fsbl_sig_size;
-            program_len = programmed_fsbl_os_size+programmed_fsbl_os_sig_size;
+            //1. copy fsbl_os to buffer
+            fsbl_len = programmed_fsbl_size;
+            program_len = programmed_fsbl_os_size;
             copy_memory(DATA_TMP_ADDR, programmed_fsbl_os_base, programmed_fsbl_os_size);
-            copy_memory(DATA_TMP_ADDR+programmed_fsbl_os_size, programmed_fsbl_os_sig_base, programmed_fsbl_os_sig_size);
             
     		// align to page size boundary
     		temp = program_len % EMMC_BLOCK_SIZE;
@@ -2815,15 +2746,13 @@ program_backup_copy_of_hwsetting:
 	        block_no += align_to_boundary(fsbl_len, EMMC_BLOCK_SIZE);
             param.fsbl_os_addr = block_no;
             #ifdef FOR_ICE_LOAD
-        	prints("write fsbl_os,fsbl_os_sig: block 0x");
+        	prints("write fsbl_os: block 0x");
             print_hex(block_no);
         	prints(", fsbl_os size 0x");
             print_hex(programmed_fsbl_os_size);
-            prints(", fsbl_os_sig_size 0x");
-            print_hex(programmed_fsbl_os_sig_size);
             prints("\n");
             #endif
-			rtprintf("write fsbl_os/fsbl_os_sig : block 0x%x, size 0x%x\n", block_no, program_len);
+			rtprintf("write fsbl_os : block 0x%x, size 0x%x\n", block_no, program_len);
 			if ((*do_write)( device, (unsigned char *)DATA_TMP_ADDR, &block_no, program_len, 0, 0)) {
                 #ifdef FOR_ICE_LOAD
             	prints("do_write falied\n");
@@ -2834,15 +2763,13 @@ program_backup_copy_of_hwsetting:
 
 			if (verify_after_write) {
                 #ifdef FOR_ICE_LOAD
-            	prints("read back data(fsbl_os/fsbl_os_sig): block 0x");
+            	prints("read back data(fsbl_os): block 0x");
                 print_hex(block_no);
             	prints(", fsbl_os size 0x");
                 print_hex(programmed_fsbl_os_size);
-                prints(", fsbl_os_sig_size 0x");
-                print_hex(programmed_fsbl_os_sig_size);
                 prints("\n");
                 #endif
-				rtprintf("read back data(fsbl_os/fsbl_os_sig): block 0x%x, size 0x%x\n", block_no, program_len);
+				rtprintf("read back data(fsbl_os): block 0x%x, size 0x%x\n", block_no, program_len);
 				if ((*do_read)(device, &block_no, read_buf, program_len, 0)) {
                     #ifdef FOR_ICE_LOAD
                 	prints("do_read check falied\n");
@@ -2852,9 +2779,9 @@ program_backup_copy_of_hwsetting:
 				}
 				if (compare_memory((unsigned char *)DATA_TMP_ADDR, read_buf, program_len)) {
                     #ifdef FOR_ICE_LOAD
-                	prints("verify fsbl_os/fsbl_os_sig data falied\n");
+                	prints("verify fsbl_os data falied\n");
                     #endif
-					rtprintf("verify fsbl_os/fsbl_os_sig data falied\n");
+					rtprintf("verify fsbl_os data falied\n");
 					return -6;
 				}
                 #ifdef CR_MEMORY_DUMP
@@ -2869,16 +2796,15 @@ program_backup_copy_of_hwsetting:
 }   
 
         /***********************************************************************
-		 * start to bl31 / bl31_sig data
+		 * start to bl31
 		 ***********************************************************************/
-		if(( programmed_bl31_size != 0 )&&( programmed_bl31_sig_size != 0 )) {
+		if(programmed_bl31_size != 0) {
             unsigned int fsbl_os_blk=0, fsbl_os_len=0, program_len=0;
             
-            //1. copy fsbl_os+fsbl_os_sig to buffer
-            fsbl_os_len = programmed_fsbl_os_size+programmed_fsbl_os_sig_size;
-            program_len = programmed_bl31_size+programmed_bl31_sig_size;
+            //1. copy bl31 to buffer
+            fsbl_os_len = programmed_fsbl_os_size;
+            program_len = programmed_bl31_size;
             copy_memory(DATA_TMP_ADDR, programmed_bl31_base, programmed_bl31_size);
-            copy_memory(DATA_TMP_ADDR+programmed_bl31_size, programmed_bl31_sig_base, programmed_bl31_sig_size);
             
     		// align to page size boundary
     		temp = program_len % EMMC_BLOCK_SIZE;
@@ -2895,15 +2821,13 @@ program_backup_copy_of_hwsetting:
 			
 			param.bl31_addr = block_no;
             #ifdef FOR_ICE_LOAD
-        	prints("write bl31,bl31_sig: block 0x");
+        	prints("write bl31: block 0x");
             print_hex(block_no);
         	prints(", bl31 size 0x");
             print_hex(programmed_bl31_size);
-            prints(", bl31_sig_size 0x");
-            print_hex(programmed_bl31_sig_size);
             prints("\n");
             #endif
-			rtprintf("write bl31/bl31_sig : block 0x%x, size 0x%x\n", block_no, program_len);
+			rtprintf("write bl31 : block 0x%x, size 0x%x\n", block_no, program_len);
 			if ((*do_write)( device, (unsigned char *)DATA_TMP_ADDR, &block_no, program_len, 0, 0)) {
                 #ifdef FOR_ICE_LOAD
             	prints("do_write falied\n");
@@ -2914,15 +2838,13 @@ program_backup_copy_of_hwsetting:
 
 			if (verify_after_write) {
                 #ifdef FOR_ICE_LOAD
-            	prints("read back data(bl31/bl31_sig): block 0x");
+            	prints("read back data(bl31): block 0x");
                 print_hex(block_no);
             	prints(", bl31 size 0x");
                 print_hex(programmed_bl31_size);
-                prints(", bl31_sig_size 0x");
-                print_hex(programmed_bl31_sig_size);
                 prints("\n");
                 #endif
-				rtprintf("read back data(bl31/bl31_sig): block 0x%x, size 0x%x\n", block_no, program_len);
+				rtprintf("read back data(bl31): block 0x%x, size 0x%x\n", block_no, program_len);
 				if ((*do_read)(device, &block_no, read_buf, program_len, 0)) {
                     #ifdef FOR_ICE_LOAD
                 	prints("do_read check falied\n");
@@ -2932,9 +2854,9 @@ program_backup_copy_of_hwsetting:
 				}
 				if (compare_memory((unsigned char *)DATA_TMP_ADDR, read_buf, program_len)) {
                     #ifdef FOR_ICE_LOAD
-                	prints("verify bl31/bl31_sig data falied\n");
+                	prints("verify bl31 data falied\n");
                     #endif
-					rtprintf("verify bl31/bl31_sig data falied\n");
+					rtprintf("verify bl31 data falied\n");
 					return -6;
 				}
                 #ifdef CR_MEMORY_DUMP
@@ -3104,11 +3026,10 @@ program_backup_copy_of_hwsetting:
 		/***********************************************************************
 		 * start to fsb_vml / fsbl_vm_sig data
 		 ***********************************************************************/	
-		if(( programmed_fsbl_vm_size != 0 )&&( programmed_fsbl_vm_sig_size != 0 )) {            
+		if(programmed_fsbl_vm_size != 0) {            
             //1. copy fsbl_vm + fsbl_vm_sig to buffer
-            unsigned int program_len = programmed_fsbl_vm_size+programmed_fsbl_vm_sig_size;
+            unsigned int program_len = programmed_fsbl_vm_size;
             copy_memory(DATA_TMP_ADDR, programmed_fsbl_vm_base, programmed_fsbl_vm_size);
-            copy_memory(DATA_TMP_ADDR+programmed_fsbl_vm_size, programmed_fsbl_vm_sig_base, programmed_fsbl_vm_sig_size);
             
     		// align to page size boundary
     		temp = program_len % EMMC_BLOCK_SIZE;
@@ -3123,16 +3044,14 @@ program_backup_copy_of_hwsetting:
 			unsigned int Kpublic_tee_len = programmed_Kpublic_tee_size+programmed_Kpublic_tee_sig_size;
 			block_no += align_to_boundary(Kpublic_tee_len, EMMC_BLOCK_SIZE);
 #else
-			unsigned int bl31_len = programmed_bl31_size+programmed_bl31_sig_size;
+			unsigned int bl31_len = programmed_bl31_size;
 			block_no += align_to_boundary(bl31_len, EMMC_BLOCK_SIZE);
 #endif
 			#ifdef FOR_ICE_LOAD
-        	prints("write fsbl_vm,fsbl_vm_sig: block 0x");
+        	prints("write fsbl_vm: block 0x");
             print_hex(block_no);
         	prints(", fsbl_vm size 0x");
             print_hex(programmed_fsbl_size);
-            prints(", fsbl_sig_size 0x");
-            print_hex(programmed_fsbl_vm_sig_size);
             prints("\n");
             #endif
 			if ((*do_write)( device, (unsigned char *)DATA_TMP_ADDR, &block_no, program_len, 0, 0)) {
@@ -3145,15 +3064,13 @@ program_backup_copy_of_hwsetting:
 
 			if (verify_after_write) {
                 #ifdef FOR_ICE_LOAD
-            	prints("read back data(fsbl_vm/fsbl_vm_sig): block 0x");
+            	prints("read back data(fsbl_vm): block 0x");
                 print_hex(block_no);
             	prints(", fsbl_vm size 0x");
                 print_hex(programmed_fsbl_vm_size);
-                prints(", fsbl_vm_sig_size 0x");
-                print_hex(programmed_fsbl_vm_sig_size);
                 prints("\n");
                 #endif
-				rtprintf("read back data(fsbl_vm/fsbl_vm_sig): block 0x%x, size 0x%x\n", block_no, program_len);
+				rtprintf("read back data(fsbl_vm): block 0x%x, size 0x%x\n", block_no, program_len);
 				if ((*do_read)(device, &block_no, read_buf, program_len, 0)) {
                     #ifdef FOR_ICE_LOAD
                 	prints("do_read check falied\n");
@@ -3163,9 +3080,9 @@ program_backup_copy_of_hwsetting:
 				}
 				if (compare_memory((unsigned char *)DATA_TMP_ADDR, read_buf, program_len)) {
                     #ifdef FOR_ICE_LOAD
-                	prints("verify fsbl_vm/fsbl_vm_sig data falied\n");
+                	prints("verify fsbl_vm data falied\n");
                     #endif
-					rtprintf("verify fsbl_vm/fsbl_vm_sig data falied\n");
+					rtprintf("verify fsbl_vm data falied\n");
 					return -6;
 				}
                 #ifdef CR_MEMORY_DUMP

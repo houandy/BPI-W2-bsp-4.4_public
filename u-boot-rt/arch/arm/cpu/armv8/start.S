@@ -45,6 +45,17 @@ _bss_end_ofs:
 	.quad	__bss_end - _start
 
 reset:
+
+	/*
+	 * In B0X chip, bl31 will not set up sp.
+	 * Uboot needs to set up sp in the beginning.
+	 * The function of dcache_disable will use the value of sp.
+	 */
+#ifndef CONFIG_BOOT_FROM_SD
+	ldr x0, =__bss_end
+	mov sp, x0
+#endif
+
 #ifdef CONFIG_TARGET_RTD1295
 	branch_if_slave x0, slave_start
 	bl	dcache_disable		// WA for ROM code not turning off MMU

@@ -86,7 +86,7 @@ enum VO_HDMI_MODE
   VO_HDMI_ON,
   VO_HDMI_OFF,               /* turn off HDMI/DVI */
   VO_MHL_ON
-} ;
+};
 typedef enum VO_HDMI_MODE VO_HDMI_MODE;
 
 enum VO_HDMI_AUDIO_SAMPLE_FREQ {
@@ -101,6 +101,20 @@ enum VO_HDMI_AUDIO_SAMPLE_FREQ {
 };
 typedef enum VO_HDMI_AUDIO_SAMPLE_FREQ VO_HDMI_AUDIO_SAMPLE_FREQ;
 
+enum VO_HDMI_OFF_MODE {
+	VO_HDMI_OFF_CLOCK_OFF = 0,
+	VO_HDMI_OFF_CLOCK_ON = 1,
+};
+
+enum VO_HDR_CTRL_MODE {
+	VO_HDR_CTRL_NONE = 0,
+	VO_HDR_CTRL_DV_ON = 1,
+	VO_HDR_CTRL_SDR = 2,
+	VO_HDR_CTRL_HDR_GAMMA = 3,
+	VO_HDR_CTRL_PQHDR = 4,
+	VO_HDR_CTRL_FUTURE = 5,
+	VO_HDR_CTRL_INPUT = 6,
+};
 
 struct VIDEO_RPC_VOUT_CONFIG_HDMI_INFO_FRAME {
      enum VO_HDMI_MODE hdmiMode;
@@ -111,10 +125,10 @@ struct VIDEO_RPC_VOUT_CONFIG_HDMI_INFO_FRAME {
      u_char dataByte3;
      u_char dataByte4;
      u_char dataByte5;
-     u_int dataInt0;	//see Note 1
-     u_int hdmi2p0_feature;//[Bit0]HDMI 2.0 [Bit1]Scrabmle
-     u_int reserved2;
-     u_int reserved3;
+     u_int dataInt0;/* see Note 1 */
+     u_int hdmi2p0_feature;/* [Bit0]HDMI 2.0 [Bit1]Scrabmle */
+     enum VO_HDMI_OFF_MODE hdmi_off_mode;
+     enum VO_HDR_CTRL_MODE hdr_ctrl_mode;
      u_int reserved4;
 };
 typedef struct VIDEO_RPC_VOUT_CONFIG_HDMI_INFO_FRAME VIDEO_RPC_VOUT_CONFIG_HDMI_INFO_FRAME;
@@ -224,7 +238,9 @@ enum VO_STANDARD {
 	VO_STANDARD_DP_FORMAT_1280_720P_60 = 75,
 	VO_STANDARD_DP_FORMAT_3840_2160P_60 = 76,
 	VO_STANDARD_DP_FORMAT_1024_768P_60 = 77,
-	VO_STANDARD_ERROR = 78,
+	VO_STANDARD_HDTV_2160P_50_422_12bit = 78,
+	VO_STANDARD_HDTV_2160P_60_422_12bit = 79,
+	VO_STANDARD_ERROR = 80,
 };
 typedef enum VO_STANDARD VO_STANDARD;
 

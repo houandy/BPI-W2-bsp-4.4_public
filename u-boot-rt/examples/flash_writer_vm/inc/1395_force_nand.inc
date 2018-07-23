@@ -7,7 +7,7 @@ Board_CPU =                 RTD1395
 ##Board_Chip_Rev =          [1395]
 Board_Chip_Rev =            1395
 
-Board_HWSETTING =           RTD1395_hwsetting_NAND_2DDR4_8Gb_s1866
+Board_HWSETTING =           RTD1395_hwsetting_NAND_1DDR4_8Gb_s2133
 						
 
 # ********************************************************************
@@ -48,6 +48,7 @@ Config_FLASH_TYPE =	NULL
 ##Config_VM_Enc =         	 [TRUE | FALSE]
 Config_Secure_Key =          TRUE
 Config_VM_Enc =           	 FALSE
+Config_Secure_Improve = FALSE
 Config_Secure_RSA_Key_File = "rsa_key_2048.pem"
 Config_Secure_RSA_Key_FW_File = "rsa_key_2048.fw.pem"
 Config_Secure_RSA_Key_TEE_File = "rsa_key_2048.tee.pem"
@@ -71,12 +72,14 @@ Config_Uboot_Sim_Mode =  FALSE
 # flag                      value
 # ********************************************************************
 ##Config_FSBL = [TRUE | FALSE]
+Config_FSBL_VM = FALSE
+Config_FSBL_VM_File_Name = fsbl-loader-vm-00.00.bin.enc
 Config_FSBL = TRUE
-Config_FSBL_File_Name = fsbl-loader-nand-00.00.bin
+Config_FSBL_File_Name = fsbl-loader-nand-00.00.bin.enc
 Config_FSBL_OS = TRUE
-Config_FSBL_OS_File_Name = fsbl-os-00.00.bin
+Config_FSBL_OS_File_Name = fsbl-os-00.00.bin.enc
 Config_BL31 = TRUE
-Config_BL31_File_Name = bl31.bin
+Config_BL31_File_Name = bl31.bin.enc
 
 # ********************************************************************
 # Boot parameters

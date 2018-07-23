@@ -21,14 +21,21 @@
 #include <asm/arch/rbus/crt_reg.h>
 #include <asm/arch/rbus/hdmitx_reg.h>
 #include <asm/arch/system.h>
+
 #include "rtk_rpc.h"
 #include "rtk_edid.h"
 #include "rtk_avi_infoframe.h"
+#include "hdmitx.h"
+
 #include "../i2c/rtk_i2c-lib.h"
 #include <asm/arch/bootparam.h>
 //#include "../gpio/rt_gpio.h"
 #include <asm/arch/platform_lib/board/gpio.h>
 #include <asm/arch/cpu.h>
+
+#define ONE_STEP_NONE	0
+#define ONE_STEP_RPC	1
+#define ONE_SETP_FORMAT	2
 
 #define S_OK         0
 #define S_FALSE     -1
@@ -50,6 +57,7 @@ uchar checksum_128=0;
 uchar checksum_256=0;
 
 struct edid_hdmi2p0_info hdmi2p0_info;
+struct hdmi_format_setting hdmi_format;
 
 #define MHL_DEBUG 0
 
@@ -86,29 +94,29 @@ void dump_VIDEO_RPC_VOUT_CONFIG_TV_SYSTEM(struct VIDEO_RPC_VOUT_CONFIG_TV_SYSTEM
 {
 #if 0
 	printf( "----------VOUT_CONFIG_TV_SYSTEM----------\n");
-    printf( "interfaceType       =0x%x\n", arg-> interfaceType);
+    printf( "interfaceType       =0x%x\n", arg->interfaceType);
  
-	printf( "videoInfo.standard  =0x%x\n", arg-> videoInfo.standard);
-	printf( "videoInfo.enProg    =0x%x\n", arg-> videoInfo.enProg);
-	printf( "videoInfo.enDIF     =0x%x\n", arg-> videoInfo.enDIF);
-	printf( "videoInfo.enCompRGB =0x%x\n", arg-> videoInfo.enCompRGB);
-	printf( "videoInfo.pedType   =0x%x\n", arg-> videoInfo.pedType);
-	printf( "videoInfo.dataInt0  =0x%x\n", arg-> videoInfo.dataInt0);
-	printf( "videoInfo.dataInt1  =0x%x\n", arg-> videoInfo.dataInt1);
+	printf( "videoInfo.standard  =0x%x\n", arg->videoInfo.standard);
+	printf( "videoInfo.enProg    =0x%x\n", arg->videoInfo.enProg);
+	printf( "videoInfo.enDIF     =0x%x\n", arg->videoInfo.enDIF);
+	printf( "videoInfo.enCompRGB =0x%x\n", arg->videoInfo.enCompRGB);
+	printf( "videoInfo.pedType   =0x%x\n", arg->videoInfo.pedType);
+	printf( "videoInfo.dataInt0  =0x%x\n", arg->videoInfo.dataInt0);
+	printf( "videoInfo.dataInt1  =0x%x\n", arg->videoInfo.dataInt1);
 
-	printf( "hdmiInfo.hdmiMode           =0x%x\n", arg-> hdmiInfo.hdmiMode);
-    printf( "hdmiInfo.audioSampleFreq    =0x%x\n", arg-> hdmiInfo.audioSampleFreq);	
-	printf( "hdmiInfo.audioChannelCount  =0x%x\n", arg-> hdmiInfo.audioChannelCount);
-	printf( "hdmiInfo.dataByte1          =0x%x\n", arg-> hdmiInfo.dataByte1);
-	printf( "hdmiInfo.dataByte2          =0x%x\n", arg-> hdmiInfo.dataByte2);
-	printf( "hdmiInfo.dataByte3          =0x%x\n", arg-> hdmiInfo.dataByte3);
-	printf( "hdmiInfo.dataByte4          =0x%x\n", arg-> hdmiInfo.dataByte4);
-	printf( "hdmiInfo.dataByte5          =0x%x\n", arg-> hdmiInfo.dataByte5);		
-	printf( "hdmiInfo.dataInt0           =0x%x\n", arg-> hdmiInfo.dataInt0);
-	printf( "hdmiInfo.hdmi2p0_feature    =0x%lx\n",arg-> hdmiInfo.hdmi2p0_feature);
-	//printf( "hdmiInfo.reserved2          =0x%lx\n",arg-> hdmiInfo.reserved2);
-	//printf( "hdmiInfo.reserved3          =0x%lx\n",arg-> hdmiInfo.reserved3);
-	//printf( "hdmiInfo.reserved4          =0x%lx\n",arg-> hdmiInfo.reserved4);
+	printf( "hdmiInfo.hdmiMode           =0x%x\n", arg->hdmiInfo.hdmiMode);
+	printf( "hdmiInfo.audioSampleFreq    =0x%x\n", arg->hdmiInfo.audioSampleFreq);
+	printf( "hdmiInfo.audioChannelCount  =0x%x\n", arg->hdmiInfo.audioChannelCount);
+	printf( "hdmiInfo.dataByte1          =0x%x\n", arg->hdmiInfo.dataByte1);
+	printf( "hdmiInfo.dataByte2          =0x%x\n", arg->hdmiInfo.dataByte2);
+	printf( "hdmiInfo.dataByte3          =0x%x\n", arg->hdmiInfo.dataByte3);
+	printf( "hdmiInfo.dataByte4          =0x%x\n", arg->hdmiInfo.dataByte4);
+	printf( "hdmiInfo.dataByte5          =0x%x\n", arg->hdmiInfo.dataByte5);
+	printf( "hdmiInfo.dataInt0           =0x%x\n", arg->hdmiInfo.dataInt0);
+	printf( "hdmiInfo.hdmi2p0_feature    =0x%lx\n",arg->hdmiInfo.hdmi2p0_feature);
+	printf( "hdmiInfo.hdmi_off_mode      =0x%x\n",arg->hdmiInfo.hdmi_off_mode);
+	printf( "hdmiInfo.hdr_ctrl_mode      =0x%x\n",arg->hdmiInfo.hdr_ctrl_mode);
+	//printf( "hdmiInfo.reserved4          =0x%lx\n",arg->hdmiInfo.reserved4);
 	printf( "-----------------------------------------\n");
 #endif
 }
@@ -230,11 +238,39 @@ static bool cea_db_is_hdmi_forum_vsdb(const u8 *db)
 	return hdmi_id == HDMI_2P0_IDENTIFIER;
 }
 
+/**
+ * parse_hdmi_colorimetry_db - parse colorimetry data block
+ * @db: colorimetry data block
+ *
+ * bit         7                   6                    5                4                   3                2             1             0
+ *     BT2020_RGB/BT2020_YCC/BT2020_cYCC/AdobeRGB/AdobeYCC601/sYCC601/xvYCC709/xvYCC601
+ */
+static void parse_hdmi_colorimetry_db(const u8 *db)
+{
+	hdmi2p0_info.colorimetry = db[2];
+}
+
 static void parse_hdmi_forum_vsdb(const u8 *db)
 {
 	hdmi2p0_info.max_tmds_char_rate = db[5]*5;
 	hdmi2p0_info.scdc_capable = db[6];
 	hdmi2p0_info.dc_420 = db[7]&0x7;
+}
+
+static bool parse_hdmi_extdb(const u8 *db)
+{
+	if (cea_db_tag(db) != USE_EXTENDED_TAG)
+		return false;
+
+	switch (*(db+1)) {
+	case COLORIMETRY_DATA_BLOCK:
+		parse_hdmi_colorimetry_db(db);
+		break;
+	default:
+		break;
+	} /* end of switch (*(db+1)) */
+
+	return true;
 }
 
 #define for_each_cea_db(cea, i, start, end) \
@@ -257,15 +293,19 @@ int add_cea_modes(struct edid *edid)
 			dbl = cea_db_payload_len(db);
 
 			switch (cea_db_tag(db)) {
-				case VIDEO_BLOCK:
-					modes = do_cea_modes (db+1, dbl);
-					break;
-				case VENDOR_BLOCK:
-					if(cea_db_is_hdmi_forum_vsdb(db))//HDMI 2.0
-						parse_hdmi_forum_vsdb(db);
-					break;
-				default:
-					break;
+			case VIDEO_BLOCK:
+				modes = do_cea_modes (db+1, dbl);
+				break;
+			case VENDOR_BLOCK:
+				if (cea_db_is_hdmi_forum_vsdb(db))/* HDMI 2.0 */
+					parse_hdmi_forum_vsdb(db);
+				break;
+			case USE_EXTENDED_TAG:
+				/* HDMI USE_EXTENDED_TAG Block */
+				parse_hdmi_extdb(db);
+				break;
+			default:
+				break;
 			}
 				
 		}
@@ -416,7 +456,8 @@ static int Read_EDID(unsigned char *EDID_buf)
 
 static int HDMITx_HPD(void)
 {
-#if defined CONFIG_HDMITx_HPD_IGPIO_NUM	
+#if defined CONFIG_HDMITx_HPD_IGPIO_NUM
+	setISOGPIO_pullsel(CONFIG_HDMITx_HPD_IGPIO_NUM, PULL_DOWN);
 	return getISOGPIO(CONFIG_HDMITx_HPD_IGPIO_NUM);
 #else	
 	return 0;
@@ -451,37 +492,31 @@ void set_AVI_Infoframe_Aspect_Ratio(struct AVI_InfoFrame_Format *format, int vid
 	//1.set Active Portion Aspect Ratio R3 R2 R1 R0
 	//2.set Coded Frame Aspect Ratio M1 M0
 	//3.set Colorimetry C1 C0	
-	format-> Data_Byte2 |= AVI_InfoFrame_DB2_R3210(SAME_AS_CODED_FRAME_AR);	
+	format->Data_Byte2 |= AVI_InfoFrame_DB2_R3210(SAME_AS_CODED_FRAME_AR);
 	
-	if(vid < (int)VO_STANDARD_SECAM)//SD
-	{
-		format-> Data_Byte2 |= AVI_InfoFrame_DB2_M1M0(_4X3);
-		format-> Data_Byte2 |= AVI_InfoFrame_DB2_C1C0(SMPTE_170M);						
-	}
-	else
-	{
-		format-> Data_Byte2 |= AVI_InfoFrame_DB2_M1M0(_16X9);
-		format-> Data_Byte2 |= AVI_InfoFrame_DB2_C1C0(ITU_R_709);		
+	if (vid < (int)VO_STANDARD_SECAM) {
+		/* SD */
+		format->Data_Byte2 |= AVI_InfoFrame_DB2_M1M0(_4X3);
+		format->Data_Byte2 |= AVI_InfoFrame_DB2_C1C0(SMPTE_170M);
+	} else {
+		format->Data_Byte2 |= AVI_InfoFrame_DB2_M1M0(_16X9);
+		format->Data_Byte2 |= AVI_InfoFrame_DB2_C1C0(ITU_R_709);
 	}
 	 
 	
 	if(0) //don't set xvYCC at this stage.
-	{	
+	{
 		if(0) //SD & support xvYCC601.
-			format-> Data_Byte3 |= AVI_InfoFrame_DB3_EC201(xvYCC601);
+			format->Data_Byte3 |= AVI_InfoFrame_DB3_EC201(xvYCC601);
 		if(0) //HD & support xvYCC709.
-			format-> Data_Byte3 |= AVI_InfoFrame_DB3_EC201(xvYCC709);
+			format->Data_Byte3 |= AVI_InfoFrame_DB3_EC201(xvYCC709);
 		
-		format-> Data_Byte2 |= AVI_InfoFrame_DB2_C1C0(EXTENDED_COLORIMETRY_INFO_VALID);
+		format->Data_Byte2 |= AVI_InfoFrame_DB2_C1C0(EXTENDED_COLORIMETRY_INFO_VALID);
 		//DataByte1: Y1 Y0 A0 R3 R2 R1 R0;
 		// set Active Format Information Present A0
-		format-> Data_Byte1 |= AVI_InfoFrame_DB1_A0(ACTIVE_FORMAT_INFO_PRESENT);
+		format->Data_Byte1 |= AVI_InfoFrame_DB1_A0(ACTIVE_FORMAT_INFO_PRESENT);
 	}
 
-	debug("%s\n",__func__);
-	debug("avi_info->Data_Byte1=0x%x\n",format-> Data_Byte1);
-	debug("avi_info->Data_Byte2=0x%x\n",format-> Data_Byte2);
-	debug("avi_info->Data_Byte3=0x%x\n",format-> Data_Byte3);		
 }
 
 #define SCDC_I2C_ADDR	0x54
@@ -510,7 +545,7 @@ static int hdmitx_write_scdc_port(unsigned char offset, unsigned char value)
 }
 
 
-static int hdmitx_send_scdc_TmdsConfig(unsigned int standard, unsigned int dataInt0)
+int hdmitx_send_scdc_TmdsConfig(unsigned int standard, unsigned int dataInt0)
 {
 	unsigned char config_data;
 	unsigned char deep_color,depp_depth;
@@ -573,94 +608,138 @@ static int hdmitx_send_scdc_TmdsConfig(unsigned int standard, unsigned int dataI
 			config_data = 0x0;
 	}
 
-	if(hdmi2p0_info.scdc_capable&SCDC_PRESENT)
-	{
-		if(hdmitx_write_scdc_port(SCDCS_TMDS_Config, config_data)!= S_OK)
-		{
+	if (hdmi2p0_info.scdc_capable&SCDC_PRESENT) {
+		if (hdmitx_write_scdc_port(SCDCS_TMDS_Config, config_data)!= S_OK) {
 			printf("Error: Send SCDC command fail, skip one step\n");
 			return -1;
-		}
-		else
+		} else {
 			printf("Send SCDC TMDS_Config(0x%02x) standard(%u) deep_color(%u)\n",config_data,standard,deep_color);
-	}
-	else if(config_data!=0)
-	{
+		}
+	} else if (config_data != 0) {
 		printf("Error: Sink not support SCDC_PRESENT, but need scramble, skip one step\n");
 		return -1;
-	}
-	else
+	} else if ((standard == VO_STANDARD_HDTV_2160P_60_420) ||
+		(standard == VO_STANDARD_HDTV_2160P_50_420) ||
+		(standard == VO_STANDARD_HDTV_4096_2160P_60_420) ||
+		(standard == VO_STANDARD_HDTV_4096_2160P_50_420) ||
+		(standard == VO_STANDARD_HDTV_2160P_59_420)) {
+		/* 4K YUV420*/
+		printf("Sink not support SCDC_PRESENT, but YUV420 format should need");
+		if (hdmitx_write_scdc_port(SCDCS_TMDS_Config, config_data)!= S_OK) {
+			printf("Error: Send SCDC command fail, skip one step\n");
+			return -1;
+		} else {
+			printf("Send SCDC TMDS_Config(0x%02x) standard(%u) deep_color(%u)\n",config_data,standard,deep_color);
+		}
+	} else {
 		printf("Skip send SCDC command\n");
+	}
 
 	return config_data;
 }
 
-static int set_resolution(int video_format)
+void set_one_step_info(struct VIDEO_RPC_VOUT_CONFIG_TV_SYSTEM *tv_system)
 {
 	struct _BOOT_TV_STD_INFO boot_info;
-	struct AVI_InfoFrame_Format avi={0};
-	int ret_val;
-	unsigned int hdmi2p0_feature=0;
 
-	if(get_one_step_info())
-	{
-		//compare current sink with one step info.
-		memset(&boot_info, 0x0, sizeof(struct _BOOT_TV_STD_INFO));
-		memcpy(&boot_info, (void *)(uintptr_t)VO_RESOLUTION,sizeof(struct _BOOT_TV_STD_INFO));
+	memset(&boot_info, 0x0, sizeof(struct _BOOT_TV_STD_INFO));
+
+	boot_info.dwMagicNumber = SWAPEND32(0xC0DE0BEE);
+
+	boot_info.tv_sys.interfaceType = SWAPEND32(tv_system->interfaceType);
+
+	boot_info.tv_sys.videoInfo.standard = SWAPEND32(tv_system->videoInfo.standard);
+	boot_info.tv_sys.videoInfo.pedType  = SWAPEND32(tv_system->videoInfo.pedType);
+	boot_info.tv_sys.videoInfo.dataInt0 = SWAPEND32(tv_system->videoInfo.dataInt0);
+	boot_info.tv_sys.videoInfo.dataInt1 = SWAPEND32(tv_system->videoInfo.dataInt1);
+
+	boot_info.tv_sys.hdmiInfo.hdmiMode  = SWAPEND32(tv_system->hdmiInfo.hdmiMode);
+	boot_info.tv_sys.hdmiInfo.audioSampleFreq = SWAPEND32(tv_system->hdmiInfo.audioSampleFreq);
+	boot_info.tv_sys.hdmiInfo.dataInt0  = SWAPEND32(tv_system->hdmiInfo.dataInt0);
+	boot_info.tv_sys.hdmiInfo.hdmi2p0_feature = SWAPEND32(tv_system->hdmiInfo.hdmi2p0_feature);
+	boot_info.tv_sys.hdmiInfo.hdmi_off_mode = SWAPEND32(tv_system->hdmiInfo.hdmi_off_mode);
+	boot_info.tv_sys.hdmiInfo.hdr_ctrl_mode = SWAPEND32(tv_system->hdmiInfo.hdr_ctrl_mode);
+	boot_info.tv_sys.hdmiInfo.reserved4 = SWAPEND32(tv_system->hdmiInfo.reserved4);
+
+	dump_VIDEO_RPC_VOUT_CONFIG_TV_SYSTEM(&boot_info.tv_sys);
+
+	memcpy((unsigned char *)VO_RESOLUTION, &boot_info, sizeof(struct _BOOT_TV_STD_INFO) );
+	flush_cache(VO_RESOLUTION, sizeof(struct _BOOT_TV_STD_INFO));
+}
+
+static int set_resolution(int video_format)
+{
+	int ret_val;
+	int tv_system;
+	int one_setp_version;
+	unsigned int hdmi2p0_feature = 0;
+	struct _BOOT_TV_STD_INFO boot_info;
+	struct AVI_InfoFrame_Format avi = {0};
+
+	one_setp_version = get_one_step_info();
 
 #if defined(CONFIG_RTD1295)
-		if (get_cpu_id() == RTK1198_CPU_ID)
-		{
-			printf("Skip 4K one step\n");
-		}
-		else
+	if (get_cpu_id() == RTK1198_CPU_ID) {
+		printf("Skip 4K one step\n");
+	} else
 #endif
-		if ( SWAPEND32(boot_info.tv_sys.hdmiInfo.hdmiMode)== vo_hdmi_mode
-			&& SWAPEND32(boot_info.tv_sys.interfaceType) <= VO_DIGITAL_ONLY
-			&& EDID[EDID_LENGTH-1] == checksum_128 
-			&& EDID[2*EDID_LENGTH-1] == checksum_256)
-	    {
+	if (one_setp_version == ONE_STEP_RPC) {
+		/* compare current sink with one step info. */
+		memset(&boot_info, 0x0, sizeof(struct _BOOT_TV_STD_INFO));
+		memcpy(&boot_info, (unsigned char *)VO_RESOLUTION,sizeof(struct _BOOT_TV_STD_INFO));
+
+		if (SWAPEND32(boot_info.tv_sys.hdmiInfo.hdmiMode)== vo_hdmi_mode &&
+			EDID[EDID_LENGTH-1] == checksum_128 &&
+			EDID[2*EDID_LENGTH-1] == checksum_256) {
+
 	    	ret_val = hdmitx_send_scdc_TmdsConfig(SWAPEND32(boot_info.tv_sys.videoInfo.standard), SWAPEND32(boot_info.tv_sys.hdmiInfo.dataInt0));
-	    	if(ret_val>=0)
-	    	{
-	    		if(hdmi2p0_info.hdmi_id==HDMI_2P0_IDENTIFIER)
-	    			hdmi2p0_feature |= 0x1;//[Bit0] HDMI2.0
-	    		if(ret_val>=1)
-	    			hdmi2p0_feature |= 0x2;//[Bit1]Scrabmle
+			if (ret_val >= 0) {
+				if (hdmi2p0_info.hdmi_id == HDMI_2P0_IDENTIFIER)
+					hdmi2p0_feature |= 0x1;/* [Bit0] HDMI2.0 */
+				if (ret_val >= 1)
+					hdmi2p0_feature |= 0x2;/* [Bit1]Scrabmle */
 
 				boot_info.tv_sys.hdmiInfo.hdmi2p0_feature = SWAPEND32(hdmi2p0_feature);
 				printf("One step resolution, standard(%d) mode(%d)\n", SWAPEND32(boot_info.tv_sys.videoInfo.standard), SWAPEND32(boot_info.tv_sys.hdmiInfo.hdmiMode));
 				dump_VIDEO_RPC_VOUT_CONFIG_TV_SYSTEM(&boot_info.tv_sys);
 
-				// Set one step info
-				memcpy((void *)(uintptr_t)VO_RESOLUTION, &boot_info, sizeof(struct _BOOT_TV_STD_INFO) );
+				/* Set one step info */
+				memcpy((unsigned char *)VO_RESOLUTION, &boot_info, sizeof(struct _BOOT_TV_STD_INFO) );
 				flush_cache(VO_RESOLUTION, sizeof(struct _BOOT_TV_STD_INFO));
-				return S_OK;
+				goto exit;
 			}
+		} else {
+			printf("EDID checksum: read %02x %02x, last %02x %02x\n",
+				EDID[EDID_LENGTH-1], EDID[2*EDID_LENGTH-1],
+				checksum_128, checksum_256);
+			printf("Sink changed, skip ONE_STEP_RPC\n");
 		}
-		else
-			printf("Sink changed, skip one step\n");
+	} else if (one_setp_version == ONE_SETP_FORMAT) {
+		 if (EDID[EDID_LENGTH-1] == checksum_128 &&
+			EDID[2*EDID_LENGTH-1] == checksum_256) {
+
+			printf("ONE_SETP_FORMAT\n");
+			set_hdmitx_format(&hdmi_format);
+			goto exit;
+		 } else {
+			printf("Sink changed, skip ONE_SETP_FORMAT\n");
+		 }
 	}
-	
+
 	memset(&boot_info, 0x0, sizeof(struct _BOOT_TV_STD_INFO));
 
 	boot_info.dwMagicNumber = SWAPEND32(0xC0DE0BEE); /* set magic pattern in first word */
 	boot_info.tv_sys.interfaceType = SWAPEND32(VO_ANALOG_AND_DIGITAL);
 
-    char *s;
-    int tv_system;
-
-	s = getenv ("tv_system");
-
-    if(vo_hdmi_mode == VO_HDMI_ON && video_format != S_FALSE)
-	{		
+    if (vo_hdmi_mode == VO_HDMI_ON && video_format != S_FALSE) {
 		tv_system = video_format;
-		set_AVI_Infoframe_Color_Component_and_Chroma_Sample_Format(&avi,(struct edid*)EDID);
-		set_AVI_Infoframe_Aspect_Ratio(&avi,video_format);	
+		set_AVI_Infoframe_Color_Component_and_Chroma_Sample_Format(&avi, (struct edid *)EDID);
+		set_AVI_Infoframe_Aspect_Ratio(&avi, video_format);
+	} else {
+		tv_system = CONFIG_DEFAULT_TV_SYSTEM;
 	}
-	else		
-		tv_system = s ? (int)simple_strtol(s, NULL, 10) : CONFIG_DEFAULT_TV_SYSTEM;
-		 
-	printf("tv_system=%d mode=%d\n",tv_system,vo_hdmi_mode);
+
+	printf("tv_system=%d mode=%d\n", tv_system, vo_hdmi_mode);
 				
 	boot_info.tv_sys.videoInfo.standard  = SWAPEND32(tv_system);
 	boot_info.tv_sys.videoInfo.enProg    =  1;
@@ -684,24 +763,21 @@ static int set_resolution(int video_format)
 
 	memcpy((void *)(uintptr_t)VO_RESOLUTION, & boot_info, sizeof(struct _BOOT_TV_STD_INFO) );
 	flush_cache(VO_RESOLUTION, sizeof(struct _BOOT_TV_STD_INFO));
-	
+
+exit:
 	return S_OK;
 }
 
 void set_hdmi_off(void)
 {
-	struct _BOOT_TV_STD_INFO boot_info;
-	memset(&boot_info, 0x0, sizeof(struct _BOOT_TV_STD_INFO));
-	boot_info.dwMagicNumber = SWAPEND32(0xC0DE0BEE); /* set magic pattern in first word */
+	struct hdmi_format_setting format;
 
-	boot_info.tv_sys.videoInfo.standard  = SWAPEND32(VO_STANDARD_NTSC_J);
-	boot_info.tv_sys.videoInfo.enProg    =  1;
-	boot_info.tv_sys.videoInfo.pedType   = SWAPEND32(1);	// ignored.
-	boot_info.tv_sys.videoInfo.dataInt0  = SWAPEND32(4);	// related to deep color.
-	boot_info.tv_sys.hdmiInfo.hdmiMode	 = SWAPEND32(VO_HDMI_OFF);
+	memset(&format, 0x0, sizeof(struct hdmi_format_setting));
 
-	memcpy((void *)(uintptr_t)VO_RESOLUTION, & boot_info, sizeof(struct _BOOT_TV_STD_INFO) );
-	flush_cache(VO_RESOLUTION, sizeof(struct _BOOT_TV_STD_INFO));
+	format.mode = FORMAT_MODE_OFF;
+
+	set_hdmitx_format(&format);
+
 	printf("Set HDMI TX OFF\n");
 }
 
@@ -709,21 +785,20 @@ int sink_capability_handler(int set)
 {
 	int vid = S_FALSE;
 
-	if(HDMITx_HPD())
+	if (HDMITx_HPD()) {
 		vid = Read_EDID(EDID);
-	else
-	{
+	} else {
 		printf("HDMITx_HPD=False\n");
-		if(CONFIG_HDMITX_MODE==2)//Set HDMI TX off when HPD=0
-		{
+		/* Set HDMI TX off when HPD=0 */
+		if (CONFIG_HDMITX_MODE == 2) {
 			set_hdmi_off();
 			return S_OK;
 		}
 	}
-	
+
 	if(set)
 		set_resolution(vid);
-		
+
 	return S_OK;
 }
 

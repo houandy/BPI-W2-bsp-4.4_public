@@ -77,7 +77,7 @@ Config_RSA_Key_Pub_Embed = TRUE
 # ********************************************************************
 ##Config_FSBL = [TRUE | FALSE]
 Config_FSBL = TRUE
-Config_FSBL_File_Name = pseudo-fsbl-loader-00.00.bin
+Config_FSBL_File_Name = pseudo-fsbl-loader-00.00.bin.enc
 Config_FSBL_OS = FALSE
 Config_BL31 = FALSE
 

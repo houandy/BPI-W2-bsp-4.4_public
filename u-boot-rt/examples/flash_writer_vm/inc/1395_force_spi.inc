@@ -66,11 +66,11 @@ Config_Secure_AES_Key3_File_Name = aes_128bit_key_3.bin
 # ********************************************************************
 ##Config_FSBL = [TRUE | FALSE]
 Config_FSBL = TRUE
-Config_FSBL_File_Name = fsbl-loader-spi-00.00.bin
+Config_FSBL_File_Name = fsbl-loader-spi-00.00.bin.enc
 Config_FSBL_OS = TRUE
-Config_FSBL_OS_File_Name = fsbl-os-00.00.bin
+Config_FSBL_OS_File_Name = fsbl-os-00.00.bin.enc
 Config_BL31 = TRUE
-Config_BL31_File_Name = bl31.bin
+Config_BL31_File_Name = bl31.bin.enc
 
 #Burn Krsa on SPI
 Config_RSA_Key_Pub_Embed = FALSE

@@ -299,19 +299,21 @@ int fdt_chosen(void *fdt, int force)
 	 * For fitting this order,  resume_addr is adjusted to 78 56 34 12.
 	 * resume_addr is saving resuming address when the system return from S1 sleep. 
 	 */
-	int slave_cpu_ffset = fdt_path_offset (fdt, "/rtk_boot");
+#ifdef CONFIG_TARGET_RTD1295
+	int slave_cpu_offset = fdt_path_offset (fdt, "/rtk_boot");
 	unsigned int resume_addr = (CONFIG_SYS_TEXT_BASE << 24) | (CONFIG_SYS_TEXT_BASE << 8 & 0x00ff0000) 
 						| (CONFIG_SYS_TEXT_BASE >> 8 & 0x0000ff00) | (CONFIG_SYS_TEXT_BASE >> 24);
 	if (resume_addr) {
-		path = fdt_getprop(fdt, slave_cpu_ffset, "resume-entry-addr", NULL);
+		path = fdt_getprop(fdt, slave_cpu_offset, "resume-entry-addr", NULL);
 		if ((path == NULL) || force) {
-			err = fdt_setprop(fdt, slave_cpu_ffset,
+			err = fdt_setprop(fdt, slave_cpu_offset,
 				"resume-entry-addr", &resume_addr, sizeof(unsigned int));
 			if (err < 0)
 				printf("WARNING: could not set resume-entry-addr %s.\n",
 					fdt_strerror(err));
 		}
 	}
+#endif
 	
 	/*
 	 * Find the "chosen" node.

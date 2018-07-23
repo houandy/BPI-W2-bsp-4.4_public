@@ -203,7 +203,9 @@ static unsigned long do_go_audio_fw(void)
 	int magic = SWAPEND32(0x16803001);
 	int offset = SWAPEND32(MIPS_SHARED_MEMORY_ENTRY_ADDR);
 	unsigned long fw_addr = getenv_ulong("audio_loadaddr", 16, 0);
-	
+
+	if(audio_fw_state) return 0;
+
 	// if IR wakeup info is set...
 	if (ipc_ir_set) {
 		// cat ir info to the end of IPC_SHM with 16 byte align
@@ -226,7 +228,7 @@ static unsigned long do_go_audio_fw(void)
 	memcpy((unsigned char *)(MIPS_SHARED_MEMORY_ENTRY_ADDR +4), &offset, sizeof(offset));
 
 	flush_dcache_all();
-	
+
 #ifdef CONFIG_RTD1395
 	rtd_outl(ACPU_STARTUP_FLAG, ACPU_MAGIC1); //write magic1
 #else
@@ -821,6 +823,12 @@ int do_go (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 #else
 			boot_mode = BOOT_RESCUE_MODE;
 #endif
+#ifdef NAS_ENABLE
+			if (RTK_PLAT_ERR_OK == rtk_plat_boot_handler())
+				return RTK_PLAT_ERR_OK;
+			else
+				boot_mode=BOOT_GOLD_MODE;
+#endif
 			return rtk_plat_boot_handler();
 		}
 		else if (argv[1][1] == 'a') // rescue for android
@@ -1104,9 +1112,7 @@ void dump_part_desc_entry_v1(part_desc_entry_v1_t *part_entry)
 		printf("## part_entry                      = 0x%08x\n", part_entry);
 		printf("## part_entry->type                = 0x%08x\n", part_entry->type);
 		printf("## part_entry->ro                  = 0x%08x\n", part_entry->ro);
-		printf("## part_entry->length              = ");
-		printn(part_entry->length,16);
-		printf("\n");
+		printf("## part_entry->length              = 0x%08llx\n", part_entry->length);
 		printf("## part_entry->fw_count            = 0x%08x\n", part_entry->fw_count);
 		printf("## part_entry->fw_type             = 0x%08x\n", part_entry->fw_type);
 		printf("###############################################\n\n");
@@ -1304,6 +1310,11 @@ int rtk_plat_set_boot_flag_from_part_desc(
                 {
                     case FS_TYPE_SQUASH:
                         rootfstype = "squashfs";
+                        if (BOOT_NAND == boot_flash_type) {
+                            opts = " ubi.mtd=/ ubi.block=0,rootfs";
+                            device_path = "/dev/ubiblock0_";
+                            minor_num = 0;
+                        }
                         break;
                     case FS_TYPE_EXT4:
                         rootfstype = "ext4";
@@ -1481,7 +1492,9 @@ int rtk_plat_get_dtb_target_address(int dtb_address)
 #ifdef CONFIG_PRELOAD_BOOT_IMAGES
 int rtk_preload_bootimages(void)
 {
+#ifdef CONFIG_RTK_MMC
 	uint block_no=0, img_addr=0, img_size=0;
+#endif
 
 #if  defined(CONFIG_PRELOAD_UBOOT_EMMC_ADDR) && defined(CONFIG_RTK_MMC)
 	block_no = CONFIG_PRELOAD_UBOOT_EMMC_ADDR / EMMC_BLOCK_SIZE;
@@ -1529,7 +1542,7 @@ void GetKeyFromSRAM(unsigned int sram_addr, unsigned char* key, unsigned int len
         }
 }
 
-#if defined(CONFIG_SYS_RTK_EMMC_FLASH) || defined(CONFIG_SYS_RTK_NAND_FLASH) || defined(CONFIG_BOOT_FROM_SPI)
+#if defined(CONFIG_SYS_RTK_EMMC_FLASH) || defined(CONFIG_BOOT_FROM_SPI) || defined(CONFIG_SYS_RTK_NAND_FLASH)
 #ifndef NAS_DUAL
 /* Rescue-ROOTFS has different load addr for B00 compatible. */
 /* B00 rescue-rootfs is preload on DDR before entering LK.   */
@@ -1574,6 +1587,7 @@ int rtk_plat_read_fw_image_from_eMMC(
 {
 #ifdef CONFIG_SYS_RTK_EMMC_FLASH
 	void *this_entry;
+	void *set_vo_secure;
 	fw_desc_entry_v11_t *v11_entry;
 	//fw_desc_entry_v21_t *v21_entry = NULL;
 	fw_desc_entry_v12_t *v12_entry;
@@ -1699,7 +1713,7 @@ int rtk_plat_read_fw_image_from_eMMC(
 		if (audio_fw_state && (entry_type == FW_TYPE_AUDIO || entry_type == FW_TYPE_GOLD_AUDIO))
 			continue;
 		/*The condition for decision the order of loading FW*/
-		
+
 		if ( entry_type == FW_TYPE_AUDIO || entry_type == FW_TYPE_GOLD_AUDIO)
 			Auto_AFW_MEM_START = entry_target_addr;
 		/* Save the address of AFW from fw_desc */
@@ -1763,8 +1777,12 @@ int rtk_plat_read_fw_image_from_eMMC(
 						}
 						break;
                     case FW_TYPE_IMAGE_FILE:
+						/*Workaround method to show logo.*/
+						printf("Boot logo address transfer from 0x%08x to 0x%08x\n", entry_target_addr, 0x21000000);
+						entry_target_addr = 0x21000000;
 						printf("IMAGE FILE:\n");
-
+						set_vo_secure = malloc(sizeof(char)*0x00005a00);
+						memset(set_vo_secure, 0x0, sizeof(char)*0x00005a00);
 						/* assign boot_av structure */
 						boot_av->dwMagicNumber = SWAPEND32(BOOT_AV_INFO_MAGICNO);
 						if(boot_logo_enable)
@@ -1775,6 +1793,7 @@ int rtk_plat_read_fw_image_from_eMMC(
 							boot_av-> src_height = CPU_TO_BE32(custom_logo_src_height);
 							boot_av-> dst_width = CPU_TO_BE32(custom_logo_dst_width);
 							boot_av-> dst_height = CPU_TO_BE32(custom_logo_dst_height);
+							boot_av-> vo_secure_addr = CPU_TO_BE32((unsigned int)(uintptr_t)set_vo_secure);
 						}
 
 						break;
@@ -1912,8 +1931,12 @@ int rtk_plat_read_fw_image_from_eMMC(
 						break;
 
 					case FW_TYPE_IMAGE_FILE:
+						/*Workaround method to show logo.*/
+						printf("Boot logo address transfer from 0x%08x to 0x%08x\n", entry_target_addr, 0x21000000);
+						entry_target_addr = 0x21000000;
 						printf("IMAGE FILE:\n");
-
+						set_vo_secure = malloc(sizeof(char)*0x00005a00);
+						memset(set_vo_secure, 0x0, sizeof(char)*0x00005a00);
 						/* assign boot_av structure */
 						boot_av->dwMagicNumber = SWAPEND32(BOOT_AV_INFO_MAGICNO);
 						if(boot_logo_enable)
@@ -1924,6 +1947,7 @@ int rtk_plat_read_fw_image_from_eMMC(
 							boot_av-> src_height = CPU_TO_BE32(custom_logo_src_height);
 							boot_av-> dst_width = CPU_TO_BE32(custom_logo_dst_width);
 							boot_av-> dst_height = CPU_TO_BE32(custom_logo_dst_height);
+							boot_av-> vo_secure_addr = CPU_TO_BE32((unsigned int)(uintptr_t)set_vo_secure);
 						}
 
 						break;
@@ -1960,6 +1984,14 @@ int rtk_plat_read_fw_image_from_eMMC(
 						continue;
 				}
 			}
+#ifdef CONFIG_RTD1395
+			// at 1395, audio fw belong to trusted fw and need to be loaded by FSBL
+			if (entry_type == FW_TYPE_AUDIO || entry_type == FW_TYPE_GOLD_AUDIO) {
+				printf("\t FW Image preload on 0x%08x, size=0x%08x (0x%08x)\n",
+					entry_target_addr, entry_length, entry_target_addr + entry_length);
+				continue;
+			}
+#endif
 #ifdef EMMC_BLOCK_LOG
 			printf("\t FW Image to 0x%08x ~ 0x%08x, size=0x%08x, 0x%x blocks\n",
 					entry_target_addr,
@@ -1967,12 +1999,12 @@ int rtk_plat_read_fw_image_from_eMMC(
 					entry_length,
 					(entry_length%EMMC_BLOCK_SIZE)?(entry_length/EMMC_BLOCK_SIZE)+1:(entry_length/EMMC_BLOCK_SIZE));
 			printf("\t FW Image fr 0x%08Lx, blk 0x%x\n",
-					(u64)(eMMC_fw_desc_table_start + entry_offset),
+					entry_offset,
 					(eMMC_fw_desc_table_start + entry_offset)/EMMC_BLOCK_SIZE);
 #else
 			printf("\t FW Image to 0x%08x, size=0x%08x (0x%08x)\n",
 					entry_target_addr, entry_length, entry_target_addr + entry_length);
-			printf("\t FW Image fr 0x%08Lx \n", (u64)(eMMC_fw_desc_table_start + entry_offset));
+			printf("\t FW Image fr 0x%08Lx \n", entry_offset);
 #endif
 
 			WATCHDOG_KICK();
@@ -1996,7 +2028,10 @@ int rtk_plat_read_fw_image_from_eMMC(
 					/* get memory layout before copy other image */
 					mem_layout.bIsEncrypted = 0;
 					mem_layout.bIsCompressed = 0;
-					mem_layout.image_target_addr = entry_target_addr & (~MIPS_KSEG_MSK);
+					
+					/*Workaround method to show logo.*/
+					mem_layout.image_target_addr = entry_target_addr;
+					//mem_layout.image_target_addr = entry_target_addr & (~MIPS_KSEG_MSK);
 				}
 
 				get_mem_layout_when_read_image(&mem_layout);
@@ -2009,7 +2044,7 @@ int rtk_plat_read_fw_image_from_eMMC(
 					imageSize += EMMC_BLOCK_SIZE;
 				}
 
-				block_no = (eMMC_fw_desc_table_start + entry_offset) / EMMC_BLOCK_SIZE ;
+				block_no = entry_offset / EMMC_BLOCK_SIZE;
 
 				if (!rtk_eMMC_read(block_no, imageSize, (uint *)(uintptr_t)mem_layout.flash_to_ram_addr))
 				{
@@ -2287,7 +2322,6 @@ int rtk_plat_read_fw_image_from_eMMC(
 	return RTK_PLAT_ERR_OK;
 }
 
-
 /*
  * Use firmware description table to read images from NAND flash.
  */
@@ -2296,35 +2330,35 @@ int rtk_plat_read_fw_image_from_NAND(
 		void* fw_entry, int fw_count,
 		uchar version)
 {
-#ifdef CONFIG_SYS_RTK_NAND_FLASH
 	int ret = RTK_PLAT_ERR_OK;
-	fw_desc_entry_v1_t *this_entry;
-	fw_desc_entry_v11_t *v11_entry;
-	fw_desc_entry_v21_t *v21_entry;
-	int i;
-	int videoFileNum=0, audioFileNum=0;
+#ifdef CONFIG_SYS_RTK_NAND_FLASH
+	void *this_entry;
+	int i, j;
 	uint unit_len;
-	char buf[64];
 	uint fw_checksum = 0;
-
 	unsigned int secure_mode;
-	unsigned int * Kh_key_ptr = DEFAULT_KEY_PTR;
-	unsigned int img_truncated_size; // install_a will append 256-byte signature data to it
+	unsigned char sha_hash[32];
 	boot_av_info_t *boot_av;
 	MEM_LAYOUT_WHEN_READ_IMAGE_T mem_layout;
 	uint imageSize = 0;
 	uint decompressedSize = 0;
 
-	// extern variable
-	extern unsigned int mcp_dscpt_addr;
-	mcp_dscpt_addr = 0;
-
-	secure_mode = rtk_get_secure_boot_type();
-	img_truncated_size = RSA_SIGNATURE_LENGTH;
-
 	struct mtd_info *mtd = &nand_info[nand_curr_device];
 	size_t rwsize;
-	unsigned char str[16];// old array size is 5, change to 16. To avoid the risk in memory overlap.
+	unsigned char empty_mount[sizeof(part_entry->mount_point)] = {0};
+	char buf[64];
+	char tmp[16];
+	char *tmp_cmdline = NULL;
+	u64 size;
+	char str[16];// old array size is 5, change to 16. To avoid the risk in memory overlap.
+
+	uchar entry_type = 0;
+	uchar entry_lzma = 0;
+	uint entry_target_addr = 0;
+	u64 entry_offset = 0;
+	uint entry_length = 0;
+
+	secure_mode = rtk_get_secure_boot_type();
 
 	/* find fw_entry structure according to version */
 	switch (version)
@@ -2333,183 +2367,186 @@ int rtk_plat_read_fw_image_from_NAND(
 			unit_len = sizeof(fw_desc_entry_v1_t);
 			break;
 
-		case FW_DESC_TABLE_V1_T_VERSION_11:
-			unit_len = sizeof(fw_desc_entry_v11_t);
-			break;
-
-		case FW_DESC_TABLE_V1_T_VERSION_21:
-			unit_len = sizeof(fw_desc_entry_v21_t);
+		case FW_DESC_TABLE_V2_T_VERSION_2:
+			unit_len = sizeof(fw_desc_entry_v2_t);
 			break;
 
 		default:
 			return RTK_PLAT_ERR_READ_FW_IMG;
 	}
 
+
 	/* clear boot_av_info memory */
 	boot_av = (boot_av_info_t *) MIPS_BOOT_AV_INFO_ADDR;
 	memset(boot_av, 0, sizeof(boot_av_info_t));
+
+	/* Add mtd_part env var */
+	if(boot_mode != BOOT_RESCUE_MODE && boot_mode != BOOT_GOLD_MODE)
+	{
+		for(i = 0; i < part_count; i++) {
+			part_entry[i].length =BE64_TO_CPU(part_entry[i].length);
+			size=(part_entry[i].length >> 10);
+
+			memset(buf, 0, sizeof(buf));
+			memset(tmp, 0, sizeof(tmp));
+			snprintf(tmp, 16, "%llu", size);
+
+			if (memcmp(empty_mount, part_entry[i].mount_point, sizeof(empty_mount)) != 0) {
+				sprintf(buf, "%sk(%s%s",tmp, part_entry[i].mount_point,i == part_count-1? ")" :"),");
+			}
+			else {
+				sprintf(buf, "%s%s",tmp,i == part_count-1? "k" :"k,");
+			}
+			//printf("buf=%s\n",buf);
+			tmp_cmdline = (char *)malloc(strlen(getenv("mtd_part")) + 60);
+			if (!tmp_cmdline) {
+				printf("%s: Malloc failed\n", __func__);
+			}
+			else {
+				sprintf(tmp_cmdline, "%s%s", getenv("mtd_part"),buf);
+				setenv("mtd_part", tmp_cmdline);
+				free(tmp_cmdline);
+			}
+			debug(">%s\n",getenv("mtd_part"));
+		}
+	}
 
 	/* parse each fw_entry */
 	for (i = 0; i < fw_count; i++)
 	{
 		EXECUTE_CUSTOMIZE_FUNC(0); // insert execute customer callback at here
 
-		this_entry = (fw_desc_entry_v1_t *)(fw_entry + unit_len * i);
+		this_entry = (fw_entry + unit_len * i);
+		FW_ENTRY_MEMBER_GET(entry_target_addr, this_entry, target_addr, version);
+		FW_ENTRY_MEMBER_GET(entry_type, this_entry, type, version);
+		FW_ENTRY_MEMBER_GET(entry_length, this_entry, length, version);
+		FW_ENTRY_MEMBER_GET(entry_offset, this_entry, offset, version);
+		FW_ENTRY_MEMBER_GET(entry_lzma, this_entry, lzma, version);
 
-		if (this_entry->target_addr)
+		if (entry_target_addr)
 		{
-			if (boot_mode == BOOT_RESCUE_MODE || boot_mode == BOOT_ANDROID_MODE)
+			if(boot_mode == BOOT_GOLD_MODE)
 			{
-				switch(this_entry->type)
+				switch(entry_type)
 				{
-					case FW_TYPE_KERNEL:
+					case FW_TYPE_GOLD_KERNEL:
+						//entry_offset=entry_offset-1; //let load gold_fw fail, and it can test enter to USB mode
 						memset(str, 0, sizeof(str));
-						sprintf(str, "%x", this_entry->target_addr); /* write entry-point into string */
-						setenv("kernel_loadaddr", str);
-						printf("Kernel:\n");
+						sprintf((char *) str, "%x", entry_target_addr); /* write entry-point into string */
+						setenv("kernel_loadaddr",(char *) str);
+						printf("GOLD Kernel:\n");
 						break;
-
-					case FW_TYPE_RESCUE_DT:
-						this_entry->target_addr = rtk_plat_get_dtb_target_address(this_entry->target_addr);
-						//printf("this_entry->target_addr =%x\n",this_entry->target_addr);
+					case FW_TYPE_GOLD_RESCUE_DT:
+						entry_target_addr = rtk_plat_get_dtb_target_address(entry_target_addr);
+						FW_ENTRY_MEMBER_SET(entry_target_addr, this_entry, target_addr, version);
+						//printf("entry_target_addr =%x\n",entry_target_addr);
 						memset(str, 0, sizeof(str));
-						sprintf(str, "%x", this_entry->target_addr); /* write entry-point into string */
-						setenv("fdt_loadaddr", str);
-						printf("Rescue DT:\n");
+						sprintf((char *) str, "%x", entry_target_addr); /* write entry-point into string */
+						setenv("fdt_loadaddr",(char *) str);
+						printf("GOLD Rescue DT:\n");
 						break;
-
-					case FW_TYPE_RESCUE_ROOTFS:
-						printf("Rescue ROOTFS:\n");
+					case FW_TYPE_GOLD_RESCUE_ROOTFS:
+						printf("GOLD Rescue ROOTFS:\n");
+						entry_target_addr = get_rescue_rootfs_addr(entry_target_addr);
 #ifdef NAS_ENABLE
-						initrd_size = this_entry->length;
-						if(secure_mode != NONE_SECURE_BOOT)
-						{
-							initrd_size -= img_truncated_size;
-							/* Pad 1 ~ 64 bytes by do_sha256 */
-							initrd_size -= 64;
-						}
+						initrd_size = entry_length;
 #endif
 						break;
-
-					case FW_TYPE_TEE:
-#ifdef CONFIG_TEE
-						printf("TEE:\n");
-						tee_enable=1;
-						break;
-#else
-						continue;
-#endif
-
-					case FW_TYPE_AUDIO:
+					case FW_TYPE_GOLD_AUDIO:
 						if(boot_mode == BOOT_KERNEL_ONLY_MODE)
 							continue;
 						else
 						{
-							ipc_shm.audio_fw_entry_pt = CPU_TO_BE32(this_entry->target_addr | MIPS_KSEG0BASE);
-							printf("Audio FW:\n");
+							ipc_shm.audio_fw_entry_pt = CPU_TO_BE32(entry_target_addr | MIPS_KSEG0BASE);
+							printf("GOLD Audio FW:\n");
 						}
 						break;
-
 					default:
-						//printf("Unknown FW (%d):\n", this_entry->type);
+						//printf("Unknown FW (%d):\n", entry_type);
 						continue;
 				}
 			}
 			else
 			{
-				switch(this_entry->type)
+				switch(entry_type)
 				{
-					case FW_TYPE_BOOTCODE:
-						printf("Boot Code:\n");
-						break;
-
 					case FW_TYPE_KERNEL:
 						memset(str, 0, sizeof(str));
-						sprintf(str, "%x", this_entry->target_addr); /* write entry-point into string */
+						sprintf(str, "%x", entry_target_addr); /* write entry-point into string */
 						setenv("kernel_loadaddr", str);
 						printf("Kernel:\n");
 						break;
 
 					case FW_TYPE_KERNEL_DT:
-						this_entry->target_addr = rtk_plat_get_dtb_target_address(this_entry->target_addr);
-						//printf("this_entry->target_addr =%x\n",this_entry->target_addr);
-						memset(str, 0, sizeof(str));
-						sprintf(str, "%x", this_entry->target_addr); /* write entry-point into string */
-						setenv("fdt_loadaddr", str);
-						printf("DT:\n");
-						break;
+						if( boot_mode != BOOT_RESCUE_MODE ) {
+							entry_target_addr = rtk_plat_get_dtb_target_address(entry_target_addr);
+							FW_ENTRY_MEMBER_SET(entry_target_addr, this_entry, target_addr, version);
+							//printf("entry_target_addr =%x\n",entry_target_addr);
+							memset(str, 0, sizeof(str));
+							sprintf((char *)str, "%x", entry_target_addr); /* write entry-point into string */
+							setenv("fdt_loadaddr", (char *)str);
+							printf("DT:\n");
+							break;
+						}
+						else {
+							continue;
+						}
+
+					case FW_TYPE_RESCUE_DT:
+						if( boot_mode == BOOT_RESCUE_MODE ) {
+							entry_target_addr = rtk_plat_get_dtb_target_address(entry_target_addr);
+							FW_ENTRY_MEMBER_SET(entry_target_addr, this_entry, target_addr, version);
+							//printf("entry_target_addr =%x\n",entry_target_addr);
+							memset(str, 0, sizeof(str));
+							sprintf((char *)str, "%x", entry_target_addr); /* write entry-point into string */
+							setenv("fdt_loadaddr", (char *)str);
+							printf("Rescue DT:\n");
+							break;
+						}
+						else {
+							continue;
+						}
 
 					case FW_TYPE_KERNEL_ROOTFS:
 						printf("ROOTFS:\n");
 						break;
+
+					case FW_TYPE_RESCUE_ROOTFS:
+						if( boot_mode == BOOT_RESCUE_MODE ) {
+							printf("Rescue ROOTFS:\n");
+							entry_target_addr = get_rescue_rootfs_addr(entry_target_addr);
+#ifdef NAS_ENABLE
+							initrd_size = entry_length;
+#endif
+							break;
+						}
+						else {
+							continue;
+						}
 
 					case FW_TYPE_AUDIO:
 						if(boot_mode == BOOT_KERNEL_ONLY_MODE)
 							continue;
 						else
 						{
-							ipc_shm.audio_fw_entry_pt = CPU_TO_BE32(this_entry->target_addr | MIPS_KSEG0BASE);
+							ipc_shm.audio_fw_entry_pt = CPU_TO_BE32(entry_target_addr | MIPS_KSEG0BASE);
 							printf("Audio FW:\n");
 						}
 						break;
 
-					case FW_TYPE_TEE:
-#ifdef CONFIG_TEE
-						printf("TEE:\n");
-						tee_enable=1;
-						break;
-#else
-						continue;
-#endif
-
-					case FW_TYPE_JFFS2:
-						printf("JFFS2 Image:\n");
-						break;
-
-					case FW_TYPE_SQUASH:
-						printf("Squash Image:\n");
-						break;
-
-					case FW_TYPE_EXT3:
-						printf("EXT3 Image:\n");
-						break;
-
-					case FW_TYPE_ODD:
-						printf("ODD Image:\n");
-						break;
-
-					case FW_TYPE_YAFFS2:
-						printf("YAFFS2 Image:\n");
-						break;
-
-					case FW_TYPE_AUDIO_FILE:
-						//this_entry->target_addr = (POWER_ON_MUSIC_STREAM_ADDR | MIPS_KSEG0BASE);
-
-						/* if enable boot music, need to assign boot_av structure */
-						//boot_av->dwMagicNumber = SWAPEND32(BOOT_AV_INFO_MAGICNO);
-						//boot_av->dwAudioStreamAddress = SWAPEND32(this_entry->target_addr);
-						//boot_av->dwAudioStreamLength = SWAPEND32(this_entry->length);
-						//boot_av->dwAudioStreamVolume = (-17);
-						break;
-
-					case FW_TYPE_VIDEO_FILE:
-
-						/* if enable boot video/jpeg, need to assign boot_av structure */
-						//boot_av->dwMagicNumber = SWAPEND32(BOOT_AV_INFO_MAGICNO);
-						//boot_av->dwVideoStreamAddress = SWAPEND32(this_entry->target_addr);
-						//boot_av->bPowerOnImage = 0;
-						//boot_av->dwVideoStreamLength = SWAPEND32(this_entry->length);
-						break;
-
 					case FW_TYPE_IMAGE_FILE:
+						if(boot_mode == BOOT_KERNEL_ONLY_MODE)
+							continue;
+
 						printf("IMAGE FILE:\n");
 
 						/* assign boot_av structure */
 						boot_av->dwMagicNumber = SWAPEND32(BOOT_AV_INFO_MAGICNO);
+						printf("  boot_logo_enable(%d), magic# 0x%08x\n", boot_logo_enable, boot_av->dwMagicNumber);
 						if(boot_logo_enable)
 						{
 							boot_av-> logo_enable = boot_logo_enable;
-							boot_av-> logo_addr = CPU_TO_BE32(this_entry->target_addr);
+							boot_av-> logo_addr = CPU_TO_BE32(entry_target_addr);
 							boot_av-> src_width = CPU_TO_BE32(custom_logo_src_width);
 							boot_av-> src_height = CPU_TO_BE32(custom_logo_src_height);
 							boot_av-> dst_width = CPU_TO_BE32(custom_logo_dst_width);
@@ -2518,134 +2555,123 @@ int rtk_plat_read_fw_image_from_NAND(
 
 						break;
 
-					case FW_TYPE_HYP:
-						memset(str, 0, sizeof(str));
-						sprintf(str, "%x", this_entry->target_addr); /* write entry-point into string */
-						setenv("hyp_loadaddr", str);
-						printf("Hypervisor:\n");
-						break;
-
 					default:
-						//printf("Unknown FW (%d):\n", this_entry->type);
+						//printf("Unknown FW (%d):\n", entry_type);
 						continue;
 				}
 			}
 
 			printf("\t FW Image to 0x%08x, size=0x%08x (0x%08x)\n",
-				this_entry->target_addr, this_entry->length, this_entry->target_addr + this_entry->length);
+					entry_target_addr, entry_length, entry_target_addr + entry_length);
 
-			printf("\t FW Image fr 0x%08x %s\n", nand_fw_desc_table_start + this_entry->offset, this_entry->lzma ? "(lzma)" : "(non-lzma)");
+			printf("\t FW Image fr 0x%08Lx %s\n", entry_offset, entry_lzma ? "(lzma)" : "(non-lzma)");
 
 			WATCHDOG_KICK();
 
-				/* secure mode and lzma will only apply to fw image */
-				if (this_entry->type == FW_TYPE_AUDIO ||
-					this_entry->type == FW_TYPE_KERNEL_ROOTFS ||
-					this_entry->type == FW_TYPE_KERNEL  ||
-					this_entry->type == FW_TYPE_RESCUE_ROOTFS )
-				{
-					/* get memory layout before copy fw image */
-					mem_layout.bIsEncrypted = (secure_mode != NONE_SECURE_BOOT);
-					mem_layout.bIsCompressed = this_entry->lzma;
-					mem_layout.image_target_addr = this_entry->target_addr & (~MIPS_KSEG_MSK);
-				}
-				else
-				{
-					/* get memory layout before copy other image */
-					mem_layout.bIsEncrypted = 0;
-					mem_layout.bIsCompressed = 0;
-					mem_layout.image_target_addr = this_entry->target_addr & (~MIPS_KSEG_MSK);
-				}
+			/* secure mode and lzma will only apply to fw image */
+			if (entry_type == FW_TYPE_KERNEL ||
+				entry_type == FW_TYPE_KERNEL_ROOTFS ||
+				entry_type == FW_TYPE_RESCUE_ROOTFS ||
+				entry_type == FW_TYPE_AUDIO)
+			{
+				/* get memory layout before copy fw image */
+				mem_layout.bIsEncrypted = (secure_mode != NONE_SECURE_BOOT);
+				mem_layout.bIsCompressed = entry_lzma;
+				mem_layout.image_target_addr = entry_target_addr & (~MIPS_KSEG_MSK);
+			}
+			else
+			{
+				/* get memory layout before copy other image */
+				mem_layout.bIsEncrypted = 0;
+				mem_layout.bIsCompressed = 0;
+				mem_layout.image_target_addr = entry_target_addr & (~MIPS_KSEG_MSK);
+			}
 
-				get_mem_layout_when_read_image(&mem_layout);
+			get_mem_layout_when_read_image(&mem_layout);
 
-				/* read image from flash */
-				imageSize = this_entry->length;
+			/* read image from flash */
+			imageSize = entry_length;
 
-				rwsize = this_entry->length;
-				if (rwsize&(mtd->oobblock-1))  // page aligned
-				{
-					rwsize &= ~(mtd->oobblock-1);
-					rwsize += mtd->oobblock;
-				}
+			rwsize = entry_length;
+			if (rwsize&(mtd->writesize-1))  // page aligned
+			{
+				rwsize &= ~(mtd->writesize-1);
+				rwsize += mtd->writesize;
+			}
 
-				if(mem_layout.bIsEncrypted)
-					ret = nand_read_skip_bad_on_the_fly(mtd, nand_fw_desc_table_start + this_entry->offset, &rwsize, (uint *)mem_layout.flash_to_ram_addr,CP_NF_AES_CBC_128);
-				else
-					ret = nand_read_skip_bad(mtd, nand_fw_desc_table_start + this_entry->offset, &rwsize, (uint *)mem_layout.flash_to_ram_addr);
+			if(mem_layout.bIsEncrypted)
+				ret = nand_read_skip_bad_on_the_fly(mtd, entry_offset, &rwsize, (u_char*)(uintptr_t)mem_layout.flash_to_ram_addr,CP_NF_AES_CBC_128);
+			else
+				ret = nand_read_skip_bad(mtd, entry_offset, &rwsize, NULL, mtd->size, (u_char*)(uintptr_t)mem_layout.flash_to_ram_addr);
 
-				if(ret){
-					printf("[ERR] Read fw error (type:%d)!\n", this_entry->type);
-					return RTK_PLAT_ERR_READ_FW_IMG;
-				}
-#ifndef BYPASS_CHECKSUM
-				/* Check checksum */
-				fw_checksum = get_checksum((uchar *)mem_layout.flash_to_ram_addr, this_entry->length);
+			if(ret){
+				printf("[ERR] Read fw error (type:%d)!\n", entry_type);
+				return RTK_PLAT_ERR_READ_FW_IMG;
+			}
 
-				if (this_entry->checksum != fw_checksum && secure_mode!= RTK_SECURE_BOOT)
-				{
+			/* Check checksum */
+			if (FW_DESC_BASE_VERSION(version) == FW_DESC_TABLE_V1_T_VERSION_1) {
+				fw_checksum = get_checksum((uchar *)(uintptr_t)mem_layout.flash_to_ram_addr, entry_length);
+				if (((fw_desc_entry_v1_t*)this_entry)->checksum != fw_checksum &&
+					secure_mode!= RTK_SECURE_BOOT) {
 					printf("\t FW Image checksum FAILED\n");
-					printf("\t FW Image entry  checksum=0x%08x\n", this_entry->checksum);
+					printf("\t FW Image entry  checksum=0x%08x\n",
+						((fw_desc_entry_v1_t*)this_entry)->checksum);
 					printf("\t FW Image result checksum=0x%08x\n", fw_checksum);
 					return RTK_PLAT_ERR_READ_FW_IMG;
 				}
-#endif
-				/* if secure mode, do AES CBC decrypt */
-				if (mem_layout.bIsEncrypted)
-				{
-					if (secure_mode == RTK_SECURE_BOOT)
-					{
-						ret = Verify_SHA256_hash( (unsigned char *)mem_layout.flash_to_ram_addr,
-												  this_entry->length - img_truncated_size,
-												  (unsigned char *)(mem_layout.flash_to_ram_addr + this_entry->length - img_truncated_size),
-												  1, NULL );
-						if( ret < 0 ) {
-							printf("[ERR] %s: verify hash fail(%d)\n", __FUNCTION__, ret );
-							return RTK_PLAT_ERR_READ_FW_IMG;
-						}
-						//imageSize = imageSize - img_truncated_size - SHA256_SIZE;
-					}
+			} else if (FW_DESC_BASE_VERSION(version) == FW_DESC_TABLE_V2_T_VERSION_2) {
+				SHA256_hash((uchar *)(uintptr_t)mem_layout.flash_to_ram_addr, entry_length, sha_hash, NULL);
+				if ((memcmp(((fw_desc_entry_v2_t*)this_entry)->sha_hash, sha_hash, SHA256_SIZE) != 0) &&
+					secure_mode!= RTK_SECURE_BOOT) {
+					printf("\t FW Image sha FAILED\n");
+					printf("\t FW Image entry sha256==>\n");
+					for (j = 0 ; j < 32 ; j++)
+						printf("%02x ", ((fw_desc_entry_v2_t*)this_entry)->sha_hash[j]);
+					printf("\n\t FW Image result sha256==>\n");
+					for (j = 0 ; j < 32 ; j++)
+						printf("%02x ", sha_hash[j]);
+					printf("\n");
+					return RTK_PLAT_ERR_READ_FW_IMG;
 				}
+			}
 
-				/* if lzma type, decompress image */
-				if (mem_layout.bIsCompressed)
+			/* if secure mode, do AES CBC decrypt */
+/*			if (mem_layout.bIsEncrypted)
+			{
+				if (secure_mode == RTK_SECURE_BOOT)
 				{
-					if (lzmaBuffToBuffDecompress((uchar*)mem_layout.decompressed_addr, &decompressedSize, (uchar*)mem_layout.compressed_addr, imageSize) != 0)
-					{
-						printf("[ERR] %s:Decompress using LZMA error!!\n", __FUNCTION__);
-
+					ret = Verify_SHA256_hash( (unsigned char *)(uintptr_t)mem_layout.flash_to_ram_addr, entry_length - img_truncated_size, (unsigned char *)(uintptr_t)(mem_layout.flash_to_ram_addr + entry_length - img_truncated_size), 1, NULL );
+					if( ret < 0 ) {
+						printf("[ERR] %s: verify hash fail(%d)\n", __FUNCTION__, ret );
 						return RTK_PLAT_ERR_READ_FW_IMG;
 					}
+					//imageSize = imageSize - img_truncated_size - SHA256_SIZE;
 				}
-		}
+			}*/
 
+			/* if lzma type, decompress image */
+			if (mem_layout.bIsCompressed)
+			{
+				decompressedSize = 0;
+				if (lzmaBuffToBuffDecompress((uchar*)(uintptr_t)mem_layout.decompressed_addr, (SizeT *)&decompressedSize, (uchar*)(uintptr_t)mem_layout.compressed_addr, imageSize) != 0)
+				{
+					printf("[ERR] %s:Decompress using LZMA error!!\n", __FUNCTION__);
+
+					return RTK_PLAT_ERR_READ_FW_IMG;
+				}
+			}
+#ifdef NAS_ENABLE
+			if (FW_TYPE_RESCUE_ROOTFS == entry_type)
+			{
+				initrd_size = (entry_lzma)?decompressedSize:entry_length;
+			}
+#endif
+		}
+	}
 #ifdef NAS_ENABLE
 	rtk_plat_set_boot_flag_from_part_desc(part_entry, part_count);
 #endif
-
-		if (version == FW_DESC_TABLE_V1_T_VERSION_11)
-		{
-			v11_entry = (fw_desc_entry_v11_t*) (fw_entry + unit_len * i);
-
-			if (v11_entry->act_size != 0)
-			{
-				// string format: "part_num:act_size:hash,"
-				memset(buf, 0, sizeof(buf));
-				sprintf(buf, "%d:%d:", v11_entry->part_num, v11_entry->act_size);
-//				strncat(str_phash, buf, strlen(buf));
-				memset(buf, 0, sizeof(buf));
-				memcpy(buf, v11_entry->hash, sizeof(v11_entry->hash));
-				buf[sizeof(v11_entry->hash)] = ',';
-//				strncat(str_phash, buf, strlen(buf));
-			}
-		}
-		else if (version == FW_DESC_TABLE_V1_T_VERSION_21)
-		{
-			v21_entry = (fw_desc_entry_v21_t *)this_entry;
-		}
-	}
-
-
 
 	/* set boot_av_info_ptr */
 	if (boot_av->dwMagicNumber == SWAPEND32(BOOT_AV_INFO_MAGICNO))
@@ -2655,10 +2681,10 @@ int rtk_plat_read_fw_image_from_NAND(
 		// enable audio sound
 		if (boot_av->dwAudioStreamLength != 0)
 		{
-			printf("skip enable audio sound\n ");
+			;
 		}
 
-		ipc_shm.pov_boot_av_info = SWAPEND32((uint) boot_av);
+		ipc_shm.pov_boot_av_info = SWAPEND32((uint)(uintptr_t)boot_av);
 
 		#ifdef DUBUG_BOOT_AV_INFO
 		dump_boot_av_info(boot_av);
@@ -2669,8 +2695,12 @@ int rtk_plat_read_fw_image_from_NAND(
 	flush_dcache_all();
 
 #endif /* CONFIG_SYS_RTK_NAND_FLASH */
+	/* Start audio fw for S5 power check */
+	if (boot_from_flash == BOOT_FROM_FLASH_NORMAL_MODE) {
+		do_go_audio_fw();
+	}
 
-	return RTK_PLAT_ERR_OK;
+	return ret;
 }
 
 /*
@@ -2851,7 +2881,7 @@ int rtk_plat_read_fw_image_from_SPI(
 			}
 			printf("\t FW Image to 0x%08x, size=0x%08x (0x%08x)\n",
 					entry_target_addr, entry_length, entry_target_addr + entry_length);
-			printf("\t FW Image fr 0x%08Lx \n", (u64)(spi_fw_desc_table_start + entry_offset));
+			printf("\t FW Image fr 0x%08Lx \n", entry_offset);
 
 			WATCHDOG_KICK();
 
@@ -2890,7 +2920,7 @@ int rtk_plat_read_fw_image_from_SPI(
 				imageSize += erasesize;
 			}
 
-		        rtkspi_read32_md(mem_layout.flash_to_ram_addr, _iSPI_base_addr+entry_offset, imageSize);
+		        rtkspi_read32_md(mem_layout.flash_to_ram_addr, SPI_RBUS_BASE_ADDR+entry_offset, imageSize);
 #ifndef BYPASS_CHECKSUM
 			/* Check checksum */
 			if (FW_DESC_BASE_VERSION(version) == FW_DESC_TABLE_V1_T_VERSION_1) {
@@ -2964,7 +2994,7 @@ int rtk_plat_read_fw_image_from_SPI(
 #endif // CONFIG_BOOT_FROM_SPI
 	/* Start audio fw for S5 power check */
 	if (boot_from_flash == BOOT_FROM_FLASH_NORMAL_MODE) {
-		if (!audio_fw_state) do_go_audio_fw();
+		do_go_audio_fw();
 	}
 
 	return ret;
@@ -3521,7 +3551,7 @@ char *rtk_plat_prepare_fw_image_from_USB(int fw_type)
 	return NULL;
 }
 
-#if defined(CONFIG_SYS_RTK_EMMC_FLASH) || defined(CONFIG_BOOT_FROM_SPI)
+#if defined(CONFIG_SYS_RTK_EMMC_FLASH) || defined(CONFIG_BOOT_FROM_SPI) || defined(CONFIG_SYS_RTK_NAND_FLASH)
 static int rtk_plat_parse_fwdesc(fwdesc_args_t *fwdesc_args,
         uint fw_desc_table_addr, int (*read_func)(uint, uint, uint*))
 {
@@ -3613,7 +3643,7 @@ static int rtk_plat_parse_fwdesc(fwdesc_args_t *fwdesc_args,
 	}
 
 	//fw_entry_num = fw_desc_table_v1.fw_list_len / sizeof(fw_desc_entry_v1_t);
-	//printf("[Info] fw desc table base: 0x%08x, count: %d\n", eMMC_fw_desc_table_start, fw_entry_num);
+	//printf("[Info] fw desc table base: 0x%08x, count: %d\n", fw_desc_table_addr, fw_entry_num);
 
 	part_entry = (part_desc_entry_v1_t *)(fw_desc_table_base + sizeof(fw_desc_table_v1_t));
 	fw_entry = (fw_desc_entry_v1_t *)(fw_desc_table_base +
@@ -3672,7 +3702,13 @@ static int rtk_plat_parse_fwdesc(fwdesc_args_t *fwdesc_args,
 			return RTK_PLAT_ERR_PARSE_FW_DESC;
 	}
 
-	printf("[Info] fw desc table base: 0x%08x, count: %d\n", eMMC_fw_desc_table_start, fw_entry_num);
+#ifdef CONFIG_SYS_RTK_EMMC_FLASH
+	printf("[Info] fw desc table base: 0x%08x, count: %d\n", fw_desc_table_addr*EMMC_BLOCK_SIZE, fw_entry_num);
+#elif defined(CONFIG_SYS_RTK_NAND_FLASH)
+	printf("[Info] fw desc table base: 0x%08x, count: %d\n", fw_desc_table_addr, fw_entry_num);
+#elif defined(CONFIG_BOOT_FROM_SPI)
+	printf("[Info] fw desc table base: 0x%08x, count: %d\n", fw_desc_table_addr-SPI_RBUS_BASE_ADDR, fw_entry_num);
+#endif
 
 	for (i = 0 ; i < fw_entry_num ; i++) {
 		uint f_version;
@@ -3695,10 +3731,10 @@ static int rtk_plat_parse_fwdesc(fwdesc_args_t *fwdesc_args,
 		/* target_offset */
 		FW_ENTRY_MEMBER_GET(f_offset, fw_desc_ptr, offset, fw_desc_version);
 		if (FW_DESC_BASE_VERSION(fw_desc_version) == 1) {
-			FW_ENTRY_MEMBER_SET(BE32_TO_CPU((uint)f_offset) - eMMC_fw_desc_table_start,
+			FW_ENTRY_MEMBER_SET(BE32_TO_CPU((uint)f_offset),
 				fw_desc_ptr, offset, fw_desc_version);
 		} else {// Version 2
-			FW_ENTRY_MEMBER_SET(BE64_TO_CPU(f_offset) - eMMC_fw_desc_table_start,
+			FW_ENTRY_MEMBER_SET(BE64_TO_CPU(f_offset),
 				fw_desc_ptr, offset, fw_desc_version);
 		}
 		/* length */
@@ -3846,7 +3882,7 @@ int rtk_plat_get_fw_desc_table_start(void)
 {
 #ifdef CONFIG_SYS_RTK_NAND_FLASH
 	struct mtd_info *mtd = &nand_info[nand_curr_device];
-	int uboot_512KB = 0x80000;
+	int uboot_768KB = 0xc0000;
 #ifdef NAS_ENABLE
 	int factory_8MB = CONFIG_FACTORY_SIZE;
 #else
@@ -3856,11 +3892,15 @@ int rtk_plat_get_fw_desc_table_start(void)
 
 	reservedSize = 6* mtd->erasesize;  //NF profile + BBT
 	reservedSize += 1*4* mtd->erasesize; //Hw_setting*4
-	reservedSize += rtd_size_aligned(uboot_512KB ,mtd->erasesize)*4;
-	reservedSize += rtd_size_aligned(factory_8MB ,mtd->erasesize);
-
-	// add extra 20% space for safety.
-	reservedSize = rtd_size_aligned(reservedSize*1.2 ,mtd->erasesize);
+	reservedSize += 1*4* mtd->erasesize; //FSBL*4
+#ifndef CONFIG_SYS_NO_BL31
+	reservedSize += ALIGN(uboot_768KB ,mtd->erasesize)*4; //TEE*4
+	reservedSize += 1*4* mtd->erasesize; //BL31*4
+	reservedSize += 1*4* mtd->erasesize; //RSA_FW*4
+	reservedSize += 1*4* mtd->erasesize; //RSA_TEE*4
+#endif
+	reservedSize += ALIGN(uboot_768KB ,mtd->erasesize)*4;
+	reservedSize += ALIGN(factory_8MB ,mtd->erasesize);
 
 	return reservedSize;
 #endif
@@ -3874,263 +3914,30 @@ int rtk_plat_prepare_fw_image_from_NAND(void)
 {
 	int ret = RTK_PLAT_ERR_OK;
 #ifdef CONFIG_SYS_RTK_NAND_FLASH
-	fw_desc_table_v1_t fw_desc_table_v1;
-	part_desc_entry_v1_t *part_entry;
-	fw_desc_entry_v1_t *fw_entry, *fw_entry_v1;
-	fw_desc_entry_v11_t *fw_entry_v11;
-	fw_desc_entry_v21_t *fw_entry_v21;
-	uint part_count = 0;
-	uint fw_total_len;
-	uint fw_total_paddings;
-	uint fw_entry_num = 0;
-	uint fw_desc_table_base;
-	uint checksum;
-	int i;
 	struct mtd_info *mtd = &nand_info[nand_curr_device];
-	size_t rwsize;
-	unsigned char empty_mount[sizeof(part_entry->mount_point)];
-	unsigned char buf[64];
-	unsigned char tmp[16];
-	char *tmp_cmdline = NULL;
-	u64 size;
+	fwdesc_args_t fwdesc_args = {0};
 
-#ifdef CONFIG_PROTECTED_AREA_OLD_LAYOUT
-        //protected area:512 pages*31
-	nand_fw_desc_table_start = (mtd->oobblock)*512*31;
-#else
-	if((nand_fw_desc_table_start = rtk_plat_get_fw_desc_table_start()) == RTK_PLAT_ERR_PARSE_FW_DESC)
-		return RTK_PLAT_ERR_PARSE_FW_DESC;
-#endif
-	debug("nand_fw_desc_table_start=0x%x\n",nand_fw_desc_table_start);
-	fw_desc_table_base = FIRMWARE_DESCRIPTION_TABLE_ADDR;
-
-	/* copy Firmware Description Table from flash */
-	// Firmware Description Table is right behind bootcode blockS
-	rwsize= mtd->oobblock;
-	/* copy Firmware Description Table Header from flash */
-	if (nand_read_skip_bad(mtd,nand_fw_desc_table_start,&rwsize, (uint *)fw_desc_table_base)!=0)
+	nand_fw_desc_table_start = rtk_plat_get_fw_desc_table_start();
+	if(boot_mode==BOOT_GOLD_MODE)
 	{
-		printf("[ERR] %s:Read fw_desc_table_v1_t error! (0x%x, 0x%x, 0x%x)\n",
-			__FUNCTION__, nand_fw_desc_table_start, sizeof(fw_desc_table_v1_t), fw_desc_table_base);
-
-		return RTK_PLAT_ERR_PARSE_FW_DESC;
+		printf("---------------LOAD  GOLD  FW  TABLE ---------------\n");
+		nand_fw_desc_table_start += mtd->erasesize;
 	}
 	else
 	{
-		memcpy(&fw_desc_table_v1, (void*)fw_desc_table_base, sizeof(fw_desc_table_v1_t));
+		printf("---------------LOAD  NORMAL FW  TABLE ---------------\n");
 	}
 
+	ret = rtk_plat_parse_fwdesc(&fwdesc_args, nand_fw_desc_table_start, rtknand_read);
 
-	/* Check signature first! */
-	if(strncmp((const char *)fw_desc_table_v1.signature,
-			FIRMWARE_DESCRIPTION_TABLE_SIGNATURE,
-			sizeof(fw_desc_table_v1.signature)) != 0) {
+	if (RTK_PLAT_ERR_OK != ret)
+		return ret;
 
-		printf("[ERR] %s:Signature(%s) error!\n", __FUNCTION__, fw_desc_table_v1.signature);
-		return RTK_PLAT_ERR_PARSE_FW_DESC;
-	}
-
-	fw_desc_table_v1.checksum = BE32_TO_CPU(fw_desc_table_v1.checksum);
-	fw_desc_table_v1.paddings = BE32_TO_CPU(fw_desc_table_v1.paddings);
-	fw_desc_table_v1.part_list_len = BE32_TO_CPU(fw_desc_table_v1.part_list_len);
-	fw_desc_table_v1.fw_list_len = BE32_TO_CPU(fw_desc_table_v1.fw_list_len);
-
-
-#ifdef DUBUG_FW_DESC_TABLE
-	dump_fw_desc_table_v1(&fw_desc_table_v1);
-#endif
-
-
-	/* copy Firmware Description/Partition/Fw_entry Tables from flash */
-	rwsize= mtd->oobblock;
-	if (nand_read_skip_bad(mtd,nand_fw_desc_table_start,&rwsize, (uint *)fw_desc_table_base)!=0)
-	{
-		printf("[ERR] %s:Read all fw tables error! (0x%x, 0x%x, 0x%x)\n",
-			__FUNCTION__, nand_fw_desc_table_start, fw_desc_table_v1.paddings, fw_desc_table_base);
-
-		return RTK_PLAT_ERR_PARSE_FW_DESC;
-	}
-
-	/* Check checksum */
-	checksum = get_checksum((uchar*)fw_desc_table_base +
-			offsetof(fw_desc_table_v1_t, version),
-			sizeof(fw_desc_table_v1_t) -
-			offsetof(fw_desc_table_v1_t, version) +
-			fw_desc_table_v1.part_list_len +
-			fw_desc_table_v1.fw_list_len);
-
-	if(fw_desc_table_v1.checksum != checksum) {
-		printf("Checksum not match(0x%x != 0x%x), Entering rescue linux...\n",
-			fw_desc_table_v1.checksum, checksum);
-
-		return RTK_PLAT_ERR_PARSE_FW_DESC;
-
-	}
-
-	if(fw_desc_table_v1.part_list_len == 0) {
-		printf("[ERR] %s:No partition found!\n", __FUNCTION__);
-
-		return RTK_PLAT_ERR_PARSE_FW_DESC;
-
-	} else {
-		part_count = fw_desc_table_v1.part_list_len /
-					sizeof(part_desc_entry_v1_t);
-	}
-
-	part_entry = (part_desc_entry_v1_t *)(fw_desc_table_base + sizeof(fw_desc_table_v1_t));
-	fw_entry = (fw_desc_entry_v1_t *)(fw_desc_table_base +
-			sizeof(fw_desc_table_v1_t) +
-			fw_desc_table_v1.part_list_len);
-
-	for(i = 0; i < part_count; i++) {
-		part_entry[i].length = BE64_TO_CPU(part_entry[i].length);
-#ifdef DUBUG_FW_DESC_TABLE
-		dump_part_desc_entry_v1(&(part_entry[i]));
-#endif
-	}
-	if(part_entry[0].type != PART_TYPE_FW) {
-		printf("[ERR] %s:No firmware partition found!\n", __FUNCTION__);
-		return RTK_PLAT_ERR_PARSE_FW_DESC;
-
-	}
-
-	fw_total_len = 0;
-	fw_total_paddings = 0;
-
-	switch (fw_desc_table_v1.version) {
-		case FW_DESC_TABLE_V1_T_VERSION_1:
-			for(i = 0; i < part_entry[0].fw_count; i++) {
-				fw_entry[i].offset = BE32_TO_CPU(fw_entry[i].offset);
-				fw_entry[i].length = BE32_TO_CPU(fw_entry[i].length);
-				fw_entry[i].paddings = BE32_TO_CPU(fw_entry[i].paddings);
-				//printf("[DEBUG_MSG] fw_entry[%d] offset = 0x%x length = 0x%x (paddings = 0x%x)\n",
-				//		i, fw_entry[i].offset, fw_entry[i].length, fw_entry[i].paddings);
-				fw_total_len += fw_entry[i].length;
-				fw_total_paddings += fw_entry[i].paddings;
-			}
-
-			fw_entry_num = fw_desc_table_v1.fw_list_len / sizeof(fw_desc_entry_v1_t);
-			break;
-
-		case FW_DESC_TABLE_V1_T_VERSION_11:
-			fw_entry_v11 = (fw_desc_entry_v11_t*)fw_entry;
-			for(i = 0; i < part_entry[0].fw_count; i++) {
-				fw_entry_v1 = &fw_entry_v11[i].v1;
-				fw_entry_v1->offset = BE32_TO_CPU(fw_entry_v1->offset);
-				fw_entry_v1->length = BE32_TO_CPU(fw_entry_v1->length);
-				fw_entry_v1->paddings = BE32_TO_CPU(fw_entry_v1->paddings);
-				printf("[DEBUG_MSG] fw_entry[%d] offset = 0x%x length = 0x%x (paddings = 0x%x) act_size = %d part_num = %d\n",
-					i, fw_entry_v1->offset, fw_entry_v1->length, fw_entry_v1->paddings, fw_entry_v11[i].act_size, fw_entry_v11[i].part_num);
-
-				fw_total_len += fw_entry_v1->length;
-				fw_total_paddings += fw_entry_v1->paddings;
-			}
-
-			fw_entry_num = fw_desc_table_v1.fw_list_len / sizeof(fw_desc_entry_v11_t);
-			break;
-
-		case FW_DESC_TABLE_V1_T_VERSION_21:
-				fw_entry_v21 = (fw_desc_entry_v21_t*)fw_entry;
-				for(i = 0; i < part_entry[0].fw_count; i++) {
-					fw_entry_v1 = &fw_entry_v21[i].v1;
-					fw_entry_v1->offset = BE32_TO_CPU(fw_entry_v1->offset);
-					fw_entry_v1->length = BE32_TO_CPU(fw_entry_v1->length);
-					fw_entry_v1->paddings = BE32_TO_CPU(fw_entry_v1->paddings);
-					printf("[DEBUG_MSG] fw_entry[%d] offset = 0x%x length = 0x%x (paddings = 0x%x) act_size = %d part_num = %d\n",
-						i, fw_entry_v1->offset, fw_entry_v1->length, fw_entry_v1->paddings, fw_entry_v21[i].act_size, fw_entry_v21[i].part_num);
-
-					fw_total_len += fw_entry_v1->length;
-					fw_total_paddings += fw_entry_v1->paddings;
-				}
-
-				fw_entry_num = fw_desc_table_v1.fw_list_len / sizeof(fw_desc_entry_v21_t);
-				break;
-
-			default:
-				printf("unknown version:%d\n", fw_desc_table_v1.version);
-
-				return RTK_PLAT_ERR_PARSE_FW_DESC;
-
-		}
-
-		memset(empty_mount, 0, sizeof(empty_mount));
-		/* convert endian? */
-		for(i = 0; i < part_count; i++) {
-			part_entry[i].length =BE64_TO_CPU(part_entry[i].length);
-			size=(part_entry[i].length >> 10);
-
-			memset(buf, 0, sizeof(buf));
-			memset(tmp, 0, sizeof(tmp));
-			sprintn(size,10,tmp);
-
-			if (memcmp(empty_mount, part_entry[i].mount_point, sizeof(empty_mount)) != 0) {
-				sprintf(buf, "%sk(%s%s",tmp, part_entry[i].mount_point,i == part_count-1? ")" :"),");
-			}
-			else {
-				sprintf(buf, "%s%s",tmp,i == part_count-1? "k" :"k,");
-			}
-			//printf("buf=%s\n",buf);
-			tmp_cmdline = (char *)malloc(strlen(getenv("mtd_part")) + 60);
-			if (!tmp_cmdline) {
-				printf("%s: Malloc failed\n", __func__);
-			}
-			else {
-				sprintf(tmp_cmdline, "%s%s", getenv("mtd_part"),buf);
-				setenv("mtd_part", tmp_cmdline);
-				free(tmp_cmdline);
-			}
-			//printf(">%s\n",getenv("mtd_part"));
-		}
-
-		switch (fw_desc_table_v1.version) {
-			case FW_DESC_TABLE_V1_T_VERSION_1:
-				for(i = 0; i < part_entry[0].fw_count; i++) {
-					fw_entry[i].version = BE32_TO_CPU(fw_entry[i].version);
-					fw_entry[i].target_addr = BE32_TO_CPU(fw_entry[i].target_addr);
-					fw_entry[i].offset =(BE32_TO_CPU(fw_entry[i].offset) - nand_fw_desc_table_start);
-					fw_entry[i].length = BE32_TO_CPU(fw_entry[i].length);
-					fw_entry[i].paddings = BE32_TO_CPU(fw_entry[i].paddings);
-					fw_entry[i].checksum = BE32_TO_CPU(fw_entry[i].checksum);
-				}
-				break;
-
-			case FW_DESC_TABLE_V1_T_VERSION_11:
-				fw_entry_v11 = (fw_desc_entry_v11_t*)fw_entry;
-				for(i = 0; i < part_entry[0].fw_count; i++) {
-					fw_entry_v1 = &fw_entry_v11[i].v1;
-					fw_entry_v1->version = BE32_TO_CPU(fw_entry_v1->version);
-					fw_entry_v1->target_addr = BE32_TO_CPU(fw_entry_v1->target_addr);
-					fw_entry_v1->offset = (BE32_TO_CPU(fw_entry_v1->offset) - nand_fw_desc_table_start);
-					fw_entry_v1->length = BE32_TO_CPU(fw_entry_v1->length);
-					fw_entry_v1->paddings = BE32_TO_CPU(fw_entry_v1->paddings);
-					fw_entry_v1->checksum = BE32_TO_CPU(fw_entry_v1->checksum);
-				}
-				break;
-
-			case FW_DESC_TABLE_V1_T_VERSION_21:
-				fw_entry_v21 = (fw_desc_entry_v21_t*)fw_entry;
-				for(i = 0; i < part_entry[0].fw_count; i++) {
-					fw_entry_v1 = &fw_entry_v21[i].v1;
-					fw_entry_v1->version = BE32_TO_CPU(fw_entry_v1->version);
-					fw_entry_v1->target_addr = BE32_TO_CPU(fw_entry_v1->target_addr);
-					fw_entry_v1->offset = (BE32_TO_CPU(fw_entry_v1->offset) - nand_fw_desc_table_start);
-					fw_entry_v1->length = BE32_TO_CPU(fw_entry_v1->length);
-					fw_entry_v1->paddings = BE32_TO_CPU(fw_entry_v1->paddings);
-					fw_entry_v1->checksum = BE32_TO_CPU(fw_entry_v1->checksum);
-				}
-				break;
-
-			default:
-				printf("unknown version:%d\n", fw_desc_table_v1.version);
-
-				return RTK_PLAT_ERR_PARSE_FW_DESC;
-
-		}
-
-		ret = rtk_plat_read_fw_image_from_NAND(
-				fw_desc_table_base, part_entry, part_count,
-				fw_entry, fw_entry_num,
-				fw_desc_table_v1.version);
+	printf("Normal boot fw follow...\n");
+	ret = rtk_plat_read_fw_image_from_NAND(
+		fwdesc_args.fw_desc_table_base, fwdesc_args.part_entry,
+		fwdesc_args.part_count, fwdesc_args.fw_entry,
+		fwdesc_args.fw_entry_num, fwdesc_args.version);
 #endif
 
 	return ret;
@@ -4295,7 +4102,7 @@ int rtk_plat_prepare_fw_image_from_SPI(void)
 	flush_dcache_all();
 
 	if (boot_from_flash == BOOT_FROM_FLASH_NORMAL_MODE) {
-		if (!audio_fw_state) do_go_audio_fw();
+		do_go_audio_fw();
 	}
 #endif
 
@@ -4529,7 +4336,9 @@ int rtk_plat_prepare_fw_image_from_SATA(void)
 //#define DEBUG_SKIP_BOOT_ALL
 //#define DEBUG_SKIP_BOOT_LINUX
 //#define DEBUG_SKIP_BOOT_AV
-
+#ifdef CONFIG_SYS_RTK_NAND_FLASH
+extern int rtk_plat_boot_prep_partition(void);
+#endif
 #if (defined(CONFIG_RTD1295) || defined(CONFIG_RTD1395)) && defined(NAS_ENABLE)
 extern int rtk_plat_boot_prep_nas_partition(void);
 #endif
@@ -4594,6 +4403,9 @@ static int rtk_call_booti(void)
 			debug("%s,",booti_argv[j]);
 	debug("}\n");
 
+#ifdef CONFIG_SYS_RTK_NAND_FLASH
+	rtk_plat_boot_prep_partition();
+#endif
 #if (defined(CONFIG_RTD1295) || defined(CONFIG_RTD1395)) && defined(NAS_ENABLE)
 	rtk_plat_boot_prep_nas_partition();
 #endif
@@ -4709,7 +4521,7 @@ int rtk_plat_set_fw(void)
 	if (boot_from_flash == BOOT_FROM_FLASH_NORMAL_MODE)
 	{
 		if (ret == RTK_PLAT_ERR_OK)
-		if(!accelerate_state)
+		if(!accelerate_state && !audio_fw_state)
 		{
 			/* Enable ACPU */
 			if (ipc_shm.audio_fw_entry_pt != 0){

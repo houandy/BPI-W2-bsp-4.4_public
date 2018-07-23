@@ -7,7 +7,7 @@ Board_CPU =                 RTD1395
 ##Board_Chip_Rev =          [1395]
 Board_Chip_Rev =            1395
 
-Board_HWSETTING =          RTD1395_hwsetting_BOOT_2DDR4_8Gb_s1600
+Board_HWSETTING =          RTD1395_hwsetting_BOOT_2DDR4_8Gb_s2133
 
 
 # ********************************************************************
@@ -71,11 +71,11 @@ Config_Uboot_Sim_Mode =  FALSE
 # ********************************************************************
 ##Config_FSBL = [TRUE | FALSE]
 Config_FSBL = TRUE
-Config_FSBL_File_Name = fsbl-loader-rescue-00.00.bin
+Config_FSBL_File_Name = fsbl-loader-rescue-00.00.bin.enc
 Config_FSBL_OS = FALSE
-Config_FSBL_OS_File_Name = fsbl-os-00.00.bin
+Config_FSBL_OS_File_Name = fsbl-os-00.00.bin.enc
 Config_BL31 = FALSE
-Config_BL31_File_Name = bl31.bin
+Config_BL31_File_Name = bl31.bin.enc
 Config_Boot1_Rescue = TRUE
 # ********************************************************************
 # Boot parameters
