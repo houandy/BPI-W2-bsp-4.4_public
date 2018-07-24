@@ -9,6 +9,7 @@ dtb-$(CONFIG_ARCH_RTD129X) += rtd-1295-giraffe-2GB-MM.dtb
 dtb-$(CONFIG_ARCH_RTD129X) += rtd-1296-saola-2GB-MM.dtb
 dtb-$(CONFIG_ARCH_RTD129X) += rtd-1296-saola-4GB-MM.dtb
 dtb-$(CONFIG_ARCH_RTD129X) += rtd-1296-saola-2GB-HDMI.dtb
+dtb-$(CONFIG_ARCH_RTD129X) += rtd-1296-bananapi-w2-2GB-HDMI.dtb
 dtb-$(CONFIG_ARCH_RTD129X) += rtd-1296-saola-4GB-HDMI.dtb
 dtb-$(CONFIG_ARCH_RTD129X) += rtd-1295-giraffe-2GB-HDMI.dtb
 
