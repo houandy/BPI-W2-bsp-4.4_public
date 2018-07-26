@@ -172,7 +172,8 @@ int _rtk_lockapi_trylock( unsigned long * pflags, char * log_msg )
 	return LOCKAPI_NO_ERR;
 #endif
 }
-EXPORT_SYMBOL_GPL(_rtk_lockapi_trylock);
+//EXPORT_SYMBOL_GPL(_rtk_lockapi_trylock);
+EXPORT_SYMBOL(_rtk_lockapi_trylock);
 
 /*
  * Input 1: please use __FUNCTION__ or others readable log mesage
@@ -214,7 +215,8 @@ int _rtk_lockapi_lock( unsigned long * pflags, char * log_msg )
 	return LOCKAPI_NO_ERR;
 #endif
 }
-EXPORT_SYMBOL_GPL(_rtk_lockapi_lock);
+//EXPORT_SYMBOL_GPL(_rtk_lockapi_lock);
+EXPORT_SYMBOL(_rtk_lockapi_lock);
 
 /*
  * Input 1: please use __FUNCTION__ or others readable log mesage
@@ -262,7 +264,8 @@ int _rtk_lockapi_unlock( unsigned long flags, char * log_msg )
 	return LOCKAPI_NO_ERR;
 #endif
 }
-EXPORT_SYMBOL_GPL(_rtk_lockapi_unlock);
+//EXPORT_SYMBOL_GPL(_rtk_lockapi_unlock);
+EXPORT_SYMBOL(_rtk_lockapi_unlock);
 
 /*
  *
@@ -306,7 +309,8 @@ int _rtk_lockapi_trylock2( unsigned long * pflags, char * log_msg )
 	return LOCKAPI_NO_ERR;
 #endif
 }
-EXPORT_SYMBOL_GPL(_rtk_lockapi_trylock2);
+//EXPORT_SYMBOL_GPL(_rtk_lockapi_trylock2);
+EXPORT_SYMBOL(_rtk_lockapi_trylock2);
 
 /*
  * Input 1: please use __FUNCTION__ or others readable log mesage
@@ -349,7 +353,8 @@ int _rtk_lockapi_lock2( unsigned long * pflags, char * log_msg )
 	return LOCKAPI_NO_ERR;
 #endif
 }
-EXPORT_SYMBOL_GPL(_rtk_lockapi_lock2);
+//EXPORT_SYMBOL_GPL(_rtk_lockapi_lock2);
+EXPORT_SYMBOL(_rtk_lockapi_lock2);
 
 /*
  * Input 1: please use __FUNCTION__ or others readable log mesage
@@ -398,7 +403,8 @@ int _rtk_lockapi_unlock2( unsigned long flags, char * log_msg )
 	return LOCKAPI_NO_ERR;
 #endif
 }
-EXPORT_SYMBOL_GPL(_rtk_lockapi_unlock2);
+//EXPORT_SYMBOL_GPL(_rtk_lockapi_unlock2);
+EXPORT_SYMBOL(_rtk_lockapi_unlock2);
 
 /*
  *
@@ -442,7 +448,8 @@ int _rtk_lockapi_trylock3( unsigned long * pflags, char * log_msg, int log_line 
 	return LOCKAPI_NO_ERR;
 #endif
 }
-EXPORT_SYMBOL_GPL(_rtk_lockapi_trylock3);
+//EXPORT_SYMBOL_GPL(_rtk_lockapi_trylock3);
+EXPORT_SYMBOL(_rtk_lockapi_trylock3);
 
 /*
  * Input 1: please use __FUNCTION__ or others readable log mesage
@@ -484,7 +491,8 @@ int _rtk_lockapi_lock3( unsigned long * pflags, char * log_msg, int log_line )
 	return LOCKAPI_NO_ERR;
 #endif
 }
-EXPORT_SYMBOL_GPL(_rtk_lockapi_lock3);
+//EXPORT_SYMBOL_GPL(_rtk_lockapi_lock3);
+EXPORT_SYMBOL(_rtk_lockapi_lock3);
 
 /*
  * Input 1: please use __FUNCTION__ or others readable log mesage
@@ -532,7 +540,8 @@ int _rtk_lockapi_unlock3( unsigned long flags, char * log_msg, int log_line )
 	return LOCKAPI_NO_ERR;
 #endif
 }
-EXPORT_SYMBOL_GPL(_rtk_lockapi_unlock3);
+//EXPORT_SYMBOL_GPL(_rtk_lockapi_unlock3);
+EXPORT_SYMBOL(_rtk_lockapi_unlock3);
 
 /*
  *
@@ -605,7 +614,8 @@ void lockapi_show_status( void )
 	printk(KERN_ERR "****** Lock api is not enabled\n");
 #endif
 }
-EXPORT_SYMBOL_GPL(lockapi_show_status);
+//EXPORT_SYMBOL_GPL(lockapi_show_status);
+EXPORT_SYMBOL(lockapi_show_status);
 
 /*
  * any read request will free coherent memory, eg.

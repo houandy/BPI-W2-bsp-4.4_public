@@ -45,12 +45,12 @@
 #ifdef MMC_DBG
 static unsigned sd_reg = 0;
 #endif
-extern volatile int g_bTuning;
+volatile int g_bTuning;
 extern u32 rtkemmc_global_blkcnt;
-extern u32 rtkemmc_global_blksize;
-extern u32 rtkemmc_global_bytecnt;
-extern u32 rtkemmc_global_dbaddr;
-extern int cmd_resend;
+u32 rtkemmc_global_blksize;
+u32 rtkemmc_global_bytecnt;
+u32 rtkemmc_global_dbaddr;
+int cmd_resend;
 DECLARE_COMPLETION(rtk_emmc_wait);
 
 void sync(struct rtkemmc_host *emmc_port)
@@ -548,7 +548,7 @@ void print_reg_sts(u32 cmd_idx, u32 rintsts)
 	printk(KERN_ERR "=====================================================\n");
 }
 
-extern unsigned int* gddr_descriptor;
+unsigned int* gddr_descriptor;
 void print_ip_desc(struct rtkemmc_host *emmc_port){
 	unsigned int reg = 0;
 	unsigned int bytecnt = 0, desc_cnt = 0, i = 0;
@@ -685,3 +685,9 @@ void rtkemmc_chk_param(u32 *pparam, u32 len, u8 *ptr)
     	}
 }
 EXPORT_SYMBOL_GPL(rtkemmc_chk_param);
+EXPORT_SYMBOL(rtkemmc_global_blksize);
+EXPORT_SYMBOL(rtkemmc_global_bytecnt);
+EXPORT_SYMBOL(rtkemmc_global_dbaddr);
+EXPORT_SYMBOL(cmd_resend);
+EXPORT_SYMBOL(g_bTuning);
+EXPORT_SYMBOL(gddr_descriptor);

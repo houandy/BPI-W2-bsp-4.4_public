@@ -44,7 +44,7 @@
 #include "rtk-sdmmc.h"
 
 #define DRIVER_NAME    "rtk-sdmmc"
-#define BANNER      "Realtek SD/MMC Host Driver"
+#define BANNER      "Realtek SD/MMC Host Driver(BPI)"
 
 #define SD_ALLOC_LENGTH    2048
 #define MAX_PHASE    31

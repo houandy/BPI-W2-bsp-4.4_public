@@ -247,13 +247,13 @@ static void mmc_select_card_type(struct mmc_card *card)
 	printk(KERN_INFO "card->mmc_avail_type = 0x%08x \n", card->mmc_avail_type);
 }
 
-#ifdef CONFIG_MMC_RTK_EMMC
+//#ifdef CONFIG_MMC_RTK_EMMC
 void rtkemmc_select_card_type(struct mmc_card *card)
 {
         mmc_select_card_type(card);
 }
 EXPORT_SYMBOL(rtkemmc_select_card_type);
-#endif
+//#endif
 
 static void mmc_manage_enhanced_area(struct mmc_card *card, u8 *ext_csd)
 {
@@ -1410,13 +1410,13 @@ bus_speed:
 	return err;
 }
 
-#ifdef CONFIG_MMC_RTK_EMMC
+//#ifdef CONFIG_MMC_RTK_EMMC
 int rtkemmc_select_timing(struct mmc_card *card)
 {
         mmc_select_timing(card);
 }
 EXPORT_SYMBOL(rtkemmc_select_timing);
-#endif
+//#endif
 
 /*
  * Execute tuning sequence to seek the proper bus operating

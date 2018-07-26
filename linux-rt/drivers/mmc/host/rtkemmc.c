@@ -90,14 +90,14 @@ struct mmc_host * mmc_host_local = NULL;
 static u32 rtk_emmc_bus_wid = 0;
 static volatile struct backupRegs gRegTbl;
 static volatile int g_bResuming;
-volatile int g_bTuning;
+extern volatile int g_bTuning;
 static int bSendCmd0=0;
 volatile unsigned int gCurrentBootMode=MODE_SDR;
 volatile unsigned int gPreventRetry=0;
 static volatile unsigned int  g_crinit=0;
 static struct rw_semaphore cr_rw_sem;
 //ip descriptor on ddr
-unsigned int* gddr_descriptor=NULL;
+extern unsigned int* gddr_descriptor=NULL;
 static unsigned int* gddr_descriptor_org=NULL;
 //internal emmc dma buffer on ddr
 static unsigned char* gddr_dma=NULL;
@@ -105,9 +105,9 @@ static unsigned char* gddr_dma_org=NULL;
 
 volatile void __iomem  *sb2_debug;   
 
-u32 rtkemmc_global_blksize;
-u32 rtkemmc_global_bytecnt;
-u32 rtkemmc_global_dbaddr;
+extern u32 rtkemmc_global_blksize;
+extern u32 rtkemmc_global_bytecnt;
+extern u32 rtkemmc_global_dbaddr;
 
 
 #ifdef BL31_TSP_TEST
@@ -126,7 +126,7 @@ static u32 pddrive_nf_s2[5] = {0};
 struct clk * clk_en_emmc;
 struct clk * clk_en_emmc_ip;
 
-int cmd_resend=0;
+extern int cmd_resend=0;
 static void rtkemmc_request(struct mmc_host *host, struct mmc_request *mrq);
 static int rtkemmc_get_ro(struct mmc_host *mmc);
 static void rtkemmc_set_ios(struct mmc_host *host, struct mmc_ios *ios);
@@ -146,8 +146,13 @@ static int rtkemmc_execute_tuning(struct mmc_host *host, u32 opcode);
 static int rtkemmc_prepare_hs400_tuning(struct mmc_host *host, struct mmc_ios *ios);
 void phase(struct rtkemmc_host *emmc_port, u32 VP0, u32 VP1);
 
+#ifdef BPI
 int rtkemmc_select_timing(struct mmc_card *card);
 void rtkemmc_select_card_type(struct mmc_card *card);
+#else
+extern int rtkemmc_select_timing(struct mmc_card *card);
+extern void rtkemmc_select_card_type(struct mmc_card *card);
+#endif
 
 typedef void (*set_gpio_func_t)(u32 gpio_num,u8 dir,u8 level);
 

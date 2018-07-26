@@ -81,10 +81,10 @@ ifeq ($(CONFIG_CB710_DEBUG),y)
 	CFLAGS-cb710-mmc	+= -DDEBUG
 endif
 
-obj-$(CONFIG_MMC_RTK_EMMC)             += rtkemmc.o
-obj-$(CONFIG_MMC_RTK_EMMC)             += rtkemmc_ops.o
+#obj-$(CONFIG_MMC_RTK_EMMC)             += rtkemmc.o
+#obj-$(CONFIG_MMC_RTK_EMMC)             += rtkemmc_ops.o
 
 obj-$(CONFIG_MMC_RTK_SDMMC)		+= rtk-sdmmc.o
 obj-y					+= sdmmc_export.o
-#obj-$(CONFIG_MMC_RTK_EMMC)		+= rtkemmc.o
-#obj-$(CONFIG_MMC_RTK_EMMC)		+= rtkemmc_ops.o
+obj-$(CONFIG_MMC_RTK_EMMC)		+= rtkemmc.o
+obj-$(CONFIG_MMC_RTK_EMMC)		+= rtkemmc_ops.o
