@@ -2939,11 +2939,6 @@ static int rtk_sdmmc_probe(struct platform_device *pdev)
 #endif
     
 	rtk_sdmmc_show_version();
-#ifdef BPI
-#else
-	printk("BPI: reset rtk_sdmmc ...\n");
-	reset_control_assert(rstc_cr);
-#endif
     do_stop_command_wo_complete = 0; // probe stage
     wait_stop_command_irq_done = 0; // probe stage
  
@@ -2984,6 +2979,10 @@ static int rtk_sdmmc_probe(struct platform_device *pdev)
     rtk_host->dev = &pdev->dev;
     rtk_host->ops = &sdmmc_ops;
 
+#ifdef BPI
+#else
+    printk("BPI: reset rtk_sdmmc with rtk_sdmmc_hw_initial() ...\n");
+#endif
     rtk_sdmmc_hw_initial(rtk_host);
     
     spin_lock_init(&rtk_host->lock);
