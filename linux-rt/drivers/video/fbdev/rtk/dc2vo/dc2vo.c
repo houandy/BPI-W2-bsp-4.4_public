@@ -1209,7 +1209,8 @@ static int dc_prepare_framebuffer(DC_INFO *pdc_info, struct dc_buffer *buffer)
                             + fb->var.xoffset *  (fb->var.bits_per_pixel / 8);
 
     buffer->stride      = fb->fix.line_length;
-    //buffer->format      = (pdc_info->flags & BG_SWAP)? INBAND_CMD_GRAPHIC_FORMAT_RGBA8888 : INBAND_CMD_GRAPHIC_FORMAT_ARGB8888_LITTLE;
+    buffer->format      = (pdc_info->flags & BG_SWAP)? INBAND_CMD_GRAPHIC_FORMAT_RGBA8888 : INBAND_CMD_GRAPHIC_FORMAT_ARGB8888_LITTLE;
+    iprintk("BPI:[%s %d]\n", __func__, __LINE__);
 
     if (pdc_info->flags & CHANGE_RES && pdc_info->uiRes32Width > 0 && pdc_info->uiRes32Height > 0) {
         buffer->width   = pdc_info->uiRes32Width;
@@ -1237,7 +1238,8 @@ static int dc_prepare_framebuffer_target(DC_INFO *pdc_info, struct dc_buffer *bu
     bool bIsAFBC = (buffer->flags & eBuffer_AFBC_Enable)?true:false;
 
     buffer->stride      = fb->fix.line_length;
-    //buffer->format      = (pdc_info->flags & BG_SWAP)? INBAND_CMD_GRAPHIC_FORMAT_RGBA8888 : INBAND_CMD_GRAPHIC_FORMAT_ARGB8888_LITTLE;
+    buffer->format      = (pdc_info->flags & BG_SWAP)? INBAND_CMD_GRAPHIC_FORMAT_RGBA8888 : INBAND_CMD_GRAPHIC_FORMAT_ARGB8888_LITTLE;
+    iprintk("BPI:[%s %d]\n", __func__, __LINE__);
 
     if (!bIsAFBC && pdc_info->flags & CHANGE_RES && pdc_info->uiRes32Width > 0 && pdc_info->uiRes32Height > 0) {
         buffer->width   = pdc_info->uiRes32Width;
@@ -1280,6 +1282,8 @@ static int dc_prepare_user_buffer(DC_INFO *pdc_info, struct dc_buffer *buffer)
 
         if (buffer->flags & eBuffer_USE_GLOBAL_ALPHA)
             buffer->alpha       = pdc_info->gAlpha;
+        buffer->format      = INBAND_CMD_GRAPHIC_FORMAT_ARGB8888_LITTLE;
+        buffer->alpha       = 250;
     }
 
     if (pdc_info->CTX == -1)
@@ -1785,6 +1789,12 @@ int DC_Init(VENUSFB_MACH_INFO * video_info, struct fb_info *fbi, int irq)
             pdc_info->pfbi                  = fbi;
             pdc_info->vo_vsync_flag         = &ipc->vo_int_sync;
             pdc_info->irq                   = irq;
+#ifdef BPI
+#else
+            pdc_info->flags                 |= BG_SWAP;
+            pdc_info->gAlpha                = 250;
+    iprintk("BPI:[%s %d]\n", __func__, __LINE__);
+#endif
 
 #ifdef CONFIG_RTK_RPC
             gpdc_info = (DC_INFO*)video_info->dc_info;
