@@ -15,8 +15,6 @@
 #define STR(x) __STR(x)
 #endif
 
-#define CONFIG_CMD_RUN
-
 #define CONFIG_UBOOT_DEFAULT
 
 /* Display CPU and Board Info */
@@ -96,12 +94,16 @@
  * Environment setup
  */
 
-#define CONFIG_BOOTDELAY	0
+#define CONFIG_BOOTDELAY	3
 
 #define CONFIG_ENV_OVERWRITE
 
+/* BPI */
 #define CONFIG_BOOTCOMMAND \
-	"run set_sdbootargs && gosd;"			\
+	"run boot_normal;" \
+	"if test $? -ne 0; then "			\
+		"run set_sdbootargs && gosd;"		\
+	"fi;"						\
 	"if test $? -ne 0; then "			\
 		"run set_emmcbootargs && bootr; "	\
 	"fi;"
@@ -113,12 +115,28 @@
 #define CONFIG_FDT_LOADADDR	0x02100000      //reserved 64K
 #define CONFIG_BLUE_LOGO_LOADADDR 0x30000000
 #if 1 /*def CONFIG_NAS_ENABLE*/
-#define CONFIG_FW_LOADADDR	0x01b00000  //reserved 4M
+#define CONFIG_FW_LOADADDR	0x01b00000  //reserved 4M BPI kernel 4.4
 #else
-#define CONFIG_FW_LOADADDR	0x0f900000  //reserved 4M
+#define CONFIG_FW_LOADADDR	0x0f900000  //reserved 4M BPI kernel 4.9 / 4.1
 #endif
 
 #define CONFIG_EXTRA_ENV_SETTINGS                   \
+    "bpiver=1\0" \
+    "bpi=bananapi\0" \
+    "board=bpi-w2\0" \
+    "chip=RTD1296\0" \
+    "service=linux4.4\0" \
+    "scriptaddr=0x1500000\0" \
+    "device=sd\0" \
+    "partition=0:1\0" \
+    "kernel=uImage\0" \
+    "root=/dev/mmcblk0p2\0" \
+    "debug=7\0" \
+    "bootenv=uEnv.txt\0" \
+    "checksd=fatinfo ${device} 0:1\0" \
+    "loadbootenv=fatload ${device} ${partition} ${scriptaddr} ${bpi}/${board}/${service}/${bootenv} || fatload ${device} ${partition} ${scriptaddr} ${bootenv}\0" \
+    "boot_normal=if run checksd; then echo Boot from SD ; setenv partition 0:1; else echo Boot from eMMC ; mmc init 0 ; setenv partition 0:1 ; fi; if run loadbootenv; then echo Loaded environment from ${bootenv}; env import -t ${scriptaddr} ${filesize}; fi; run uenvcmd; fatload mmc 0:1 ${loadaddr} ${bpi}/${board}/${service}/${kernel}; bootr\0" \
+    "bootmenu_delay=30\0" \
    "kernel_loadaddr=0x03000000\0"                  \
    "fdt_loadaddr=0x02100000\0"                  \
    "fdt_high=0xffffffffffffffff\0"                  \
@@ -128,7 +146,7 @@
    "blue_logo_loadaddr="STR(CONFIG_BLUE_LOGO_LOADADDR)"\0"      \
    "mtd_part=mtdparts=rtk_nand:\0"                  \
 	"console_args=earlycon=uart8250,mmio32,0x98007800 fbcon=map:0 console=ttyS0,115200 loglevel=7\0" \
-	"sdroot_args=noinitrd rootwait root=/dev/mmcblk0p2 rw\0" \
+	"sdroot_args=board=bpi-w2 noinitrd rootwait root=/dev/mmcblk0p2 rw\0" \
 	"set_sdbootargs=setenv bootargs ${console_args} ${sdroot_args}\0" \
 	"emmcroot_args=root=/dev/mmcblk0p1 rootfstype=squashfs rootwait\0" \
 	"set_emmcbootargs=setenv bootargs ${console_args} ${emmcroot_args}\0" \
@@ -161,11 +179,12 @@
 
 #define CONFIG_SYS_LONGHELP		/* undef to save memory */
 #define CONFIG_SYS_HUSH_PARSER	/* use "hush" command parser */
+#define CONFIG_HUSH_PARSER
 #define CONFIG_SYS_CBSIZE		640
 
 /* Print Buffer Size */
 #define CONFIG_SYS_PBSIZE		(CONFIG_SYS_CBSIZE + sizeof(CONFIG_SYS_PROMPT) + 16)
-#define CONFIG_SYS_MAXARGS		16
+#define CONFIG_SYS_MAXARGS		32
 
 /* Boot Argument Buffer Size */
 #define CONFIG_SYS_BARGSIZE		(CONFIG_SYS_CBSIZE)
@@ -257,6 +276,17 @@
 	#define CONFIG_NETMASK				255.255.255.0
 #endif
 
+/* BPI */
+#define CONFIG_CMD_ECHO
+#define CONFIG_CMD_RUN
+#define CONFIG_CMD_IMPORTENV
+#define CONFIG_CMD_EXPORTENV
+#define CONFIG_EFI_PARTITION
+#define CONFIG_CMD_GPT
+#define CONFIG_PARTITION_UUIDS
+#define CONFIG_FS_EXT4
+#define CONFIG_CMD_EXT4
+
 /* USB Setting */
 #define CONFIG_CMD_FAT
 #define CONFIG_FAT_WRITE
@@ -337,7 +367,12 @@
 /* Auto detect sink*/
 #define CONFIG_SYS_AUTO_DETECT
 #define CONFIG_HDMITX_MODE				 1 // 0:Always OFF, 1: Always ON, 2: Auto
+/* drivers/logo_disp/rtk_rpc.h */
+#ifdef BPI
 #define CONFIG_DEFAULT_TV_SYSTEM    	25 //1080P_60
+#else
+#define CONFIG_DEFAULT_TV_SYSTEM    	13 //720P_60
+#endif
 
 /* If partition table */
 #ifndef CONFIG_PARTITIONS

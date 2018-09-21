@@ -39,13 +39,14 @@ R="${SD}/BPI-ROOT"
 	## copy files to BPI-BOOT
 	#
 	mkdir -p $B/bananapi/${board}
-	cp -a $T/${BPIPACK}/${BPISOC}/${TARGET_PRODUCT}/configs/default/linux $B/bananapi/${board}/
-	cp -a $T/${BPILINUX}/arch/arm64/boot/Image $B/bananapi/${board}/linux/Image
-	cp -a $T/${BPILINUX}/arch/arm64/boot/dts/realtek/*.dtb $B/bananapi/${board}/linux/dtb
+	cp -a $T/${BPIPACK}/${BPISOC}/${TARGET_PRODUCT}/configs/default/linux4.4 $B/bananapi/${board}/
+	cp -a $T/${BPILINUX}/arch/arm64/boot/Image $B/bananapi/${board}/linux4.4/uImage
+	cp -a $T/${BPILINUX}/arch/arm64/boot/dts/realtek/rtd129x/*.dtb $B/bananapi/${board}/linux4.4/dtb
+	cp -a $T/${BPILINUX}/arch/arm64/boot/dts/realtek/rtd129x/rtd-1296-bananapi-w2-2GB-HDMI.dtb $B/bananapi/${board}/linux4.4/bpi-w2.dtb
 	#BPI
-	cp -a $T/${BPILINUX}/arch/arm64/boot/Image $B/uImage
-	cp -a $T/${BPILINUX}/arch/arm64/boot/dts/realtek/rtd-1296-bananapi-w2-2GB-HDMI.dtb $B/bpi-w2.dtb
-	cp -a $T/${BPIPACK}/${BPISOC}/${TARGET_PRODUCT}/configs/default/linux/bluecore.audio $B/bluecore.audio
+	#cp -a $T/${BPILINUX}/arch/arm64/boot/Image $B/uImage
+	#cp -a $T/${BPILINUX}/arch/arm64/boot/dts/realtek/rtd-1296-bananapi-w2-2GB-HDMI.dtb $B/bpi-w2.dtb
+	#cp -a $T/${BPIPACK}/${BPISOC}/${TARGET_PRODUCT}/configs/default/linux/bluecore.audio $B/bluecore.audio
 
 	#
 	## copy files to BPI-ROOT

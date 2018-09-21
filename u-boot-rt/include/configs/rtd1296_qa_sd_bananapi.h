@@ -67,7 +67,7 @@
 	#define CONFIG_CMD_RTKGPT
 	#define CONFIG_CMD_RTKFDT
 
-	//#define CONFIG_WAIT_AFW_1_SECOND
+	#define CONFIG_WAIT_AFW_1_SECOND
 
 	/* ENV */
 	#undef CONFIG_ENV_SIZE
@@ -108,10 +108,10 @@
 
 /* Bootcode Feature: bootcmd: load bootcode from SD card */
 #define CONFIG_BOOT_FROM_SD
-#define CONFIG_BOOT_FROM_SD_DTB			"bpi-w2.dtb"
-#define CONFIG_BOOT_FROM_SD_ROOTFS		"root.sd.cpio.gz_pad.img"
-#define CONFIG_BOOT_FROM_SD_VMLINUX		"uImage"
-#define CONFIG_BOOT_FROM_SD_AUDIO_CORE	"bluecore.audio"
+#define CONFIG_BOOT_FROM_SD_DTB			"bananapi/bpi-w2/linux4.4/bpi-w2.dtb"
+#define CONFIG_BOOT_FROM_SD_ROOTFS		"bananapi/bpi-w2/linux4.4/root.sd.cpio.gz_pad.img"
+#define CONFIG_BOOT_FROM_SD_VMLINUX		"bananapi/bpi-w2/linux4.4/uImage"
+#define CONFIG_BOOT_FROM_SD_AUDIO_CORE	"bananapi/bpi-w2/linux4.4/bluecore.audio"
 
 /* Bootcode Feature: Rescue linux read from USB */
 #define CONFIG_RESCUE_FROM_USB
@@ -166,9 +166,12 @@
 #define CONFIG_SYS_TEXT_BASE		0x00100000
 #endif
 
+#ifdef BPI
 #undef CONFIG_BOOTCOMMAND
 #define CONFIG_BOOTCOMMAND \
 	"run set_sdbootargs && gosd;"
+#else
+#endif
 
 #endif /* __CONFIG_RTK_RTD1296_QA_SD_BANANAPI_H */
 
