@@ -254,7 +254,7 @@
 	#define CONFIG_SYS_TEXT_BASE		0x00020000
 #endif
 
-#define CONFIG_SYS_PROMPT       		"BPI-W2> "
+#define CONFIG_SYS_PROMPT       		"BPI-W2-k4.4> "
 
 /* Library support */
 #define CONFIG_LZMA

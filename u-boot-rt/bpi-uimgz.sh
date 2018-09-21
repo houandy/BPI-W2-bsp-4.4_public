@@ -9,7 +9,7 @@ fi
 echo ${BOARD}
 PADBIN=pad.bin
 UBOOTBIN=u-boot.bin
-UBOOTIMG=u-boot-2015.07-${BOARD}-2k.img
+UBOOTIMG=u-boot-2015.07-${BOARD}-linux4.4-2k.img
 if [ ! -f ${PADBIN} ] ; then
 	dd if=/dev/zero of=${PADBIN} bs=1k count=38
 fi
