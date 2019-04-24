@@ -5,7 +5,7 @@
 TARGET_PRODUCT="bpi-w2"
 ALL_SOC="bpi-w2"
 BOARD=BPI-W2-720P
-board="bpi-w2"
+board="bpi-w2-linux4.4"
 kernel="4.4.18-BPI-W2-Kernel"
 MODE=$1
 BPILINUX=linux-rt
